@@ -14,29 +14,19 @@ class SponsorsManagementScreen extends ConsumerWidget {
 
   static const List<Map<String, String>> _presetSponsors = [
     {
-      'name': 'Powerade',
-      'imageUrl': 'https://images.unsplash.com/photo-1560253023-3ec5d502959f?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-      'linkUrl': 'https://www.powerade.com',
-    },
-    {
-      'name': 'DirecTV Sports',
-      'imageUrl': 'https://images.unsplash.com/photo-1508847154043-be12a3b50a2e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-      'linkUrl': 'https://www.directv.com',
-    },
-    {
-      'name': 'Gatorade',
-      'imageUrl': 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-      'linkUrl': 'https://www.gatorade.com',
-    },
-    {
-      'name': 'Macro',
-      'imageUrl': 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+      'name': 'Banco Macro (Oficial)',
+      'imageUrl': 'assets/images/sponsor_macro.png',
       'linkUrl': 'https://www.macro.com.ar',
     },
     {
-      'name': 'Adidas',
-      'imageUrl': 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-      'linkUrl': 'https://www.adidas.com',
+      'name': 'Powerade (Hidratación)',
+      'imageUrl': 'assets/images/sponsor_powerade.png',
+      'linkUrl': 'https://www.powerade.com',
+    },
+    {
+      'name': 'Adidas (Indumentaria)',
+      'imageUrl': 'assets/images/sponsor_adidas.png',
+      'linkUrl': 'https://www.adidas.com.ar',
     },
   ];
 
@@ -85,10 +75,10 @@ class SponsorsManagementScreen extends ConsumerWidget {
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Ingresa la URL de la imagen';
+                            return 'Ingresa la URL o ruta del recurso';
                           }
-                          if (!value.startsWith('http')) {
-                            return 'Debe ser una URL válida';
+                          if (!value.startsWith('http') && !value.startsWith('assets/')) {
+                            return 'Debe ser una URL válida o ruta de asset (assets/)';
                           }
                           return null;
                         },
@@ -257,26 +247,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
                           topLeft: Radius.circular(AppSpacing.radiusMd),
                           bottomLeft: Radius.circular(AppSpacing.radiusMd),
                         ),
-                        child: CachedNetworkImage(
-                          imageUrl: sponsor['imageUrl'] ?? '',
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: AppColors.surfaceLight,
-                            child: const Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: AppColors.surfaceLight,
-                            child: const Icon(Icons.broken_image, size: 24),
-                          ),
-                        ),
+                        child: _buildSponsorImage(sponsor['imageUrl'] ?? ''),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -351,4 +322,35 @@ class SponsorsManagementScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+Widget _buildSponsorImage(String url) {
+  if (url.startsWith('assets/')) {
+    return Image.asset(
+      url,
+      width: 80,
+      height: 80,
+      fit: BoxFit.cover,
+    );
+  }
+  return CachedNetworkImage(
+    imageUrl: url,
+    width: 80,
+    height: 80,
+    fit: BoxFit.cover,
+    placeholder: (context, url) => Container(
+      color: AppColors.surfaceLight,
+      child: const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+    ),
+    errorWidget: (context, url, error) => Container(
+      color: AppColors.surfaceLight,
+      child: const Icon(Icons.broken_image, size: 24),
+    ),
+  );
 }

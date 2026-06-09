@@ -9,6 +9,8 @@ import '../../../../core/widgets/jn_button.dart';
 import '../../../../data/mock/mock_data.dart';
 import '../../../../core/providers/session_provider.dart';
 import 'sponsors_management_screen.dart';
+import '../../../player/presentation/screens/my_profile_screen.dart';
+import 'director_console_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   final VoidCallback onLogout;
@@ -91,6 +93,28 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
 
+          const SizedBox(height: 20),
+
+          // ─── Mi Cuenta Group ──────────────────────
+          Text('Mi Perfil', style: AppTypography.labelMedium),
+          const SizedBox(height: 8),
+          _SettingsGroup(
+            items: [
+              _SettingNav(
+                icon: Icons.person_outline,
+                label: 'Mi Cuenta y Ficha Médica',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MyProfileScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ).animate(delay: 120.ms).fadeIn(duration: 400.ms),
+
           const SizedBox(height: 24),
 
           // ─── Administration Group (Only for Secretarios and Directivos) ───
@@ -111,6 +135,19 @@ class SettingsScreen extends ConsumerWidget {
                     );
                   },
                 ),
+                if (user.isDirector)
+                  _SettingNav(
+                    icon: Icons.admin_panel_settings_outlined,
+                    label: 'Consola del Director',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DirectorConsoleScreen(),
+                        ),
+                      );
+                    },
+                  ),
               ],
             ).animate(delay: 150.ms).fadeIn(duration: 400.ms),
             const SizedBox(height: 20),

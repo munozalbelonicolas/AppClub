@@ -6,6 +6,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/auth_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final VoidCallback onLogin;
@@ -242,7 +243,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // Google sign in
               JNButton(
                 label: 'Continuar con Google',
-                onPressed: _handleLogin,
+                onPressed: () async {
+                  setState(() => _isLoading = true);
+                  final authService = ref.read(authServiceProvider);
+                  final session = await authService.signInWithGoogle(context, ref);
+                  setState(() => _isLoading = false);
+                  if (session != null) {
+                    widget.onLogin();
+                  }
+                },
                 variant: JNButtonVariant.outline,
                 fullWidth: true,
                 icon: Icons.g_mobiledata_rounded,

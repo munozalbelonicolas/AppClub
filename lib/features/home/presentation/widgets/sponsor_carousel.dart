@@ -96,21 +96,7 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
                               fit: StackFit.expand,
                               children: [
                                 // Sponsor Image
-                                CachedNetworkImage(
-                                  imageUrl: sponsor['imageUrl'] ?? '',
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => Shimmer.fromColors(
-                                    baseColor: AppColors.surfaceLight,
-                                    highlightColor: AppColors.surface,
-                                    child: Container(color: AppColors.surfaceLight),
-                                  ),
-                                  errorWidget: (context, url, error) => Container(
-                                    color: AppColors.surfaceLight,
-                                    child: const Center(
-                                      child: Icon(Icons.broken_image, size: 36, color: AppColors.textTertiary),
-                                    ),
-                                  ),
-                                ),
+                                _buildSponsorImage(sponsor['imageUrl'] ?? ''),
                                 // Gradient Overlay
                                 Container(
                                   decoration: BoxDecoration(
@@ -278,4 +264,28 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
       ),
     );
   }
+}
+
+Widget _buildSponsorImage(String url) {
+  if (url.startsWith('assets/')) {
+    return Image.asset(
+      url,
+      fit: BoxFit.cover,
+    );
+  }
+  return CachedNetworkImage(
+    imageUrl: url,
+    fit: BoxFit.cover,
+    placeholder: (context, url) => Shimmer.fromColors(
+      baseColor: AppColors.surfaceLight,
+      highlightColor: AppColors.surface,
+      child: Container(color: AppColors.surfaceLight),
+    ),
+    errorWidget: (context, url, error) => Container(
+      color: AppColors.surfaceLight,
+      child: const Center(
+        child: Icon(Icons.broken_image, size: 36, color: AppColors.textTertiary),
+      ),
+    ),
+  );
 }
