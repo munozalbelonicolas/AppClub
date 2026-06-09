@@ -32,14 +32,6 @@ class _SplashScreenState extends State<SplashScreen> {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primaryDark,
-                  ],
-                ),
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.primary.withValues(alpha: 0.4),
@@ -48,15 +40,10 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                 ],
               ),
-              child: Center(
-                child: Text(
-                  'JN',
-                  style: AppTypography.displayLarge.copyWith(
-                    color: Colors.white,
-                    fontSize: 48,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 2,
-                  ),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/app_logo.jpg',
+                  fit: BoxFit.cover,
                 ),
               ),
             )

@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/providers/session_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   final VoidCallback onLogin;
   const LoginScreen({super.key, required this.onLogin});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -32,6 +34,20 @@ class _LoginScreenState extends State<LoginScreen> {
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
         setState(() => _isLoading = false);
+        
+        // Map selected role to mock user session
+        String mockKey = _selectedRole;
+        if (_selectedRole == 'coordinador') {
+          mockKey = 'secretario';
+        } else if (_selectedRole == 'admin') {
+          mockKey = 'directivo';
+        }
+        
+        final session = SessionMocks.users[mockKey];
+        if (session != null) {
+          ref.read(currentUserProvider.notifier).state = session;
+        }
+        
         widget.onLogin();
       }
     });
@@ -56,7 +72,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 88,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: AppColors.primaryGradient,
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.primary.withValues(alpha: 0.3),
@@ -65,14 +80,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: Text(
-                      'JN',
-                      style: AppTypography.displayMedium.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2,
-                      ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/app_logo.jpg',
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),

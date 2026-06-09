@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/app_colors.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'app/app_shell.dart';
+import 'core/providers/session_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +29,11 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(const JorgeNewberyApp());
+  runApp(
+    const ProviderScope(
+      child: JorgeNewberyApp(),
+    ),
+  );
 }
 
 class JorgeNewberyApp extends StatelessWidget {
@@ -45,13 +51,13 @@ class JorgeNewberyApp extends StatelessWidget {
 }
 
 /// Controls app-level navigation: Splash → Login → Home
-class _AppNavigator extends StatefulWidget {
+class _AppNavigator extends ConsumerStatefulWidget {
   const _AppNavigator();
   @override
-  State<_AppNavigator> createState() => _AppNavigatorState();
+  ConsumerState<_AppNavigator> createState() => _AppNavigatorState();
 }
 
-class _AppNavigatorState extends State<_AppNavigator> {
+class _AppNavigatorState extends ConsumerState<_AppNavigator> {
   _AppScreen _currentScreen = _AppScreen.splash;
 
   void _goToLogin() {
@@ -63,6 +69,7 @@ class _AppNavigatorState extends State<_AppNavigator> {
   }
 
   void _goToSplashThenLogin() {
+    ref.read(currentUserProvider.notifier).state = null;
     setState(() => _currentScreen = _AppScreen.login);
   }
 

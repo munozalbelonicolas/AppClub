@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../data/mock/mock_data.dart';
+import '../../../../core/providers/session_provider.dart';
+import 'sponsors_management_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   final VoidCallback onLogout;
   const SettingsScreen({super.key, required this.onLogout});
 
   @override
-  Widget build(BuildContext context) {
-    final user = MockData.currentUser;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider) ?? SessionMocks.users['padre']!;
     final player = MockData.currentPlayer;
 
     return Scaffold(
@@ -28,19 +31,19 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               children: [
                 JNAvatar(
-                  name: '${user['name']} ${user['lastName']}',
+                  name: '${user.name} ${user.lastName}',
                   size: 72,
                   borderColor: AppColors.accent,
                   borderWidth: 3,
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  '${user['name']} ${user['lastName']}',
+                  '${user.name} ${user.lastName}',
                   style: AppTypography.headlineMedium,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  user['email'] as String,
+                  user.email,
                   style: AppTypography.bodyMedium,
                 ),
                 const SizedBox(height: 6),
@@ -51,7 +54,7 @@ class SettingsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    (user['role'] as String).toUpperCase(),
+                    user.role.toUpperCase(),
                     style: AppTypography.badge.copyWith(color: AppColors.accent),
                   ),
                 ),
@@ -89,6 +92,29 @@ class SettingsScreen extends StatelessWidget {
           ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
 
           const SizedBox(height: 24),
+
+          // ─── Administration Group (Only for Secretarios and Directivos) ───
+          if (user.isAdmin) ...[
+            Text('Administración del Club', style: AppTypography.labelMedium),
+            const SizedBox(height: 8),
+            _SettingsGroup(
+              items: [
+                _SettingNav(
+                  icon: Icons.business,
+                  label: 'Gestión de Sponsors',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SponsorsManagementScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ).animate(delay: 150.ms).fadeIn(duration: 400.ms),
+            const SizedBox(height: 20),
+          ],
 
           // ─── Settings Groups ──────────────────────
           Text('Notificaciones', style: AppTypography.labelMedium),
@@ -211,12 +237,13 @@ class _SettingToggleState extends State<_SettingToggle> {
 class _SettingNav extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _SettingNav({required this.icon, required this.label});
+  final VoidCallback? onTap;
+  const _SettingNav({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap ?? () {},
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         child: Row(
