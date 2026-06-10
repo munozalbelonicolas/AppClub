@@ -17,6 +17,7 @@ import '../../../../core/services/firestore_service.dart';
 import '../widgets/sponsor_carousel.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../../inbox/presentation/screens/inbox_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   final Function(int) onNavigate;
@@ -29,6 +30,43 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Set<String> _expandedPostIds = {};
   final Map<String, TextEditingController> _commentControllers = {};
+
+  Stream<int> _unreadMessagesCountStream(dynamic sessionUser) {
+    final db = FirebaseFirestore.instance;
+    if (sessionUser.isNormalUser) {
+      return db
+          .collection('inbox_threads')
+          .where('participants', arrayContains: sessionUser.id)
+          .snapshots()
+          .map((snap) => snap.docs
+              .where((doc) => (doc.data()['unreadByUser'] ?? false) == true)
+              .length);
+    } else {
+      return db
+          .collection('inbox_threads')
+          .snapshots()
+          .map((snap) {
+            var docs = snap.docs;
+            if (sessionUser.role == 'dt') {
+              final cat = (sessionUser.category ?? '').toLowerCase();
+              docs = docs.where((doc) {
+                final data = doc.data();
+                final categoriesMap = data['userCategories'] as Map<String, dynamic>? ?? {};
+                String otherUserId = '';
+                for (final pId in data['participants'] ?? []) {
+                  if (pId != sessionUser.id) {
+                    otherUserId = pId;
+                    break;
+                  }
+                }
+                final otherCategory = (categoriesMap[otherUserId] ?? '').toString().toLowerCase();
+                return otherCategory == cat;
+              }).toList();
+            }
+            return docs.where((doc) => (doc.data()['unreadByAdmin'] ?? false) == true).length;
+          });
+    }
+  }
 
   @override
   void dispose() {
@@ -314,8 +352,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ],
                       ),
                     ),
+                    StreamBuilder<int>(
+                      stream: _unreadMessagesCountStream(sessionUser),
+                      builder: (context, snapshot) {
+                        final count = snapshot.data ?? 0;
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.mail_outline, color: Colors.white, size: 26),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const InboxScreen()),
+                                );
+                              },
+                            ),
+                            if (count > 0)
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 16,
+                                    minHeight: 16,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '$count',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => widget.onNavigate(4), // settings
+                      onTap: () => widget.onNavigate(5), // settings (now index 5)
                       child: JNAvatar(
                         name: '${sessionUser.name} ${sessionUser.lastName}',
                         size: 44,
@@ -347,7 +432,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   venue: nextMatch['venue'] as String,
                   status: nextMatch['status'] as String,
                   isHero: true,
-                  onTap: () => widget.onNavigate(3),
+                  onTap: () => widget.onNavigate(4), // Results tab is index 4 now
                 ),
               ).animate(delay: 100.ms).fadeIn(duration: 500.ms).slideY(begin: 0.05),
             ),
@@ -369,19 +454,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
-                      icon: Icons.payment,
-                      label: 'Cuotas',
+                      icon: Icons.sports_soccer,
+                      label: 'Formación',
                       color: AppColors.accent,
-                      badge: '1',
+                      badge: null,
                       onTap: () => widget.onNavigate(2),
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
-                      icon: Icons.calendar_month,
-                      label: 'Calendario',
+                      icon: Icons.payment,
+                      label: 'Cuotas',
                       color: AppColors.info,
-                      badge: null,
-                      onTap: () => widget.onNavigate(1),
+                      badge: '1',
+                      onTap: () => widget.onNavigate(3),
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
@@ -389,7 +474,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       label: 'Noticias',
                       color: AppColors.primary,
                       badge: unreadAnnouncements > 0 ? '$unreadAnnouncements' : null,
-                      onTap: () => widget.onNavigate(2),
+                      onTap: () => widget.onNavigate(3),
                     ),
                   ],
                 ).animate(delay: 200.ms).fadeIn(duration: 500.ms),
@@ -403,7 +488,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: JNCard(
-                  onTap: () => widget.onNavigate(2),
+                  onTap: () => widget.onNavigate(3), // Noticias/payments tab is index 3 now
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [

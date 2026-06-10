@@ -11,6 +11,10 @@ import '../../../../core/providers/session_provider.dart';
 import 'sponsors_management_screen.dart';
 import '../../../player/presentation/screens/my_profile_screen.dart';
 import 'director_console_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_conditions_screen.dart';
+import 'support_form_screen.dart';
+import '../../../inbox/presentation/screens/inbox_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   final VoidCallback onLogout;
@@ -112,6 +116,18 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
+              _SettingNav(
+                icon: Icons.mail_outline,
+                label: 'Buzón de Mensajes (Inbox)',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const InboxScreen(),
+                    ),
+                  );
+                },
+              ),
             ],
           ).animate(delay: 120.ms).fadeIn(duration: 400.ms),
 
@@ -172,9 +188,42 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsGroup(
             items: [
               _SettingNav(icon: Icons.info_outline, label: 'Sobre el club'),
-              _SettingNav(icon: Icons.description_outlined, label: 'Términos y condiciones'),
-              _SettingNav(icon: Icons.shield_outlined, label: 'Política de privacidad'),
-              _SettingNav(icon: Icons.help_outline, label: 'Ayuda y soporte'),
+              _SettingNav(
+                icon: Icons.description_outlined,
+                label: 'Términos y condiciones',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TermsConditionsScreen(),
+                    ),
+                  );
+                },
+              ),
+              _SettingNav(
+                icon: Icons.shield_outlined,
+                label: 'Política de privacidad',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PrivacyPolicyScreen(),
+                    ),
+                  );
+                },
+              ),
+              _SettingNav(
+                icon: Icons.help_outline,
+                label: 'Ayuda y soporte',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SupportFormScreen(),
+                    ),
+                  );
+                },
+              ),
             ],
           ).animate(delay: 300.ms).fadeIn(duration: 400.ms),
 

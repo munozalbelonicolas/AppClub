@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../core/theme/app_colors.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/calendar/presentation/screens/calendar_screen.dart';
+import '../features/lineup/presentation/screens/lineup_screen.dart';
 import '../features/communications/presentation/screens/communications_screen.dart';
 import '../features/results/presentation/screens/results_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
@@ -33,14 +34,17 @@ class _AppShellState extends State<AppShell> {
       case 1: // Calendar tab
         _navigateTo(1);
         break;
-      case 2: // Payments/Communications tab
+      case 2: // Lineup (Formación) tab
         _navigateTo(2);
         break;
-      case 3: // Results tab
+      case 3: // Noticias tab
         _navigateTo(3);
         break;
-      case 4: // Settings
+      case 4: // Results tab
         _navigateTo(4);
+        break;
+      case 5: // Settings tab
+        _navigateTo(5);
         break;
       default:
         break;
@@ -71,10 +75,12 @@ class _AppShellState extends State<AppShell> {
       case 1:
         return const CalendarScreen(key: ValueKey('calendar'));
       case 2:
-        return const CommunicationsScreen(key: ValueKey('communications'));
+        return const LineupScreen(key: ValueKey('lineup'));
       case 3:
-        return const ResultsScreen(key: ValueKey('results'));
+        return const CommunicationsScreen(key: ValueKey('communications'));
       case 4:
+        return const ResultsScreen(key: ValueKey('results'));
+      case 5:
         return SettingsScreen(
           key: const ValueKey('settings'),
           onLogout: widget.onLogout,
@@ -115,26 +121,33 @@ class _AppShellState extends State<AppShell> {
                 onTap: () => _navigateTo(1),
               ),
               _NavItem(
+                icon: Icons.sports_soccer_outlined,
+                activeIcon: Icons.sports_soccer,
+                label: 'Formación',
+                isActive: _currentIndex == 2,
+                onTap: () => _navigateTo(2),
+              ),
+              _NavItem(
                 icon: Icons.campaign_outlined,
                 activeIcon: Icons.campaign,
                 label: 'Noticias',
-                isActive: _currentIndex == 2,
-                onTap: () => _navigateTo(2),
+                isActive: _currentIndex == 3,
+                onTap: () => _navigateTo(3),
                 badge: 1,
               ),
               _NavItem(
                 icon: Icons.emoji_events_outlined,
                 activeIcon: Icons.emoji_events,
                 label: 'Resultados',
-                isActive: _currentIndex == 3,
-                onTap: () => _navigateTo(3),
+                isActive: _currentIndex == 4,
+                onTap: () => _navigateTo(4),
               ),
               _NavItem(
                 icon: Icons.settings_outlined,
                 activeIcon: Icons.settings,
                 label: 'Más',
-                isActive: _currentIndex == 4,
-                onTap: () => _navigateTo(4),
+                isActive: _currentIndex == 5,
+                onTap: () => _navigateTo(5),
               ),
             ],
           ),

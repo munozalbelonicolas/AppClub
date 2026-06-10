@@ -1,0 +1,222 @@
+# POLÍTICA DE PRIVACIDAD – APPCLUB
+
+Última actualización: Junio 2026
+
+La presente Política de Privacidad describe cómo AppClub (en adelante, la “Plataforma” o la “Aplicación”) recopila, utiliza, almacena y protege la información de los usuarios.
+
+Al utilizar la Aplicación, el usuario acepta expresamente esta Política de Privacidad.
+
+---
+
+# 1. RESPONSABLE DEL TRATAMIENTO DE DATOS
+
+AppClub actúa como plataforma tecnológica destinada a facilitar la organización, comunicación y gestión administrativa y deportiva de instituciones deportivas.
+
+Contacto:
+
+* Email: [COMPLETAR]
+* Club/Entidad: [COMPLETAR]
+* Dirección: [COMPLETAR]
+
+---
+
+# 2. INFORMACIÓN QUE PODEMOS RECOPILAR
+
+La Plataforma podrá recopilar y almacenar información proporcionada por los usuarios, incluyendo:
+
+## Datos personales
+
+* nombre y apellido,
+* correo electrónico,
+* teléfono,
+* fecha de nacimiento,
+* categoría deportiva,
+* información de contacto,
+* datos de representantes legales,
+* y cualquier otra información ingresada voluntariamente.
+
+## Datos de uso
+
+* accesos,
+* actividad dentro de la app,
+* registros de asistencia,
+* interacciones,
+* dispositivo utilizado,
+* sistema operativo,
+* dirección IP,
+* y métricas de funcionamiento.
+
+## Información multimedia
+
+* fotografías,
+* imágenes,
+* videos,
+* contenido compartido dentro de la Plataforma.
+
+---
+
+# 3. FINALIDAD DEL USO DE LOS DATOS
+
+La información recopilada podrá utilizarse para:
+
+* gestionar usuarios,
+* administrar actividades deportivas,
+* coordinar entrenamientos y eventos,
+* facilitar comunicaciones internas,
+* registrar asistencia,
+* brindar soporte técnico,
+* mejorar el funcionamiento de la Plataforma,
+* realizar estadísticas internas,
+* enviar notificaciones,
+* y mantener la seguridad operativa del sistema.
+
+La Plataforma no comercializa datos personales.
+
+---
+
+# 4. MENORES DE EDAD
+
+La utilización de la Plataforma por menores de edad deberá contar con autorización de sus padres, madres o representantes legales.
+
+Los responsables legales:
+
+* autorizan el tratamiento de los datos del menor,
+* garantizan la veracidad de la información,
+* y asumen responsabilidad sobre el uso de la Plataforma por parte del menor.
+
+La Plataforma no realiza verificaciones exhaustivas de edad ni autenticidad documental.
+
+---
+
+# 5. IMÁGENES Y CONTENIDO AUDIOVISUAL
+
+La Plataforma podrá almacenar y mostrar imágenes, fotografías y contenido audiovisual relacionado con actividades deportivas e institucionales.
+
+Los usuarios y/o representantes legales autorizan el uso de dicho material con fines:
+
+* organizativos,
+* institucionales,
+* informativos,
+* internos,
+* y promocionales vinculados al club o la Plataforma.
+
+En caso de oposición al uso de imágenes, deberá notificarse formalmente por escrito.
+
+---
+
+# 6. SERVICIOS DE TERCEROS
+
+La Aplicación puede utilizar servicios de terceros para almacenamiento, autenticación, estadísticas o funcionamiento técnico, incluyendo servicios cloud como:
+
+* Google Firebase,
+* Google Analytics,
+* servicios de hosting,
+* y herramientas tecnológicas relacionadas.
+
+Estos servicios pueden procesar información conforme a sus propias políticas de privacidad.
+
+---
+
+# 7. ALMACENAMIENTO Y SEGURIDAD
+
+La Plataforma adopta medidas técnicas y organizativas razonables para proteger la información de accesos no autorizados, pérdida, alteración o divulgación indebida.
+
+Sin embargo, el usuario reconoce que:
+
+* ningún sistema es completamente seguro,
+* internet no garantiza invulnerabilidad,
+* y pueden existir riesgos tecnológicos fuera del control de la Plataforma.
+
+AppClub no garantiza seguridad absoluta frente a:
+
+* ataques informáticos,
+* accesos ilegítimos,
+* pérdida de datos,
+* fallas de infraestructura,
+* o eventos de fuerza mayor.
+
+---
+
+# 8. CONFIDENCIALIDAD
+
+La información personal será tratada con confidencialidad y utilizada únicamente para fines relacionados con el funcionamiento de la Plataforma y las actividades institucionales autorizadas.
+
+El acceso a la información podrá limitarse según roles administrativos definidos por cada club o institución.
+
+---
+
+# 9. DERECHOS DEL USUARIO
+
+El usuario podrá solicitar:
+
+* acceso a sus datos,
+* rectificación,
+* actualización,
+* o eliminación de información personal,
+
+mediante contacto a los canales oficiales informados por la Plataforma.
+
+La eliminación de ciertos datos puede afectar funcionalidades esenciales del sistema.
+
+---
+
+# 10. CONSERVACIÓN DE DATOS
+
+La información podrá conservarse durante el tiempo necesario para:
+
+* el funcionamiento de la Plataforma,
+* cumplimiento de obligaciones legales,
+* fines administrativos,
+* seguridad,
+* respaldo,
+* o resolución de conflictos.
+
+---
+
+# 11. LIMITACIÓN DE RESPONSABILIDAD
+
+AppClub, sus desarrolladores, administradores, clubes, directivos, entrenadores y colaboradores no serán responsables por:
+
+* accesos indebidos realizados por terceros,
+* filtraciones derivadas de ataques externos,
+* errores del usuario,
+* pérdida accidental de información,
+* uso incorrecto de la Plataforma,
+* ni daños derivados directa o indirectamente del uso del servicio.
+
+El usuario utiliza la Plataforma bajo su propia responsabilidad.
+
+---
+
+# 12. COOKIES Y TECNOLOGÍAS SIMILARES
+
+La Aplicación podrá utilizar cookies, identificadores técnicos y herramientas de análisis para:
+
+* mejorar la experiencia del usuario,
+* optimizar el rendimiento,
+* analizar funcionamiento,
+* y mantener la seguridad del sistema.
+
+---
+
+# 13. MODIFICACIONES DE LA POLÍTICA
+
+La Plataforma podrá modificar esta Política de Privacidad en cualquier momento.
+
+Las modificaciones entrarán en vigencia desde su publicación dentro de la Aplicación.
+
+El uso continuado del servicio implica aceptación de los cambios.
+
+---
+
+# 14. LEGISLACIÓN APLICABLE
+
+La presente Política de Privacidad se rige por las leyes de la República Argentina.
+
+Cualquier controversia será sometida a la jurisdicción de los tribunales competentes de la Provincia de Buenos Aires.
+
+---
+
+# 15. ACEPTACIÓN
+
+El uso de la Plataforma implica que el usuario ha leído, comprendido y aceptado íntegramente esta Política de Privacidad.

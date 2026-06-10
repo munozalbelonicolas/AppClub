@@ -172,154 +172,313 @@ class DirectorConsoleScreen extends ConsumerWidget {
           }
 
           final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.people_outline, size: 64, color: AppColors.textTertiary),
-                    const SizedBox(height: 16),
-                    Text('No hay usuarios registrados', style: AppTypography.titleLarge),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Pulsa el botón de arriba o el de abajo para poblar la base de datos con usuarios de prueba con deudas y aptos vencidos.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 24),
-                    JNButton(
-                      label: 'Poblar Usuarios de Prueba',
-                      onPressed: () => _seedMockData(context),
-                      icon: Icons.playlist_add,
-                    ),
-                  ],
+
+          return CustomScrollView(
+            slivers: [
+              // Support Configuration Card (Visible only to Director/Directivos)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: _SupportEmailConfigCard(),
                 ),
               ),
-            );
-          }
 
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final String userId = doc.id;
-              final String name = data['name'] ?? '';
-              final String lastName = data['lastName'] ?? '';
-              final String email = data['email'] ?? '';
-              final String role = data['role'] ?? 'padre';
-              final String? category = data['category'];
-              final bool hasDebt = data['hasPendingDebt'] ?? false;
-              
-              // Physical fitness status
-              final Timestamp? expiryTimestamp = data['aptoFisicoExpiry'] as Timestamp?;
-              final DateTime? expiry = expiryTimestamp?.toDate();
-              
-              bool hasAptoWarning = false;
-              bool hasAptoExpired = false;
-
-              if (expiry == null) {
-                hasAptoWarning = true;
-              } else {
-                hasAptoExpired = expiry.isBefore(DateTime.now());
-                hasAptoWarning = hasAptoExpired || expiry.difference(DateTime.now()).inDays <= 30;
-              }
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: JNCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      JNAvatar(name: '$name $lastName', size: 40),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('$name $lastName', style: AppTypography.titleMedium),
-                            Text(email, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary)),
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 4,
-                              children: [
-                                JNBadge(
-                                  label: role.toUpperCase(),
-                                  type: role == 'directivo'
-                                      ? JNBadgeType.error
-                                      : role == 'secretario'
-                                          ? JNBadgeType.info
-                                          : role == 'dt'
-                                              ? JNBadgeType.accent
-                                              : JNBadgeType.neutral,
-                                  small: true,
-                                ),
-                                if (category != null)
-                                  JNBadge(label: category, type: JNBadgeType.neutral, small: true),
-                                if (hasDebt)
-                                  const JNBadge(label: 'DEUDA', type: JNBadgeType.error, small: true),
-                                if (expiry == null)
-                                  const JNBadge(label: 'SIN APTO', type: JNBadgeType.error, small: true)
-                                else if (hasAptoExpired)
-                                  const JNBadge(label: 'APTO VENCIDO', type: JNBadgeType.error, small: true)
-                                else if (hasAptoWarning)
-                                  const JNBadge(label: 'APTO X VENCER', type: JNBadgeType.accent, small: true),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Delete user button
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                        onPressed: () {
-                          // Prevent Director from deleting themselves
-                          if (email == 'munozalbelonicolas@gmail.com') {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('El Director no puede ser eliminado.'),
-                                backgroundColor: AppColors.error,
-                              ),
-                            );
-                            return;
-                          }
-
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              backgroundColor: AppColors.surface,
-                              title: const Text('Eliminar Usuario'),
-                              content: Text('¿Estás seguro de que deseas eliminar a "$name $lastName" de la base de datos?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                    _deleteUser(context, userId, '$name $lastName');
-                                  },
-                                  child: const Text('Eliminar', style: TextStyle(color: AppColors.error)),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Text(
+                    'Usuarios Registrados (${docs.length})',
+                    style: AppTypography.headlineSmall,
                   ),
                 ),
-              ).animate(delay: (index * 40).ms).fadeIn(duration: 300.ms).slideY(begin: 0.05);
-            },
+              ),
+
+              if (docs.isEmpty)
+                SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.people_outline, size: 64, color: AppColors.textTertiary),
+                          const SizedBox(height: 16),
+                          Text('No hay usuarios registrados', style: AppTypography.titleLarge),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Pulsa el botón de arriba o el de abajo para poblar la base de datos con usuarios de prueba con deudas y aptos vencidos.',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 24),
+                          JNButton(
+                            label: 'Poblar Usuarios de Prueba',
+                            onPressed: () => _seedMockData(context),
+                            icon: Icons.playlist_add,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final doc = docs[index];
+                        final data = doc.data() as Map<String, dynamic>;
+                        final String userId = doc.id;
+                        final String name = data['name'] ?? '';
+                        final String lastName = data['lastName'] ?? '';
+                        final String email = data['email'] ?? '';
+                        final String role = data['role'] ?? 'padre';
+                        final String? category = data['category'];
+                        final bool hasDebt = data['hasPendingDebt'] ?? false;
+                        
+                        // Physical fitness status
+                        final Timestamp? expiryTimestamp = data['aptoFisicoExpiry'] as Timestamp?;
+                        final DateTime? expiry = expiryTimestamp?.toDate();
+                        
+                        bool hasAptoWarning = false;
+                        bool hasAptoExpired = false;
+
+                        if (expiry == null) {
+                          hasAptoWarning = true;
+                        } else {
+                          hasAptoExpired = expiry.isBefore(DateTime.now());
+                          hasAptoWarning = hasAptoExpired || expiry.difference(DateTime.now()).inDays <= 30;
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: JNCard(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                JNAvatar(name: '$name $lastName', size: 40),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('$name $lastName', style: AppTypography.titleMedium),
+                                      Text(email, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary)),
+                                      const SizedBox(height: 6),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          JNBadge(
+                                            label: role.toUpperCase(),
+                                            type: role == 'directivo'
+                                                ? JNBadgeType.error
+                                                : role == 'secretario'
+                                                    ? JNBadgeType.info
+                                                    : role == 'dt'
+                                                        ? JNBadgeType.accent
+                                                        : JNBadgeType.neutral,
+                                            small: true,
+                                          ),
+                                          if (category != null)
+                                            JNBadge(label: category, type: JNBadgeType.neutral, small: true),
+                                          if (hasDebt)
+                                            const JNBadge(label: 'DEUDA', type: JNBadgeType.error, small: true),
+                                          if (expiry == null)
+                                            const JNBadge(label: 'SIN APTO', type: JNBadgeType.error, small: true)
+                                          else if (hasAptoExpired)
+                                            const JNBadge(label: 'APTO VENCIDO', type: JNBadgeType.error, small: true)
+                                          else if (hasAptoWarning)
+                                            const JNBadge(label: 'APTO X VENCER', type: JNBadgeType.accent, small: true),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Delete user button
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                                  onPressed: () {
+                                    // Prevent Director from deleting themselves
+                                    if (email == 'munozalbelonicolas@gmail.com') {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('El Director no puede ser eliminado.'),
+                                          backgroundColor: AppColors.error,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor: AppColors.surface,
+                                        title: const Text('Eliminar Usuario'),
+                                        content: Text('¿Estás seguro de que deseas eliminar a "$name $lastName" de la base de datos?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                              _deleteUser(context, userId, '$name $lastName');
+                                            },
+                                            child: const Text('Eliminar', style: TextStyle(color: AppColors.error)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ).animate(delay: (index * 40).ms).fadeIn(duration: 300.ms).slideY(begin: 0.05);
+                      },
+                      childCount: docs.length,
+                    ),
+                  ),
+                ),
+            ],
           );
         },
       ),
     );
   }
 }
+
+class _SupportEmailConfigCard extends StatefulWidget {
+  const _SupportEmailConfigCard();
+  @override
+  State<_SupportEmailConfigCard> createState() => _SupportEmailConfigCardState();
+}
+
+class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
+  final _emailController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveEmail() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor ingresa un correo electrónico válido'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('config').doc('support_settings').set({
+        'support_email': email,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Correo de soporte actualizado con éxito'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('config').doc('support_settings').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          if (data != null && data['support_email'] != null && !_isSaving && _emailController.text.isEmpty) {
+            _emailController.text = data['support_email'];
+          }
+        }
+
+        return JNCard(
+          padding: const EdgeInsets.all(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.mark_email_read, color: AppColors.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Configuración de Soporte', style: AppTypography.titleLarge),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Define la dirección de correo electrónico a la que llegarán las consultas de ayuda y soporte técnico de los usuarios.',
+                style: AppTypography.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _emailController,
+                      style: AppTypography.bodyMedium,
+                      decoration: const InputDecoration(
+                        labelText: 'Email de Soporte',
+                        hintText: 'ejemplo@club.com',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _isSaving
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : JNButton(
+                          label: 'Guardar',
+                          onPressed: _saveEmail,
+                          size: JNButtonSize.small,
+                        ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
