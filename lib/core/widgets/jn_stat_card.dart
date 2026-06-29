@@ -45,13 +45,13 @@ class JNStatCard extends StatelessWidget {
             style: AppTypography.statValue.copyWith(color: accentColor),
           ),
           const SizedBox(height: 2),
-          Text(
-            label.toUpperCase(),
-            style: AppTypography.statLabel,
-          ),
+          Text(label.toUpperCase(), style: AppTypography.statLabel),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
-            Text(subtitle!, style: AppTypography.bodySmall.copyWith(fontSize: 10)),
+            Text(
+              subtitle!,
+              style: AppTypography.bodySmall.copyWith(fontSize: 10),
+            ),
           ],
         ],
       ),

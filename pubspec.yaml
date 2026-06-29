@@ -35,6 +35,11 @@ dependencies:
   firebase_auth: ^6.5.2
   google_sign_in: ^6.2.1
   image_picker: ^1.1.2
+  path_provider: ^2.1.6
+  share_plus: ^13.2.0
+  cloud_functions: ^6.3.3
+  http: ^1.2.1
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

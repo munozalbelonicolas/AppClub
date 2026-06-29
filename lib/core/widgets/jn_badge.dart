@@ -21,12 +21,36 @@ class JNBadge extends StatelessWidget {
   });
 
   // Convenience constructors
-  factory JNBadge.paid() => const JNBadge(label: 'AL DÍA', type: JNBadgeType.success, icon: Icons.check_circle_outline);
-  factory JNBadge.pending() => const JNBadge(label: 'PENDIENTE', type: JNBadgeType.warning, icon: Icons.schedule);
-  factory JNBadge.overdue() => const JNBadge(label: 'VENCIDO', type: JNBadgeType.error, icon: Icons.warning_amber_rounded);
-  factory JNBadge.confirmed() => const JNBadge(label: 'CONFIRMADO', type: JNBadgeType.success, icon: Icons.check);
-  factory JNBadge.absent() => const JNBadge(label: 'AUSENTE', type: JNBadgeType.error, icon: Icons.close);
-  factory JNBadge.delayed() => const JNBadge(label: 'DEMORA', type: JNBadgeType.warning, icon: Icons.access_time);
+  factory JNBadge.paid() => const JNBadge(
+    label: 'AL DÍA',
+    type: JNBadgeType.success,
+    icon: Icons.check_circle_outline,
+  );
+  factory JNBadge.pending() => const JNBadge(
+    label: 'PENDIENTE',
+    type: JNBadgeType.warning,
+    icon: Icons.schedule,
+  );
+  factory JNBadge.overdue() => const JNBadge(
+    label: 'VENCIDO',
+    type: JNBadgeType.error,
+    icon: Icons.warning_amber_rounded,
+  );
+  factory JNBadge.confirmed() => const JNBadge(
+    label: 'CONFIRMADO',
+    type: JNBadgeType.success,
+    icon: Icons.check,
+  );
+  factory JNBadge.absent() => const JNBadge(
+    label: 'AUSENTE',
+    type: JNBadgeType.error,
+    icon: Icons.close,
+  );
+  factory JNBadge.delayed() => const JNBadge(
+    label: 'DEMORA',
+    type: JNBadgeType.warning,
+    icon: Icons.access_time,
+  );
 
   Color get _backgroundColor {
     switch (type) {

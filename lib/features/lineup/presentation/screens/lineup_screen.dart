@@ -8,7 +8,7 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_avatar.dart';
-import '../../../../data/mock/mock_data.dart';
+// TODO: Connect to Firestore
 import '../../../../core/providers/session_provider.dart';
 
 class LineupScreen extends ConsumerStatefulWidget {
@@ -19,25 +19,81 @@ class LineupScreen extends ConsumerStatefulWidget {
 }
 
 class _LineupScreenState extends ConsumerState<LineupScreen> {
-  final nextMatch = MockData.nextMatch;
-  final List<Map<String, dynamic>> _allConvocados = List.from(MockData.convocatoria);
-  
+  // TODO: Fetch from Firestore
+  final Map<String, dynamic>? nextMatch = null;
+  final List<Map<String, dynamic>> _allConvocados = [];
+
   // Local state for assignments: positionKey -> playerId
   final Map<String, String> _positions = {};
   bool _isSaving = false;
 
   final List<Map<String, dynamic>> _fieldPositions = [
-    {'key': 'GK', 'label': 'ARQ', 'fullName': 'Arquero', 'align': const Alignment(0, 0.83)},
-    {'key': 'LDF', 'label': '3', 'fullName': 'Defensa Izquierdo', 'align': const Alignment(-0.72, 0.50)},
-    {'key': 'CDF1', 'label': '6', 'fullName': 'Central Izquierdo', 'align': const Alignment(-0.25, 0.55)},
-    {'key': 'CDF2', 'label': '2', 'fullName': 'Central Derecho', 'align': const Alignment(0.25, 0.55)},
-    {'key': 'RDF', 'label': '4', 'fullName': 'Defensa Derecho', 'align': const Alignment(0.72, 0.50)},
-    {'key': 'LMF', 'label': '11', 'fullName': 'Mediocampista Izquierdo', 'align': const Alignment(-0.72, 0.08)},
-    {'key': 'CMF1', 'label': '5', 'fullName': 'Mediocampista Central L', 'align': const Alignment(-0.25, 0.12)},
-    {'key': 'CMF2', 'label': '8', 'fullName': 'Mediocampista Central R', 'align': const Alignment(0.25, 0.12)},
-    {'key': 'RMF', 'label': '7', 'fullName': 'Mediocampista Derecho', 'align': const Alignment(0.72, 0.08)},
-    {'key': 'LFW', 'label': '9', 'fullName': 'Delantero Izquierdo', 'align': const Alignment(-0.35, -0.52)},
-    {'key': 'RFW', 'label': '10', 'fullName': 'Delantero Derecho', 'align': const Alignment(0.35, -0.52)},
+    {
+      'key': 'GK',
+      'label': 'ARQ',
+      'fullName': 'Arquero',
+      'align': const Alignment(0, 0.83),
+    },
+    {
+      'key': 'LDF',
+      'label': '3',
+      'fullName': 'Defensa Izquierdo',
+      'align': const Alignment(-0.72, 0.50),
+    },
+    {
+      'key': 'CDF1',
+      'label': '6',
+      'fullName': 'Central Izquierdo',
+      'align': const Alignment(-0.25, 0.55),
+    },
+    {
+      'key': 'CDF2',
+      'label': '2',
+      'fullName': 'Central Derecho',
+      'align': const Alignment(0.25, 0.55),
+    },
+    {
+      'key': 'RDF',
+      'label': '4',
+      'fullName': 'Defensa Derecho',
+      'align': const Alignment(0.72, 0.50),
+    },
+    {
+      'key': 'LMF',
+      'label': '11',
+      'fullName': 'Mediocampista Izquierdo',
+      'align': const Alignment(-0.72, 0.08),
+    },
+    {
+      'key': 'CMF1',
+      'label': '5',
+      'fullName': 'Mediocampista Central L',
+      'align': const Alignment(-0.25, 0.12),
+    },
+    {
+      'key': 'CMF2',
+      'label': '8',
+      'fullName': 'Mediocampista Central R',
+      'align': const Alignment(0.25, 0.12),
+    },
+    {
+      'key': 'RMF',
+      'label': '7',
+      'fullName': 'Mediocampista Derecho',
+      'align': const Alignment(0.72, 0.08),
+    },
+    {
+      'key': 'LFW',
+      'label': '9',
+      'fullName': 'Delantero Izquierdo',
+      'align': const Alignment(-0.35, -0.52),
+    },
+    {
+      'key': 'RFW',
+      'label': '10',
+      'fullName': 'Delantero Derecho',
+      'align': const Alignment(0.35, -0.52),
+    },
   ];
 
   @override
@@ -48,16 +104,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
   // Pre-populate with typical setup so field is never empty initially
   void _loadDefaultMockLineup() {
-    _positions['GK'] = 'ply_003'; // Valentín Fernández
-    _positions['CDF1'] = 'ply_006_d'; // Joaquín Sánchez
-    _positions['CDF2'] = 'ply_006_e'; // Luciano Castro
-    _positions['LDF'] = 'ply_006_a'; // Agustín Torres
-    _positions['RDF'] = 'ply_004'; // Thiago López
-    _positions['CMF1'] = 'ply_001'; // Mateo Gutiérrez
-    _positions['CMF2'] = 'ply_005'; // Benjamín Rodríguez
-    _positions['LMF'] = 'ply_006_c'; // Ignacio Díaz
-    _positions['RMF'] = 'ply_006_f'; // Máximo Rivero
-    _positions['LFW'] = 'ply_002'; // Santiago Morales
+    // Left empty for production, will fetch from Firestore
   }
 
   Future<void> _saveLineup() async {
@@ -66,11 +113,14 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     });
 
     try {
-      await FirebaseFirestore.instance.collection('match_lineups').doc('next_match').set({
-        'matchId': nextMatch['id'],
-        'updatedAt': FieldValue.serverTimestamp(),
-        'positions': _positions,
-      });
+      await FirebaseFirestore.instance
+          .collection('match_lineups')
+          .doc('next_match')
+          .set({
+            'matchId': nextMatch?['id'] ?? 'next_match',
+            'updatedAt': FieldValue.serverTimestamp(),
+            'positions': _positions,
+          });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -98,7 +148,11 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     }
   }
 
-  void _showPlayerSelector(BuildContext context, String posKey, String posName) {
+  void _showPlayerSelector(
+    BuildContext context,
+    String posKey,
+    String posName,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.background,
@@ -114,7 +168,10 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Asignar Posición: $posName', style: AppTypography.headlineSmall),
+                  Text(
+                    'Asignar Posición: $posName',
+                    style: AppTypography.headlineSmall,
+                  ),
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
@@ -131,9 +188,16 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                     border: Border.all(color: AppColors.textTertiary),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.remove, size: 18, color: AppColors.textTertiary),
+                  child: const Icon(
+                    Icons.remove,
+                    size: 18,
+                    color: AppColors.textTertiary,
+                  ),
                 ),
-                title: const Text('Vacante / Sin Asignar', style: TextStyle(fontWeight: FontWeight.w500)),
+                title: const Text(
+                  'Vacante / Sin Asignar',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
                 onTap: () {
                   setState(() {
                     _positions.remove(posKey);
@@ -145,11 +209,12 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               Expanded(
                 child: ListView.separated(
                   itemCount: _allConvocados.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.divider),
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1, color: AppColors.divider),
                   itemBuilder: (context, idx) {
                     final player = _allConvocados[idx];
                     final playerId = player['playerId'] as String;
-                    
+
                     // Check if player is already assigned somewhere else
                     String? assignedPos;
                     _positions.forEach((k, v) {
@@ -160,13 +225,26 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: JNAvatar(name: player['name'] as String, size: 38),
-                      title: Text(player['name'] as String, style: AppTypography.titleMedium),
-                      subtitle: Text('#${player['number']} · ${player['position']}', style: AppTypography.bodySmall),
+                      leading: JNAvatar(
+                        name: player['name'] as String,
+                        size: 38,
+                      ),
+                      title: Text(
+                        player['name'] as String,
+                        style: AppTypography.titleMedium,
+                      ),
+                      subtitle: Text(
+                        '#${player['number']} · ${player['position']}',
+                        style: AppTypography.bodySmall,
+                      ),
                       trailing: isAlreadyAssigned
                           ? Text(
                               'Asignado en $assignedPos',
-                              style: TextStyle(fontSize: 10, color: AppColors.accent, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.bold,
+                              ),
                             )
                           : null,
                       enabled: !isAlreadyAssigned || assignedPos == posKey,
@@ -189,17 +267,17 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = ref.watch(currentUserProvider) ?? SessionMocks.users['padre']!;
+    final currentUser = ref.watch(currentUserProvider)!;
     final bool isCoach = currentUser.isCoach;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Formación del Equipo'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Formación del Equipo'), elevation: 0),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('match_lineups').doc('next_match').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('match_lineups')
+            .doc('next_match')
+            .snapshots(),
         builder: (context, snapshot) {
           // If we received data from Firestore, sync our local positions state
           if (snapshot.hasData && snapshot.data!.exists) {
@@ -231,152 +309,216 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
             children: [
               // Next Match Info Banner
-              JNCard(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.sports_soccer, color: AppColors.primary, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${nextMatch['awayTeam']} vs ${nextMatch['homeTeam']}', style: AppTypography.titleMedium),
-                          Text(
-                            'Fecha 6 · Cancha: ${nextMatch['venue']}',
-                            style: AppTypography.bodySmall,
-                          ),
-                        ],
+              if (nextMatch != null)
+                JNCard(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.sports_soccer,
+                        color: AppColors.primary,
+                        size: 24,
                       ),
-                    ),
-                    const JNBadge(label: 'CONVOCATORIA', type: JNBadgeType.accent),
-                  ],
-                ),
-              ).animate().fadeIn(duration: 400.ms),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${nextMatch!['awayTeam']} vs ${nextMatch!['homeTeam']}',
+                              style: AppTypography.titleMedium,
+                            ),
+                            Text(
+                              'Fecha 6 · Cancha: ${nextMatch!['venue']}',
+                              style: AppTypography.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const JNBadge(
+                        label: 'CONVOCATORIA',
+                        type: JNBadgeType.accent,
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn(duration: 400.ms),
 
-              const SizedBox(height: 16),
+              if (nextMatch != null) const SizedBox(height: 16),
 
-              // Tactical Field
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  height: 400,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0xFF153d2f), // Pitch upper green
-                        Color(0xFF235c47), // Pitch middle green
-                        Color(0xFF1c4a39), // Pitch lower green
+              if (nextMatch == null)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.sports_soccer,
+                          size: 48,
+                          color: AppColors.textTertiary,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No hay próximo partido',
+                          style: AppTypography.titleMedium.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  child: Stack(
-                    children: [
-                      // Soccer pitch lines painter
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: _SoccerPitchPainter(),
+                ),
+
+              // Tactical Field
+              ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      height: 400,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Color(0xFF153d2f), // Pitch upper green
+                            Color(0xFF235c47), // Pitch middle green
+                            Color(0xFF1c4a39), // Pitch lower green
+                          ],
                         ),
                       ),
-                      
-                      // Player circular positions
-                      ..._fieldPositions.map((pos) {
-                        final String key = pos['key'];
-                        final Alignment align = pos['align'];
-                        
-                        final String? assignedPlayerId = _positions[key];
-                        Map<String, dynamic>? playerDetails;
-                        if (assignedPlayerId != null) {
-                          playerDetails = _allConvocados.firstWhere(
-                            (c) => c['playerId'] == assignedPlayerId,
-                            orElse: () => <String, dynamic>{},
-                          );
-                        }
-
-                        final bool hasPlayer = playerDetails != null && playerDetails.isNotEmpty;
-
-                        return Align(
-                          alignment: align,
-                          child: GestureDetector(
-                            onTap: isCoach
-                                ? () => _showPlayerSelector(context, key, pos['fullName'])
-                                : null,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Token
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: hasPlayer
-                                        ? AppColors.primary
-                                        : Colors.black.withValues(alpha: 0.3),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: hasPlayer ? Colors.white : AppColors.primary.withValues(alpha: 0.4),
-                                      width: 2,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.2),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Center(
-                                    child: hasPlayer
-                                        ? Text(
-                                            '${playerDetails['number']}',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          )
-                                        : Icon(
-                                            isCoach ? Icons.add : Icons.remove,
-                                            size: 14,
-                                            color: AppColors.primary.withValues(alpha: 0.8),
-                                          ),
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                // Label / Name
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.6),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  constraints: const BoxConstraints(maxWidth: 85),
-                                  child: Text(
-                                    hasPlayer
-                                        ? (playerDetails['name'] as String).split(' ').last
-                                        : key,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ],
-                            ),
+                      child: Stack(
+                        children: [
+                          // Soccer pitch lines painter
+                          Positioned.fill(
+                            child: CustomPaint(painter: _SoccerPitchPainter()),
                           ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ).animate(delay: 100.ms).fadeIn().scale(begin: const Offset(0.98, 0.98)),
+
+                          // Player circular positions
+                          ..._fieldPositions.map((pos) {
+                            final String key = pos['key'];
+                            final Alignment align = pos['align'];
+
+                            final String? assignedPlayerId = _positions[key];
+                            Map<String, dynamic>? playerDetails;
+                            if (assignedPlayerId != null) {
+                              playerDetails = _allConvocados.firstWhere(
+                                (c) => c['playerId'] == assignedPlayerId,
+                                orElse: () => <String, dynamic>{},
+                              );
+                            }
+
+                            final bool hasPlayer =
+                                playerDetails != null &&
+                                playerDetails.isNotEmpty;
+
+                            return Align(
+                              alignment: align,
+                              child: GestureDetector(
+                                onTap: isCoach
+                                    ? () => _showPlayerSelector(
+                                        context,
+                                        key,
+                                        pos['fullName'],
+                                      )
+                                    : null,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Token
+                                    AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: hasPlayer
+                                            ? AppColors.primary
+                                            : Colors.black.withValues(
+                                                alpha: 0.3,
+                                              ),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: hasPlayer
+                                              ? Colors.white
+                                              : AppColors.primary.withValues(
+                                                  alpha: 0.4,
+                                                ),
+                                          width: 2,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.2,
+                                            ),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: hasPlayer
+                                            ? Text(
+                                                '${playerDetails['number']}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              )
+                                            : Icon(
+                                                isCoach
+                                                    ? Icons.add
+                                                    : Icons.remove,
+                                                size: 14,
+                                                color: AppColors.primary
+                                                    .withValues(alpha: 0.8),
+                                              ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    // Label / Name
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.6,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 85,
+                                      ),
+                                      child: Text(
+                                        hasPlayer
+                                            ? (playerDetails['name'] as String)
+                                                  .split(' ')
+                                                  .last
+                                            : key,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  )
+                  .animate(delay: 100.ms)
+                  .fadeIn()
+                  .scale(begin: const Offset(0.98, 0.98)),
 
               const SizedBox(height: 20),
 
@@ -396,7 +538,10 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Titulares (${starters.length})', style: AppTypography.headlineSmall),
+                  Text(
+                    'Titulares (${starters.length})',
+                    style: AppTypography.headlineSmall,
+                  ),
                   const JNBadge(label: '11 TITULARES', type: JNBadgeType.info),
                 ],
               ),
@@ -415,7 +560,10 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Suplentes / Banquillo (${bench.length})', style: AppTypography.headlineSmall),
+                  Text(
+                    'Suplentes / Banquillo (${bench.length})',
+                    style: AppTypography.headlineSmall,
+                  ),
                   const JNBadge(label: 'BANCO', type: JNBadgeType.neutral),
                 ],
               ),
@@ -444,7 +592,9 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
             JNAvatar(
               name: player['name'] as String,
               size: 36,
-              borderColor: isStarter ? AppColors.success : AppColors.textTertiary,
+              borderColor: isStarter
+                  ? AppColors.success
+                  : AppColors.textTertiary,
               borderWidth: 1.5,
             ),
             const SizedBox(width: 12),
@@ -452,8 +602,14 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(player['name'] as String, style: AppTypography.titleMedium),
-                  Text('#${player['number']} · ${player['position']}', style: AppTypography.bodySmall),
+                  Text(
+                    player['name'] as String,
+                    style: AppTypography.titleMedium,
+                  ),
+                  Text(
+                    '#${player['number']} · ${player['position']}',
+                    style: AppTypography.bodySmall,
+                  ),
                 ],
               ),
             ),
@@ -486,14 +642,27 @@ class _SoccerPitchPainter extends CustomPainter {
 
     // Center Circle
     canvas.drawCircle(Offset(size.width / 2, midY), 45, paint);
-    canvas.drawCircle(Offset(size.width / 2, midY), 2.5, Paint()..color = Colors.white.withValues(alpha: 0.22));
+    canvas.drawCircle(
+      Offset(size.width / 2, midY),
+      2.5,
+      Paint()..color = Colors.white.withValues(alpha: 0.22),
+    );
 
     // Penalty box - top side (away)
-    final topPenalty = Rect.fromLTWH(size.width * 0.18, 8, size.width * 0.64, size.height * 0.18);
+    final topPenalty = Rect.fromLTWH(
+      size.width * 0.18,
+      8,
+      size.width * 0.64,
+      size.height * 0.18,
+    );
     canvas.drawRect(topPenalty, paint);
     // top penalty arc
     canvas.drawArc(
-      Rect.fromCenter(center: Offset(size.width / 2, size.height * 0.18 + 8), width: 60, height: 26),
+      Rect.fromCenter(
+        center: Offset(size.width / 2, size.height * 0.18 + 8),
+        width: 60,
+        height: 26,
+      ),
       0,
       3.14159,
       false,
@@ -501,11 +670,20 @@ class _SoccerPitchPainter extends CustomPainter {
     );
 
     // Penalty box - bottom side (home)
-    final bottomPenalty = Rect.fromLTWH(size.width * 0.18, size.height * 0.82 - 8, size.width * 0.64, size.height * 0.18);
+    final bottomPenalty = Rect.fromLTWH(
+      size.width * 0.18,
+      size.height * 0.82 - 8,
+      size.width * 0.64,
+      size.height * 0.18,
+    );
     canvas.drawRect(bottomPenalty, paint);
     // bottom penalty arc
     canvas.drawArc(
-      Rect.fromCenter(center: Offset(size.width / 2, size.height * 0.82 - 8), width: 60, height: 26),
+      Rect.fromCenter(
+        center: Offset(size.width / 2, size.height * 0.82 - 8),
+        width: 60,
+        height: 26,
+      ),
       3.14159,
       3.14159,
       false,
@@ -513,9 +691,19 @@ class _SoccerPitchPainter extends CustomPainter {
     );
 
     // Goal boxes
-    final topGoal = Rect.fromLTWH(size.width * 0.35, 8, size.width * 0.3, size.height * 0.06);
+    final topGoal = Rect.fromLTWH(
+      size.width * 0.35,
+      8,
+      size.width * 0.3,
+      size.height * 0.06,
+    );
     canvas.drawRect(topGoal, paint);
-    final bottomGoal = Rect.fromLTWH(size.width * 0.35, size.height * 0.94 - 8, size.width * 0.3, size.height * 0.06);
+    final bottomGoal = Rect.fromLTWH(
+      size.width * 0.35,
+      size.height * 0.94 - 8,
+      size.width * 0.3,
+      size.height * 0.06,
+    );
     canvas.drawRect(bottomGoal, paint);
   }
 

@@ -7,15 +7,17 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_stat_card.dart';
-import '../../../../data/mock/mock_data.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PlayerProfileScreen extends StatefulWidget {
+class PlayerProfileScreen extends ConsumerStatefulWidget {
   const PlayerProfileScreen({super.key});
   @override
-  State<PlayerProfileScreen> createState() => _PlayerProfileScreenState();
+  ConsumerState<PlayerProfileScreen> createState() =>
+      _PlayerProfileScreenState();
 }
 
-class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTickerProviderStateMixin {
+class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -32,7 +34,33 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
-    final player = MockData.currentPlayer;
+    // TODO: Fetch from Firestore
+    final Map<String, dynamic>? player = null;
+
+    if (player == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Perfil del Jugador')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.person_off, size: 48, color: AppColors.textTertiary),
+                const SizedBox(height: 16),
+                Text(
+                  'No se encontró perfil',
+                  style: AppTypography.titleMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -46,8 +74,10 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
               background: _buildPlayerHeader(player),
             ),
             title: innerBoxIsScrolled
-                ? Text('${player['name']} ${player['lastName']}',
-                    style: AppTypography.titleLarge)
+                ? Text(
+                    '${player['name']} ${player['lastName']}',
+                    style: AppTypography.titleLarge,
+                  )
                 : null,
           ),
           SliverPersistentHeader(
@@ -99,7 +129,11 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
               borderColor: AppColors.accent,
               borderWidth: 3,
               number: player['number'] as int,
-            ).animate().scale(begin: const Offset(0.8, 0.8), duration: 500.ms, curve: Curves.easeOut),
+            ).animate().scale(
+              begin: const Offset(0.8, 0.8),
+              duration: 500.ms,
+              curve: Curves.easeOut,
+            ),
 
             const SizedBox(height: 14),
 
@@ -123,10 +157,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
                   type: JNBadgeType.neutral,
                 ),
                 const SizedBox(width: 8),
-                JNBadge(
-                  label: '#${player['number']}',
-                  type: JNBadgeType.info,
-                ),
+                JNBadge(label: '#${player['number']}', type: JNBadgeType.info),
               ],
             ).animate(delay: 300.ms).fadeIn(duration: 400.ms),
 
@@ -142,7 +173,10 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
                 Container(width: 1, height: 30, color: AppColors.border),
                 _QuickStat(value: '${player['matches']}', label: 'Partidos'),
                 Container(width: 1, height: 30, color: AppColors.border),
-                _QuickStat(value: '${player['attendance']}%', label: 'Asistencia'),
+                _QuickStat(
+                  value: '${player['attendance']}%',
+                  label: 'Asistencia',
+                ),
               ],
             ).animate(delay: 400.ms).fadeIn(duration: 400.ms),
           ],
@@ -164,10 +198,30 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
           mainAxisSpacing: 12,
           childAspectRatio: 1.3,
           children: [
-            JNStatCard(value: '${player['goals']}', label: 'Goles', icon: Icons.sports_soccer, color: AppColors.primary),
-            JNStatCard(value: '${player['assists']}', label: 'Asistencias', icon: Icons.handshake, color: AppColors.accent),
-            JNStatCard(value: '${player['matches']}', label: 'Partidos', icon: Icons.stadium, color: AppColors.info),
-            JNStatCard(value: '${player['yellowCards']}', label: 'Amarillas', icon: Icons.square, color: AppColors.warning),
+            JNStatCard(
+              value: '${player['goals']}',
+              label: 'Goles',
+              icon: Icons.sports_soccer,
+              color: AppColors.primary,
+            ),
+            JNStatCard(
+              value: '${player['assists']}',
+              label: 'Asistencias',
+              icon: Icons.handshake,
+              color: AppColors.accent,
+            ),
+            JNStatCard(
+              value: '${player['matches']}',
+              label: 'Partidos',
+              icon: Icons.stadium,
+              color: AppColors.info,
+            ),
+            JNStatCard(
+              value: '${player['yellowCards']}',
+              label: 'Amarillas',
+              icon: Icons.square,
+              color: AppColors.warning,
+            ),
           ],
         ).animate().fadeIn(duration: 400.ms),
 
@@ -177,25 +231,30 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
         Text('Asistencia general', style: AppTypography.headlineSmall),
         const SizedBox(height: 16),
         Center(
-          child: CircularPercentIndicator(
-            radius: 70,
-            lineWidth: 8,
-            percent: (player['attendance'] as int) / 100,
-            center: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${player['attendance']}%',
-                  style: AppTypography.headlineLarge.copyWith(color: AppColors.success),
+              child: CircularPercentIndicator(
+                radius: 70,
+                lineWidth: 8,
+                percent: (player['attendance'] as int) / 100,
+                center: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${player['attendance']}%',
+                      style: AppTypography.headlineLarge.copyWith(
+                        color: AppColors.success,
+                      ),
+                    ),
+                    Text('asistencia', style: AppTypography.bodySmall),
+                  ],
                 ),
-                Text('asistencia', style: AppTypography.bodySmall),
-              ],
-            ),
-            progressColor: AppColors.success,
-            backgroundColor: AppColors.surfaceVariant,
-            circularStrokeCap: CircularStrokeCap.round,
-          ),
-        ).animate(delay: 200.ms).fadeIn(duration: 500.ms).scale(begin: const Offset(0.9, 0.9)),
+                progressColor: AppColors.success,
+                backgroundColor: AppColors.surfaceVariant,
+                circularStrokeCap: CircularStrokeCap.round,
+              ),
+            )
+            .animate(delay: 200.ms)
+            .fadeIn(duration: 500.ms)
+            .scale(begin: const Offset(0.9, 0.9)),
 
         const SizedBox(height: 24),
 
@@ -206,11 +265,26 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              _PerformanceRow(label: 'Goles por partido', value: (player['goals'] as int) / (player['matches'] as int), maxValue: 1.0),
+              _PerformanceRow(
+                label: 'Goles por partido',
+                value: (player['goals'] as int) / (player['matches'] as int),
+                maxValue: 1.0,
+              ),
               const SizedBox(height: 12),
-              _PerformanceRow(label: 'Asistencias por partido', value: (player['assists'] as int) / (player['matches'] as int), maxValue: 1.0),
+              _PerformanceRow(
+                label: 'Asistencias por partido',
+                value: (player['assists'] as int) / (player['matches'] as int),
+                maxValue: 1.0,
+              ),
               const SizedBox(height: 12),
-              _PerformanceRow(label: 'Participación en goles', value: ((player['goals'] as int) + (player['assists'] as int)) / 20, maxValue: 1.5, color: AppColors.accent),
+              _PerformanceRow(
+                label: 'Participación en goles',
+                value:
+                    ((player['goals'] as int) + (player['assists'] as int)) /
+                    20,
+                maxValue: 1.5,
+                color: AppColors.accent,
+              ),
             ],
           ),
         ).animate(delay: 300.ms).fadeIn(duration: 400.ms),
@@ -221,26 +295,66 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
   Widget _buildInfoTab(Map<String, dynamic> player) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-      children: [
-        _InfoTile(icon: Icons.cake, label: 'Edad', value: '${player['age']} años'),
-        _InfoTile(icon: Icons.calendar_today, label: 'Fecha de nacimiento', value: player['birthDate'] as String),
-        _InfoTile(icon: Icons.sports, label: 'Posición', value: player['position'] as String),
-        _InfoTile(icon: Icons.numbers, label: 'Dorsal', value: '#${player['number']}'),
-        _InfoTile(icon: Icons.category, label: 'Categoría', value: player['category'] as String),
-        if (player.containsKey('height'))
-          _InfoTile(icon: Icons.height, label: 'Altura', value: player['height'] as String),
-        if (player.containsKey('weight'))
-          _InfoTile(icon: Icons.monitor_weight_outlined, label: 'Peso', value: player['weight'] as String),
-        if (player.containsKey('parentName'))
-          _InfoTile(icon: Icons.person, label: 'Padre/Madre', value: player['parentName'] as String),
-        if (player.containsKey('parentPhone'))
-          _InfoTile(icon: Icons.phone, label: 'Teléfono', value: player['parentPhone'] as String),
-      ].asMap().entries.map((e) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: e.value.animate(delay: (e.key * 60).ms).fadeIn(duration: 400.ms).slideX(begin: 0.03),
-        );
-      }).toList(),
+      children:
+          [
+            _InfoTile(
+              icon: Icons.cake,
+              label: 'Edad',
+              value: '${player['age']} años',
+            ),
+            _InfoTile(
+              icon: Icons.calendar_today,
+              label: 'Fecha de nacimiento',
+              value: player['birthDate'] as String,
+            ),
+            _InfoTile(
+              icon: Icons.sports,
+              label: 'Posición',
+              value: player['position'] as String,
+            ),
+            _InfoTile(
+              icon: Icons.numbers,
+              label: 'Dorsal',
+              value: '#${player['number']}',
+            ),
+            _InfoTile(
+              icon: Icons.category,
+              label: 'Categoría',
+              value: player['category'] as String,
+            ),
+            if (player.containsKey('height'))
+              _InfoTile(
+                icon: Icons.height,
+                label: 'Altura',
+                value: player['height'] as String,
+              ),
+            if (player.containsKey('weight'))
+              _InfoTile(
+                icon: Icons.monitor_weight_outlined,
+                label: 'Peso',
+                value: player['weight'] as String,
+              ),
+            if (player.containsKey('parentName'))
+              _InfoTile(
+                icon: Icons.person,
+                label: 'Padre/Madre',
+                value: player['parentName'] as String,
+              ),
+            if (player.containsKey('parentPhone'))
+              _InfoTile(
+                icon: Icons.phone,
+                label: 'Teléfono',
+                value: player['parentPhone'] as String,
+              ),
+          ].asMap().entries.map((e) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: e.value
+                  .animate(delay: (e.key * 60).ms)
+                  .fadeIn(duration: 400.ms)
+                  .slideX(begin: 0.03),
+            );
+          }).toList(),
     );
   }
 
@@ -268,16 +382,28 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
                   color: AppColors.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.verified, size: 28, color: AppColors.success),
+                child: const Icon(
+                  Icons.verified,
+                  size: 28,
+                  color: AppColors.success,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Apto médico vigente', style: AppTypography.titleLarge.copyWith(color: AppColors.success)),
+                    Text(
+                      'Apto médico vigente',
+                      style: AppTypography.titleLarge.copyWith(
+                        color: AppColors.success,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text('Última revisión: 15 Mar 2026', style: AppTypography.bodySmall),
+                    Text(
+                      'Última revisión: 15 Mar 2026',
+                      style: AppTypography.bodySmall,
+                    ),
                   ],
                 ),
               ),
@@ -288,11 +414,23 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
         const SizedBox(height: 16),
 
         if (player.containsKey('bloodType'))
-          _InfoTile(icon: Icons.bloodtype, label: 'Grupo sanguíneo', value: player['bloodType'] as String),
+          _InfoTile(
+            icon: Icons.bloodtype,
+            label: 'Grupo sanguíneo',
+            value: player['bloodType'] as String,
+          ),
         if (player.containsKey('height'))
-          _InfoTile(icon: Icons.height, label: 'Altura', value: player['height'] as String),
+          _InfoTile(
+            icon: Icons.height,
+            label: 'Altura',
+            value: player['height'] as String,
+          ),
         if (player.containsKey('weight'))
-          _InfoTile(icon: Icons.monitor_weight_outlined, label: 'Peso', value: player['weight'] as String),
+          _InfoTile(
+            icon: Icons.monitor_weight_outlined,
+            label: 'Peso',
+            value: player['weight'] as String,
+          ),
 
         const SizedBox(height: 16),
         Text('Observaciones', style: AppTypography.headlineSmall),
@@ -329,7 +467,11 @@ class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _InfoTile({required this.icon, required this.label, required this.value});
+  const _InfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -346,9 +488,7 @@ class _InfoTile extends StatelessWidget {
             child: Icon(icon, size: 18, color: AppColors.textSecondary),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(label, style: AppTypography.bodyMedium),
-          ),
+          Expanded(child: Text(label, style: AppTypography.bodyMedium)),
           Text(value, style: AppTypography.titleSmall),
         ],
       ),
@@ -361,7 +501,12 @@ class _PerformanceRow extends StatelessWidget {
   final double value;
   final double maxValue;
   final Color? color;
-  const _PerformanceRow({required this.label, required this.value, this.maxValue = 1.0, this.color});
+  const _PerformanceRow({
+    required this.label,
+    required this.value,
+    this.maxValue = 1.0,
+    this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +518,10 @@ class _PerformanceRow extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: AppTypography.bodySmall),
-            Text(value.toStringAsFixed(2), style: AppTypography.labelMedium.copyWith(color: c)),
+            Text(
+              value.toStringAsFixed(2),
+              style: AppTypography.labelMedium.copyWith(color: c),
+            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -396,11 +544,12 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   _TabBarDelegate(this.tabBar);
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: AppColors.background,
-      child: tabBar,
-    );
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(color: AppColors.background, child: tabBar);
   }
 
   @override
@@ -408,5 +557,6 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   double get minExtent => tabBar.preferredSize.height;
   @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
+      false;
 }

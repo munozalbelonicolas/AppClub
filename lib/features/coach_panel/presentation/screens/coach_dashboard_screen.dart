@@ -7,15 +7,20 @@ import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_stat_card.dart';
 import '../../../../core/widgets/jn_section_header.dart';
-import '../../../../data/mock/mock_data.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/session_provider.dart';
 
-class CoachDashboardScreen extends StatelessWidget {
+// TODO: Connect to Firestore
+class CoachDashboardScreen extends ConsumerWidget {
   const CoachDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final players = MockData.players.where((p) => p['category'] == 'Sub-12').toList();
-    final nextMatch = MockData.nextMatch;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessionUser = ref.watch(currentUserProvider)!;
+
+    // TODO: Fetch players and nextMatch from Firestore. Currently set to empty/null.
+    final List<Map<String, dynamic>> players = [];
+    final Map<String, dynamic>? nextMatch = null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -37,7 +42,7 @@ class CoachDashboardScreen extends StatelessWidget {
             child: Row(
               children: [
                 JNAvatar(
-                  name: 'Pablo Ramírez',
+                  name: '${sessionUser.name} ${sessionUser.lastName}',
                   size: 50,
                   borderColor: AppColors.accent,
                 ),
@@ -46,8 +51,14 @@ class CoachDashboardScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('DT Pablo Ramírez', style: AppTypography.titleLarge),
-                      Text('Sub-12 · Temporada 2026', style: AppTypography.bodySmall),
+                      Text(
+                        'DT ${sessionUser.name} ${sessionUser.lastName}',
+                        style: AppTypography.titleLarge,
+                      ),
+                      Text(
+                        '${sessionUser.category ?? 'Sin categoría'} · Temporada ${DateTime.now().year}',
+                        style: AppTypography.bodySmall,
+                      ),
                     ],
                   ),
                 ),
@@ -67,142 +78,214 @@ class CoachDashboardScreen extends StatelessWidget {
             mainAxisSpacing: 12,
             childAspectRatio: 1.4,
             children: [
-              JNStatCard(value: '${players.length}', label: 'Jugadores', icon: Icons.groups, color: AppColors.info),
-              JNStatCard(value: '13', label: 'Puntos', icon: Icons.emoji_events, color: AppColors.accent),
-              JNStatCard(value: '1°', label: 'Posición', icon: Icons.leaderboard, color: AppColors.success),
-              JNStatCard(value: '5', label: 'Partidos', icon: Icons.sports_soccer, color: AppColors.primary),
+              JNStatCard(
+                value: '${players.length}',
+                label: 'Jugadores',
+                icon: Icons.groups,
+                color: AppColors.info,
+              ),
+              JNStatCard(
+                value: '13',
+                label: 'Puntos',
+                icon: Icons.emoji_events,
+                color: AppColors.accent,
+              ),
+              JNStatCard(
+                value: '1°',
+                label: 'Posición',
+                icon: Icons.leaderboard,
+                color: AppColors.success,
+              ),
+              JNStatCard(
+                value: '5',
+                label: 'Partidos',
+                icon: Icons.sports_soccer,
+                color: AppColors.primary,
+              ),
             ],
           ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
 
           const SizedBox(height: 24),
 
           // ─── Next Match Actions ───────────────────
-          JNSectionHeader(
-            title: 'Próximo partido',
-            padding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 12),
-          JNCard(
-            padding: const EdgeInsets.all(16),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.sports_soccer, size: 18, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
-                      style: AppTypography.titleMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${nextMatch['date']} · ${nextMatch['time']} · ${nextMatch['venue']}',
-                  style: AppTypography.bodySmall,
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ActionButton(
-                        icon: Icons.list_alt,
-                        label: 'Convocatoria',
+          if (nextMatch != null) ...[
+            JNSectionHeader(title: 'Próximo partido', padding: EdgeInsets.zero),
+            const SizedBox(height: 12),
+            JNCard(
+              padding: const EdgeInsets.all(16),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.sports_soccer,
+                        size: 18,
                         color: AppColors.primary,
-                        onTap: () {},
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _ActionButton(
-                        icon: Icons.format_list_numbered,
-                        label: 'Formación',
-                        color: AppColors.accent,
-                        onTap: () {},
+                      const SizedBox(width: 8),
+                      Text(
+                        '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
+                        style: AppTypography.titleMedium,
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _ActionButton(
-                        icon: Icons.note_add,
-                        label: 'Notas',
-                        color: AppColors.info,
-                        onTap: () {},
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${nextMatch['date']} · ${nextMatch['time']} · ${nextMatch['venue']}',
+                    style: AppTypography.bodySmall,
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.list_alt,
+                          label: 'Convocatoria',
+                          color: AppColors.primary,
+                          onTap: () {},
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ).animate(delay: 200.ms).fadeIn(duration: 400.ms),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.format_list_numbered,
+                          label: 'Formación',
+                          color: AppColors.accent,
+                          onTap: () {},
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.note_add,
+                          label: 'Notas',
+                          color: AppColors.info,
+                          onTap: () {},
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ).animate(delay: 200.ms).fadeIn(duration: 400.ms),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ],
 
           // ─── Squad ────────────────────────────────
           JNSectionHeader(
-            title: 'Plantel Sub-12',
+            title: 'Plantel ${sessionUser.category ?? 'Sin categoría'}',
             actionLabel: '${players.length} jugadores',
             padding: EdgeInsets.zero,
           ),
           const SizedBox(height: 12),
+
+          if (players.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  children: [
+                    Icon(Icons.groups, size: 48, color: AppColors.textTertiary),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No hay jugadores registrados en esta categoría',
+                      style: AppTypography.titleMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           ...players.asMap().entries.map((entry) {
             final index = entry.key;
             final player = entry.value;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: JNCard(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(
-                  children: [
-                    JNAvatar(
-                      name: '${player['name']} ${player['lastName']}',
-                      size: 40,
-                      number: player['number'] as int,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${player['name']} ${player['lastName']}',
-                            style: AppTypography.titleSmall,
-                          ),
-                          Row(
-                            children: [
-                              Text(player['position'] as String, style: AppTypography.bodySmall),
-                              const SizedBox(width: 8),
-                              Text('·', style: AppTypography.bodySmall),
-                              const SizedBox(width: 8),
-                              Text('${player['age']} años', style: AppTypography.bodySmall),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+              child:
+                  JNCard(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        child: Row(
                           children: [
-                            Icon(Icons.sports_soccer, size: 12, color: AppColors.primary),
-                            const SizedBox(width: 3),
-                            Text('${player['goals']}', style: AppTypography.labelMedium.copyWith(color: AppColors.primary)),
+                            JNAvatar(
+                              name: '${player['name']} ${player['lastName']}',
+                              size: 40,
+                              number: player['number'] as int,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${player['name']} ${player['lastName']}',
+                                    style: AppTypography.titleSmall,
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        player['position'] as String,
+                                        style: AppTypography.bodySmall,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text('·', style: AppTypography.bodySmall),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${player['age']} años',
+                                        style: AppTypography.bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.sports_soccer,
+                                      size: 12,
+                                      color: AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${player['goals']}',
+                                      style: AppTypography.labelMedium.copyWith(
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${player['attendance']}%',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: (player['attendance'] as int) >= 90
+                                        ? AppColors.success
+                                        : AppColors.warning,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 2),
-                        Text('${player['attendance']}%', style: AppTypography.bodySmall.copyWith(
-                          color: (player['attendance'] as int) >= 90 ? AppColors.success : AppColors.warning,
-                        )),
-                      ],
-                    ),
-                  ],
-                ),
-              ).animate(delay: (300 + index * 60).ms).fadeIn(duration: 400.ms).slideX(begin: 0.03),
+                      )
+                      .animate(delay: (300 + index * 60).ms)
+                      .fadeIn(duration: 400.ms)
+                      .slideX(begin: 0.03),
             );
           }),
         ],

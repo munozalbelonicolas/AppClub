@@ -11,6 +11,7 @@ import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/models/user_session.dart';
 
 class CommunicationsScreen extends ConsumerStatefulWidget {
   const CommunicationsScreen({super.key});
@@ -57,6 +58,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
 
     String selectedCategory = 'deportivo';
     String selectedPriority = 'normal';
+    bool commentsEnabled = true;
     final bool isDT = sessionUser.role == 'dt';
     if (isDT && sessionUser.category != null) {
       selectedCategory = sessionUser.category!;
@@ -142,6 +144,18 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           }
                         },
                       ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('Habilitar comentarios'),
+                        value: commentsEnabled,
+                        activeTrackColor: AppColors.primary,
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            commentsEnabled = val;
+                          });
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -174,6 +188,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         'authorId': sessionUser.id,
                         'authorName': '${sessionUser.name} ${sessionUser.lastName}',
                         'authorRole': sessionUser.role,
+                        'commentsEnabled': commentsEnabled,
                       });
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -257,7 +272,14 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
 
   @override
   Widget build(BuildContext context) {
-    final sessionUser = ref.watch(currentUserProvider) ?? SessionMocks.users['padre']!;
+    final sessionUser = ref.watch(currentUserProvider) ??
+        const UserSession(
+          id: 'mock',
+          name: 'Mock',
+          lastName: 'User',
+          email: 'mock@mock.com',
+          role: 'padre',
+        );
     final isNormalUser = sessionUser.isNormalUser;
     
     // Fetch announcements filtered by user category using family provider
@@ -366,14 +388,25 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
       itemBuilder: (context, index) {
         final ann = announcements[index];
         final annId = ann['id'] as String;
-        final isRead = ann['read'] as bool;
         final isExpanded = _expandedAnnIds.contains(annId);
         
+        final seenByList = List<Map<String, dynamic>>.from(
+          (ann['seenBy'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+        );
+        final hasSeen = seenByList.any((e) => e['userId'] == sessionUser.id);
+
+        if (!hasSeen) {
+          Future.microtask(() {
+            ref.read(firestoreServiceProvider).markAnnouncementAsSeen(annId, sessionUser);
+          });
+        }
+
         final comments = List<Map<String, dynamic>>.from(
           (ann['comments'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
         );
 
         final bool canDelete = sessionUser.isAdmin || ann['authorId'] == sessionUser.id;
+        final bool commentsEnabled = ann['commentsEnabled'] ?? true;
 
         // Sort comments chronologically
         comments.sort((a, b) {
@@ -386,7 +419,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
         });
 
         return JNCard(
-          border: !isRead
+          border: !hasSeen
               ? Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1)
               : null,
           padding: const EdgeInsets.all(16),
@@ -396,7 +429,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (!isRead)
+                  if (!hasSeen)
                     Container(
                       width: 8,
                       height: 8,
@@ -420,11 +453,87 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                     ),
                   ),
                   if (canDelete)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
-                      onPressed: () => _confirmDeleteAnnouncement(context, annId),
-                      constraints: const BoxConstraints(),
+                    PopupMenuButton<String>(
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: AppColors.textTertiary,
+                        size: 20,
+                      ),
                       padding: EdgeInsets.zero,
+                      color: AppColors.surface,
+                      onSelected: (value) {
+                        if (value == 'delete') {
+                          _confirmDeleteAnnouncement(context, annId);
+                        } else if (value == 'toggle_comments') {
+                          ref
+                              .read(firestoreServiceProvider)
+                              .toggleAnnouncementComments(
+                                annId,
+                                !commentsEnabled,
+                              );
+                        } else if (value == 'view_views') {
+                          _showViewsDialog(context, seenByList);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'view_views',
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.visibility,
+                                size: 18,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Ver vistas (${seenByList.length})',
+                                style: AppTypography.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'toggle_comments',
+                          child: Row(
+                            children: [
+                              Icon(
+                                commentsEnabled
+                                    ? Icons.comments_disabled
+                                    : Icons.comment,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                commentsEnabled
+                                    ? 'Deshabilitar comentarios'
+                                    : 'Habilitar comentarios',
+                                style: AppTypography.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: AppColors.error,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Eliminar',
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.error,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                 ],
               ),
@@ -495,25 +604,50 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
               // Expanded comments
               if (isExpanded) ...[
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _commentControllers[annId],
-                        style: AppTypography.bodyMedium,
-                        decoration: const InputDecoration(
-                          hintText: 'Comentar...',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
+                if (!commentsEnabled) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Los comentarios están desactivados.',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.send, color: AppColors.primary, size: 18),
-                      onPressed: () => _submitComment(annId, sessionUser),
+                  ),
+                ] else if (sessionUser.role != 'jugador') ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _commentControllers[annId],
+                          style: AppTypography.bodyMedium,
+                          decoration: const InputDecoration(
+                            hintText: 'Comentar...',
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.send, color: AppColors.primary, size: 18),
+                        onPressed: () => _submitComment(annId, sessionUser),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text(
+                      'Los jugadores no pueden realizar comentarios.',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
                 if (comments.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ListView.builder(
@@ -668,6 +802,53 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     };
 
     await ref.read(firestoreServiceProvider).addCommentToAnnouncement(annId, commentData);
+  }
+
+  void _showViewsDialog(BuildContext context, List<Map<String, dynamic>> seenByList) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Visto por (${seenByList.length})', style: AppTypography.titleMedium),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: seenByList.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('Nadie ha visto este comunicado aún.'),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: seenByList.length,
+                  separatorBuilder: (context, index) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final view = seenByList[index];
+                    final timestamp = view['timestamp'] as Timestamp?;
+                    final date = timestamp?.toDate();
+                    final formattedDate = date != null
+                        ? '${date.day}/${date.month} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'
+                        : 'Desconocido';
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: JNAvatar(name: view['userName'] ?? 'User', size: 36),
+                      title: Text(view['userName'] ?? 'Desconocido', style: AppTypography.bodyMedium),
+                      subtitle: Text(
+                        '${(view['userRole'] ?? '').toUpperCase()} • $formattedDate',
+                        style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cerrar', style: TextStyle(color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDate(String dateStr) {

@@ -6,8 +6,13 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/app_colors.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/verify_email_screen.dart';
+import 'features/auth/presentation/screens/pending_approval_screen.dart';
+import 'features/auth/presentation/screens/complete_profile_screen.dart';
+import 'features/player/presentation/screens/register_player_screen.dart';
 import 'app/app_shell.dart';
 import 'core/providers/session_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,11 +34,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(
-    const ProviderScope(
-      child: JorgeNewberyApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: JorgeNewberyApp()));
 }
 
 class JorgeNewberyApp extends StatelessWidget {
@@ -58,19 +59,18 @@ class _AppNavigator extends ConsumerStatefulWidget {
 }
 
 class _AppNavigatorState extends ConsumerState<_AppNavigator> {
-  _AppScreen _currentScreen = _AppScreen.splash;
+  bool _splashFinished = false;
 
-  void _goToLogin() {
-    setState(() => _currentScreen = _AppScreen.login);
-  }
-
-  void _goToHome() {
-    setState(() => _currentScreen = _AppScreen.home);
+  void _onSplashFinished() {
+    setState(() => _splashFinished = true);
   }
 
   void _goToSplashThenLogin() {
     ref.read(currentUserProvider.notifier).state = null;
-    setState(() => _currentScreen = _AppScreen.login);
+  }
+
+  void _forceRefresh() {
+    setState(() {});
   }
 
   @override
@@ -87,24 +87,83 @@ class _AppNavigatorState extends ConsumerState<_AppNavigator> {
   }
 
   Widget _buildCurrentScreen() {
-    switch (_currentScreen) {
-      case _AppScreen.splash:
-        return SplashScreen(
-          key: const ValueKey('splash'),
-          onFinished: _goToLogin,
-        );
-      case _AppScreen.login:
-        return LoginScreen(
-          key: const ValueKey('login'),
-          onLogin: _goToHome,
-        );
-      case _AppScreen.home:
-        return AppShell(
-          key: const ValueKey('home'),
-          onLogout: _goToSplashThenLogin,
-        );
+    if (!_splashFinished) {
+      return SplashScreen(
+        key: const ValueKey('splash'),
+        onFinished: _onSplashFinished,
+      );
     }
+
+    final session = ref.watch(currentUserProvider);
+
+    if (session == null) {
+      return LoginScreen(
+        key: const ValueKey('login'),
+        onLogin: () {}, // Handled reactively
+      );
+    }
+
+    if (!session.emailVerified) {
+      return VerifyEmailScreen(
+        key: const ValueKey('verify_email'),
+        onRefresh: _forceRefresh,
+        onSignOut: _goToSplashThenLogin,
+      );
+    }
+
+    if (session.isRegistrationIncomplete) {
+      return CompleteProfileScreen(
+        key: const ValueKey('complete_profile'),
+        onComplete: _forceRefresh,
+        onSignOut: _goToSplashThenLogin,
+      );
+    }
+
+    if (session.status == 'pending_approval') {
+      return PendingApprovalScreen(
+        key: const ValueKey('pending_approval'),
+        onRefresh: _forceRefresh,
+        onSignOut: _goToSplashThenLogin,
+      );
+    }
+
+    if (session.status == 'pending_children') {
+      return Scaffold(
+        key: const ValueKey('pending_children'),
+        appBar: AppBar(
+          title: const Text('Registrar un hijo'),
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: _goToSplashThenLogin,
+            ),
+          ],
+        ),
+        body: RegisterPlayerScreen(
+          onSuccess: () async {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(session.id)
+                .update({'status': 'pending_approval'});
+            ref.read(currentUserProvider.notifier).state =
+                session.copyWith(status: 'pending_approval');
+            await FirebaseFirestore.instance.collection('notifications').add({
+              'type': 'new_user_pending',
+              'userId': session.id,
+              'userName': '${session.name} ${session.lastName}',
+              'createdAt': FieldValue.serverTimestamp(),
+              'read': false,
+            });
+            _forceRefresh();
+          },
+        ),
+      );
+    }
+
+    return AppShell(
+      key: const ValueKey('home'),
+      onLogout: _goToSplashThenLogin,
+    );
   }
 }
-
-enum _AppScreen { splash, login, home }

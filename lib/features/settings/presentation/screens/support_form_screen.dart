@@ -19,7 +19,7 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _subjectController = TextEditingController();
   final _messageController = TextEditingController();
-  
+
   String _selectedCategory = 'Consulta General';
   bool _isLoading = false;
   bool _isSubmitted = false;
@@ -81,14 +81,11 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = ref.watch(currentUserProvider) ?? SessionMocks.users['padre']!;
+    final currentUser = ref.watch(currentUserProvider)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Ayuda y Soporte'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Ayuda y Soporte'), elevation: 0),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('config')
@@ -132,16 +129,21 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
               gradient: LinearGradient(
                 colors: [
                   AppColors.primary.withValues(alpha: 0.1),
-                  AppColors.surfaceLight
+                  AppColors.surfaceLight,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
               child: Row(
                 children: [
-                  const Icon(Icons.mark_email_unread_outlined,
-                      color: AppColors.primary, size: 28),
+                  const Icon(
+                    Icons.mark_email_unread_outlined,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
@@ -168,8 +170,10 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
 
             const SizedBox(height: 24),
 
-            Text('Completa los detalles de tu consulta',
-                style: AppTypography.labelMedium),
+            Text(
+              'Completa los detalles de tu consulta',
+              style: AppTypography.labelMedium,
+            ),
             const SizedBox(height: 12),
 
             // Subject field
@@ -253,63 +257,73 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
         children: [
           // Animated Paper Airplane Icon
           Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.send,
-              color: AppColors.success,
-              size: 72,
-            ),
-          )
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.send,
+                  color: AppColors.success,
+                  size: 72,
+                ),
+              )
               .animate()
               .scale(duration: 600.ms, curve: Curves.easeOutBack)
               .then()
               .shake(duration: 300.ms),
-          
+
           const SizedBox(height: 32),
-          
+
           Text(
             '¡Consulta Enviada!',
-            style: AppTypography.displaySmall.copyWith(color: AppColors.success),
+            style: AppTypography.displaySmall.copyWith(
+              color: AppColors.success,
+            ),
             textAlign: TextAlign.center,
           ).animate().fadeIn(delay: 200.ms),
-          
+
           const SizedBox(height: 16),
-          
+
           Text(
             'Tu mensaje ha sido registrado exitosamente y enviado a la dirección de correo oficial del club:',
             style: AppTypography.bodyMedium,
             textAlign: TextAlign.center,
           ).animate().fadeIn(delay: 300.ms),
-          
+
           const SizedBox(height: 12),
-          
+
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border, width: 0.5),
-            ),
-            child: Text(
-              _activeSupportEmail,
-              style: AppTypography.titleMedium.copyWith(color: AppColors.primary),
-            ),
-          ).animate().fadeIn(delay: 400.ms).scale(begin: const Offset(0.9, 0.9)),
-          
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border, width: 0.5),
+                ),
+                child: Text(
+                  _activeSupportEmail,
+                  style: AppTypography.titleMedium.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+              )
+              .animate()
+              .fadeIn(delay: 400.ms)
+              .scale(begin: const Offset(0.9, 0.9)),
+
           const SizedBox(height: 16),
-          
+
           Text(
             'Te responderemos a la brevedad a tu correo electrónico registrado:\n${ref.read(currentUserProvider)?.email ?? ""}',
             style: AppTypography.bodySmall,
             textAlign: TextAlign.center,
           ).animate().fadeIn(delay: 500.ms),
-          
+
           const SizedBox(height: 48),
-          
+
           JNButton(
             label: 'Volver a Ajustes',
             variant: JNButtonVariant.outline,

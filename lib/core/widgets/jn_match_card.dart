@@ -76,7 +76,10 @@ class JNMatchCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: status == 'upcoming'
                       ? AppColors.primary.withValues(alpha: 0.15)
@@ -86,14 +89,13 @@ class JNMatchCard extends StatelessWidget {
                 child: Text(
                   status == 'upcoming' ? 'PRÓXIMO PARTIDO' : 'FINALIZADO',
                   style: AppTypography.badge.copyWith(
-                    color: status == 'upcoming' ? AppColors.primary : AppColors.success,
+                    color: status == 'upcoming'
+                        ? AppColors.primary
+                        : AppColors.success,
                   ),
                 ),
               ),
-              Text(
-                '$date · $time',
-                style: AppTypography.bodySmall,
-              ),
+              Text('$date · $time', style: AppTypography.bodySmall),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -110,8 +112,12 @@ class JNMatchCard extends StatelessWidget {
                     Text(
                       homeTeam,
                       style: AppTypography.titleSmall.copyWith(
-                        color: _isClubHome ? AppColors.textPrimary : AppColors.textSecondary,
-                        fontWeight: _isClubHome ? FontWeight.w700 : FontWeight.w400,
+                        color: _isClubHome
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        fontWeight: _isClubHome
+                            ? FontWeight.w700
+                            : FontWeight.w400,
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 2,
@@ -130,13 +136,21 @@ class JNMatchCard extends StatelessWidget {
                           Text('$homeScore', style: AppTypography.scoreMedium),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: Text('-', style: AppTypography.scoreMedium.copyWith(color: AppColors.textTertiary)),
+                            child: Text(
+                              '-',
+                              style: AppTypography.scoreMedium.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
                           ),
                           Text('$awayScore', style: AppTypography.scoreMedium),
                         ],
                       )
                     : Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceVariant,
                           borderRadius: BorderRadius.circular(8),
@@ -160,8 +174,12 @@ class JNMatchCard extends StatelessWidget {
                     Text(
                       awayTeam,
                       style: AppTypography.titleSmall.copyWith(
-                        color: _isClubAway ? AppColors.textPrimary : AppColors.textSecondary,
-                        fontWeight: _isClubAway ? FontWeight.w700 : FontWeight.w400,
+                        color: _isClubAway
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        fontWeight: _isClubAway
+                            ? FontWeight.w700
+                            : FontWeight.w400,
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 2,
@@ -178,7 +196,11 @@ class JNMatchCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.location_on_outlined, size: 14, color: AppColors.textTertiary),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: AppColors.textTertiary,
+                ),
                 const SizedBox(width: 4),
                 Text(venue, style: AppTypography.bodySmall),
               ],
@@ -205,8 +227,8 @@ class JNMatchCard extends StatelessWidget {
                 color: _result == 'win'
                     ? AppColors.win
                     : _result == 'draw'
-                        ? AppColors.draw
-                        : AppColors.loss,
+                    ? AppColors.draw
+                    : AppColors.loss,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -220,7 +242,9 @@ class JNMatchCard extends StatelessWidget {
                   homeTeam,
                   style: AppTypography.titleSmall.copyWith(
                     fontWeight: _isClubHome ? FontWeight.w700 : FontWeight.w400,
-                    color: _isClubHome ? AppColors.textPrimary : AppColors.textSecondary,
+                    color: _isClubHome
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -228,7 +252,9 @@ class JNMatchCard extends StatelessWidget {
                   awayTeam,
                   style: AppTypography.titleSmall.copyWith(
                     fontWeight: _isClubAway ? FontWeight.w700 : FontWeight.w400,
-                    color: _isClubAway ? AppColors.textPrimary : AppColors.textSecondary,
+                    color: _isClubAway
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -247,7 +273,12 @@ class JNMatchCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(time, style: AppTypography.titleSmall.copyWith(color: AppColors.primary)),
+                Text(
+                  time,
+                  style: AppTypography.titleSmall.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
                 Text(date, style: AppTypography.bodySmall),
               ],
             ),
@@ -263,9 +294,14 @@ class JNMatchCard extends StatelessWidget {
       height: 52,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isClub ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surfaceVariant,
+        color: isClub
+            ? AppColors.primary.withValues(alpha: 0.15)
+            : AppColors.surfaceVariant,
         border: isClub
-            ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 2)
+            ? Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                width: 2,
+              )
             : null,
       ),
       child: Center(

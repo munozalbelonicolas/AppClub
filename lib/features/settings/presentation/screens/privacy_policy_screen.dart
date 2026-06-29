@@ -11,10 +11,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Política de Privacidad'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Política de Privacidad'), elevation: 0),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
@@ -27,9 +24,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppColors.surfaceLight, AppColors.primary.withValues(alpha: 0.05)],
+                  colors: [
+                    AppColors.surfaceLight,
+                    AppColors.primary.withValues(alpha: 0.05),
+                  ],
                 ),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -51,7 +53,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
                         children: [
                           Text(
                             'Seguridad y Confianza',
-                            style: AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
+                            style: AppTypography.titleLarge.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -132,10 +136,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: Text(
-                    itemText,
-                    style: AppTypography.bodyMedium,
-                  ),
+                  child: Text(itemText, style: AppTypography.bodyMedium),
                 ),
               ],
             ),
@@ -152,10 +153,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         widgets.add(
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text(
-              trimmed,
-              style: AppTypography.bodyMedium,
-            ),
+            child: Text(trimmed, style: AppTypography.bodyMedium),
           ),
         );
       }

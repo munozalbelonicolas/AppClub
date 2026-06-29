@@ -5,14 +5,18 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
-import '../../../../data/mock/mock_data.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/session_provider.dart';
 
-class PaymentsScreen extends StatelessWidget {
+class PaymentsScreen extends ConsumerWidget {
   const PaymentsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final payments = MockData.payments;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessionUser = ref.watch(currentUserProvider)!;
+
+    // TODO: Fetch payments from Firestore. Currently set to empty.
+    final List<Map<String, dynamic>> payments = [];
     final pending = payments.where((p) => p['status'] == 'pending').toList();
     final paid = payments.where((p) => p['status'] == 'paid').toList();
     final totalPaid = paid.fold<int>(0, (sum, p) => sum + (p['amount'] as int));
@@ -33,7 +37,10 @@ class PaymentsScreen extends StatelessWidget {
                 AppColors.primary.withValues(alpha: 0.08),
               ],
             ),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.2),
+              width: 1,
+            ),
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,15 +53,22 @@ class PaymentsScreen extends StatelessWidget {
                         color: AppColors.accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.account_balance_wallet, size: 24, color: AppColors.accent),
+                      child: const Icon(
+                        Icons.account_balance_wallet,
+                        size: 24,
+                        color: AppColors.accent,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Estado de cuenta', style: AppTypography.labelMedium),
                         Text(
-                          '${MockData.currentPlayer['name']} ${MockData.currentPlayer['lastName']}',
+                          'Estado de cuenta',
+                          style: AppTypography.labelMedium,
+                        ),
+                        Text(
+                          '${sessionUser.name} ${sessionUser.lastName}',
                           style: AppTypography.bodySmall,
                         ),
                       ],
@@ -69,7 +83,9 @@ class PaymentsScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '\$${_formatNumber(pending.first['amount'] as int)}',
-                    style: AppTypography.displayMedium.copyWith(color: AppColors.warning),
+                    style: AppTypography.displayMedium.copyWith(
+                      color: AppColors.warning,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -86,7 +102,9 @@ class PaymentsScreen extends StatelessWidget {
                 ] else ...[
                   Text(
                     '¡Todo al día!',
-                    style: AppTypography.displaySmall.copyWith(color: AppColors.success),
+                    style: AppTypography.displaySmall.copyWith(
+                      color: AppColors.success,
+                    ),
                   ),
                 ],
               ],
@@ -106,13 +124,22 @@ class PaymentsScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.check_circle, size: 16, color: AppColors.success),
+                          Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: AppColors.success,
+                          ),
                           const SizedBox(width: 6),
                           Text('Pagadas', style: AppTypography.labelSmall),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text('${paid.length}', style: AppTypography.headlineLarge.copyWith(color: AppColors.success)),
+                      Text(
+                        '${paid.length}',
+                        style: AppTypography.headlineLarge.copyWith(
+                          color: AppColors.success,
+                        ),
+                      ),
                       Text('cuotas', style: AppTypography.bodySmall),
                     ],
                   ),
@@ -127,14 +154,26 @@ class PaymentsScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.attach_money, size: 16, color: AppColors.accent),
+                          Icon(
+                            Icons.attach_money,
+                            size: 16,
+                            color: AppColors.accent,
+                          ),
                           const SizedBox(width: 6),
                           Text('Total pagado', style: AppTypography.labelSmall),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text('\$${_formatNumber(totalPaid)}', style: AppTypography.headlineLarge.copyWith(color: AppColors.accent)),
-                      Text('en 2026', style: AppTypography.bodySmall),
+                      Text(
+                        '\$${_formatNumber(totalPaid)}',
+                        style: AppTypography.headlineLarge.copyWith(
+                          color: AppColors.accent,
+                        ),
+                      ),
+                      Text(
+                        'en ${DateTime.now().year}',
+                        style: AppTypography.bodySmall,
+                      ),
                     ],
                   ),
                 ),
@@ -148,6 +187,29 @@ class PaymentsScreen extends StatelessWidget {
           Text('Historial de pagos', style: AppTypography.headlineSmall),
           const SizedBox(height: 12),
 
+          if (payments.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.receipt_long,
+                      size: 48,
+                      color: AppColors.textTertiary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No hay cuotas registradas',
+                      style: AppTypography.titleMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           ...payments.asMap().entries.map((entry) {
             final index = entry.key;
             final payment = entry.value;
@@ -155,56 +217,69 @@ class PaymentsScreen extends StatelessWidget {
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: JNCard(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: isPaid
-                            ? AppColors.success.withValues(alpha: 0.12)
-                            : AppColors.warning.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        isPaid ? Icons.check_circle_outline : Icons.schedule,
-                        color: isPaid ? AppColors.success : AppColors.warning,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(payment['month'] as String, style: AppTypography.titleMedium),
-                          Text(
-                            isPaid
-                                ? 'Pagado el ${_formatDate(payment['paidDate'] as String)}'
-                                : 'Vence el ${_formatDate(payment['dueDate'] as String)}',
-                            style: AppTypography.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '\$${_formatNumber(payment['amount'] as int)}',
-                          style: AppTypography.titleLarge.copyWith(
-                            color: isPaid ? AppColors.textPrimary : AppColors.warning,
-                          ),
+              child:
+                  JNCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: isPaid
+                                    ? AppColors.success.withValues(alpha: 0.12)
+                                    : AppColors.warning.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                isPaid
+                                    ? Icons.check_circle_outline
+                                    : Icons.schedule,
+                                color: isPaid
+                                    ? AppColors.success
+                                    : AppColors.warning,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    payment['month'] as String,
+                                    style: AppTypography.titleMedium,
+                                  ),
+                                  Text(
+                                    isPaid
+                                        ? 'Pagado el ${_formatDate(payment['paidDate'] as String)}'
+                                        : 'Vence el ${_formatDate(payment['dueDate'] as String)}',
+                                    style: AppTypography.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '\$${_formatNumber(payment['amount'] as int)}',
+                                  style: AppTypography.titleLarge.copyWith(
+                                    color: isPaid
+                                        ? AppColors.textPrimary
+                                        : AppColors.warning,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                isPaid ? JNBadge.paid() : JNBadge.pending(),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        isPaid ? JNBadge.paid() : JNBadge.pending(),
-                      ],
-                    ),
-                  ],
-                ),
-              ).animate(delay: (300 + index * 80).ms).fadeIn(duration: 400.ms).slideX(begin: 0.03),
+                      )
+                      .animate(delay: (300 + index * 80).ms)
+                      .fadeIn(duration: 400.ms)
+                      .slideX(begin: 0.03),
             );
           }),
         ],
@@ -215,7 +290,21 @@ class PaymentsScreen extends StatelessWidget {
   String _formatDate(String dateStr) {
     final parts = dateStr.split('-');
     if (parts.length != 3) return dateStr;
-    final months = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    final months = [
+      '',
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
     return '${int.parse(parts[2])} ${months[int.parse(parts[1])]}';
   }
 

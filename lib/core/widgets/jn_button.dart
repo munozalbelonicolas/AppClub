@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
-enum JNButtonVariant { primary, outline, ghost, accent, danger }
+enum JNButtonVariant { primary, outline, ghost, accent, danger, success }
+
 enum JNButtonSize { small, medium, large }
 
 /// Premium button with multiple variants
@@ -65,11 +66,17 @@ class JNButton extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.onPrimary,
-            disabledBackgroundColor: AppColors.primaryDark.withValues(alpha: 0.5),
+            disabledBackgroundColor: AppColors.primaryDark.withValues(
+              alpha: 0.5,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
-            textStyle: TextStyle(fontSize: _fontSize, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+            textStyle: TextStyle(
+              fontSize: _fontSize,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
           ),
           child: _buildChild(AppColors.onPrimary),
         );
@@ -82,7 +89,11 @@ class JNButton extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
-            textStyle: TextStyle(fontSize: _fontSize, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+            textStyle: TextStyle(
+              fontSize: _fontSize,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
           ),
           child: _buildChild(Colors.black),
         );
@@ -95,7 +106,11 @@ class JNButton extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
-            textStyle: TextStyle(fontSize: _fontSize, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+            textStyle: TextStyle(
+              fontSize: _fontSize,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
           ),
           child: _buildChild(AppColors.textPrimary),
         );
@@ -107,7 +122,10 @@ class JNButton extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
-            textStyle: TextStyle(fontSize: _fontSize, fontWeight: FontWeight.w600),
+            textStyle: TextStyle(
+              fontSize: _fontSize,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           child: _buildChild(AppColors.textSecondary),
         );
@@ -120,7 +138,28 @@ class JNButton extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
-            textStyle: TextStyle(fontSize: _fontSize, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+            textStyle: TextStyle(
+              fontSize: _fontSize,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+          child: _buildChild(Colors.white),
+        );
+      case JNButtonVariant.success:
+        return ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.success,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+            textStyle: TextStyle(
+              fontSize: _fontSize,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
           ),
           child: _buildChild(Colors.white),
         );

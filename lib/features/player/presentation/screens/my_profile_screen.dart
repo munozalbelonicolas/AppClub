@@ -10,6 +10,8 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/models/user_session.dart';
+import 'register_player_screen.dart';
+import 'edit_child_profile_screen.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   const MyProfileScreen({super.key});
@@ -20,7 +22,7 @@ class MyProfileScreen extends ConsumerStatefulWidget {
 
 class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _nameController;
   late TextEditingController _lastNameController;
   late TextEditingController _dniController;
@@ -29,6 +31,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   late TextEditingController _ageController;
   late TextEditingController _fatherNameController;
   late TextEditingController _motherNameController;
+  late TextEditingController _phone1Controller;
+  late TextEditingController _phone2Controller;
 
   String? _avatarPath;
   String? _aptoFisicoPath;
@@ -38,20 +42,22 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final user = ref.read(currentUserProvider) ?? SessionMocks.users['padre']!;
-    
-    _nameController = TextEditingController(text: user.name);
-    _lastNameController = TextEditingController(text: user.lastName);
-    _dniController = TextEditingController(text: user.dni ?? '');
-    _weightController = TextEditingController(text: user.weight ?? '');
-    _heightController = TextEditingController(text: user.height ?? '');
-    _ageController = TextEditingController(text: user.age?.toString() ?? '');
-    _fatherNameController = TextEditingController(text: user.fatherName ?? '');
-    _motherNameController = TextEditingController(text: user.motherName ?? '');
-    
-    _avatarPath = user.avatarUrl;
-    _aptoFisicoPath = user.aptoFisicoUrl;
-    _aptoFisicoExpiry = user.aptoFisicoExpiry;
+    final user = ref.read(currentUserProvider);
+
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _lastNameController = TextEditingController(text: user?.lastName ?? '');
+    _dniController = TextEditingController(text: user?.dni ?? '');
+    _weightController = TextEditingController(text: user?.weight ?? '');
+    _heightController = TextEditingController(text: user?.height ?? '');
+    _ageController = TextEditingController(text: user?.age?.toString() ?? '');
+    _fatherNameController = TextEditingController(text: user?.fatherName ?? '');
+    _motherNameController = TextEditingController(text: user?.motherName ?? '');
+    _phone1Controller = TextEditingController(text: user?.phone1 ?? '');
+    _phone2Controller = TextEditingController(text: user?.phone2 ?? '');
+
+    _avatarPath = user?.avatarUrl;
+    _aptoFisicoPath = user?.aptoFisicoUrl;
+    _aptoFisicoExpiry = user?.aptoFisicoExpiry;
   }
 
   @override
@@ -64,13 +70,18 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     _ageController.dispose();
     _fatherNameController.dispose();
     _motherNameController.dispose();
+    _phone1Controller.dispose();
+    _phone2Controller.dispose();
     super.dispose();
   }
 
   Future<void> _pickAvatar() async {
     try {
       final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
       if (image != null) {
         setState(() {
           _avatarPath = image.path;
@@ -84,7 +95,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   Future<void> _pickAptoFisico() async {
     try {
       final ImagePicker picker = ImagePicker();
-      final XFile? file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      final XFile? file = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
       if (file != null) {
         setState(() {
           _aptoFisicoPath = file.path;
@@ -98,7 +112,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   Future<void> _selectExpiryDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _aptoFisicoExpiry ?? DateTime.now().add(const Duration(days: 365)),
+      initialDate:
+          _aptoFisicoExpiry ?? DateTime.now().add(const Duration(days: 365)),
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
       builder: (context, child) {
@@ -122,29 +137,75 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
   }
 
+  Stream<List<Map<String, dynamic>>> _fetchChildren(String tutorId) {
+    return FirebaseFirestore.instance
+        .collection('player_tutor_links')
+        .where('tutorId', isEqualTo: tutorId)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      List<Map<String, dynamic>> children = [];
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final playerId = data['playerId'] as String?;
+        final status = data['status'] as String?;
+        final isEnabledByTutor = data['isEnabledByTutor'] as bool? ?? true;
+        if (playerId != null) {
+          final playerDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(playerId)
+              .get();
+          if (playerDoc.exists) {
+            children.add({
+              'id': playerDoc.id,
+              ...playerDoc.data()!,
+              'linkStatus': status,
+              'isEnabledByTutor': isEnabledByTutor,
+            });
+          }
+        }
+      }
+      return children;
+    });
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    final user = ref.read(currentUserProvider) ?? SessionMocks.users['padre']!;
-    
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+
     try {
-      final updatedData = {
-        'name': _nameController.text.trim(),
-        'lastName': _lastNameController.text.trim(),
-        'dni': _dniController.text.trim(),
-        'weight': _weightController.text.trim(),
-        'height': _heightController.text.trim(),
-        'age': int.tryParse(_ageController.text.trim()),
-        'fatherName': _fatherNameController.text.trim(),
-        'motherName': _motherNameController.text.trim(),
-        'avatarUrl': _avatarPath,
-        'aptoFisicoUrl': _aptoFisicoPath,
-        'aptoFisicoExpiry': _aptoFisicoExpiry != null ? Timestamp.fromDate(_aptoFisicoExpiry!) : null,
-      };
+      final updatedData = user.role == 'padre'
+          ? {
+              'name': _nameController.text.trim(),
+              'lastName': _lastNameController.text.trim(),
+              'dni': _dniController.text.trim(),
+              'phone1': _phone1Controller.text.trim(),
+              'phone2': _phone2Controller.text.trim(),
+              'avatarUrl': _avatarPath,
+            }
+          : {
+              'name': _nameController.text.trim(),
+              'lastName': _lastNameController.text.trim(),
+              'dni': _dniController.text.trim(),
+              'weight': _weightController.text.trim(),
+              'height': _heightController.text.trim(),
+              'age': int.tryParse(_ageController.text.trim()),
+              'fatherName': _fatherNameController.text.trim(),
+              'motherName': _motherNameController.text.trim(),
+              'avatarUrl': _avatarPath,
+              'aptoFisicoUrl': _aptoFisicoPath,
+              'aptoFisicoExpiry': _aptoFisicoExpiry != null
+                  ? Timestamp.fromDate(_aptoFisicoExpiry!)
+                  : null,
+            };
 
       // Update in Firestore
-      await FirebaseFirestore.instance.collection('users').doc(user.id).update(updatedData);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.id)
+          .update(updatedData);
 
       // Update local state
       final updatedSession = UserSession(
@@ -156,15 +217,17 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         category: user.category,
         childId: user.childId,
         dni: _dniController.text.trim(),
-        weight: _weightController.text.trim(),
-        height: _heightController.text.trim(),
-        age: int.tryParse(_ageController.text.trim()),
-        fatherName: _fatherNameController.text.trim(),
-        motherName: _motherNameController.text.trim(),
-        aptoFisicoUrl: _aptoFisicoPath,
-        aptoFisicoExpiry: _aptoFisicoExpiry,
+        weight: user.role == 'padre' ? null : _weightController.text.trim(),
+        height: user.role == 'padre' ? null : _heightController.text.trim(),
+        age: user.role == 'padre' ? null : int.tryParse(_ageController.text.trim()),
+        fatherName: user.role == 'padre' ? null : _fatherNameController.text.trim(),
+        motherName: user.role == 'padre' ? null : _motherNameController.text.trim(),
+        aptoFisicoUrl: user.role == 'padre' ? null : _aptoFisicoPath,
+        aptoFisicoExpiry: user.role == 'padre' ? null : _aptoFisicoExpiry,
         hasPendingDebt: user.hasPendingDebt,
         avatarUrl: _avatarPath,
+        phone1: _phone1Controller.text.trim(),
+        phone2: _phone2Controller.text.trim(),
       );
 
       ref.read(currentUserProvider.notifier).state = updatedSession;
@@ -195,16 +258,22 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider) ?? SessionMocks.users['padre']!;
-    
+    final user = ref.watch(currentUserProvider);
+    if (user == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     // Warn if expired or within 30 days of expiry
-    final bool showAptoWarning = user.isAptoFisicoWarning || _aptoFisicoExpiry == null;
-    final bool showAptoExpired = user.isAptoFisicoExpired;
+    final bool showAptoWarning = user.role != 'padre' && (user.isAptoFisicoWarning || _aptoFisicoExpiry == null);
+    final bool showAptoExpired = user.role != 'padre' && user.isAptoFisicoExpired;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mi Perfil y Ficha'),
+        title: Text(user.role == 'padre' ? 'Mi Perfil (Tutor)' : 'Mi Perfil y Ficha'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -216,26 +285,40 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
                 children: [
                   // ─── Warning Banners ──────────────────────
-                  
+
                   // 1. Debt warning (Deuda Pendiente)
                   if (user.hasPendingDebt) ...[
                     JNCard(
                       gradient: LinearGradient(
-                        colors: [AppColors.error.withValues(alpha: 0.2), AppColors.surface],
+                        colors: [
+                          AppColors.error.withValues(alpha: 0.2),
+                          AppColors.surface,
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: AppColors.error.withValues(alpha: 0.4),
+                      ),
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 28),
+                          const Icon(
+                            Icons.warning_amber_rounded,
+                            color: AppColors.error,
+                            size: 28,
+                          ),
                           const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Deuda Pendiente', style: AppTypography.titleMedium.copyWith(color: AppColors.error)),
+                                Text(
+                                  'Deuda Pendiente',
+                                  style: AppTypography.titleMedium.copyWith(
+                                    color: AppColors.error,
+                                  ),
+                                ),
                                 const SizedBox(height: 2),
                                 Text(
                                   'Registras una cuota mensual pendiente. Regulariza tu situación para evitar la suspensión.',
@@ -254,17 +337,26 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   if (showAptoWarning) ...[
                     JNCard(
                       gradient: LinearGradient(
-                        colors: [AppColors.warning.withValues(alpha: 0.15), AppColors.surface],
+                        colors: [
+                          AppColors.warning.withValues(alpha: 0.15),
+                          AppColors.surface,
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.4),
+                      ),
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
                           Icon(
-                            showAptoExpired ? Icons.cancel : Icons.notification_important_outlined,
-                            color: showAptoExpired ? AppColors.error : AppColors.warning,
+                            showAptoExpired
+                                ? Icons.cancel
+                                : Icons.notification_important_outlined,
+                            color: showAptoExpired
+                                ? AppColors.error
+                                : AppColors.warning,
                             size: 28,
                           ),
                           const SizedBox(width: 14),
@@ -273,9 +365,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  showAptoExpired ? 'Apto Físico Vencido' : 'Apto Físico por Vencer',
+                                  showAptoExpired
+                                      ? 'Apto Físico Vencido'
+                                      : 'Apto Físico por Vencer',
                                   style: AppTypography.titleMedium.copyWith(
-                                    color: showAptoExpired ? AppColors.error : AppColors.warning,
+                                    color: showAptoExpired
+                                        ? AppColors.error
+                                        : AppColors.warning,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -304,12 +400,18 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             radius: 54,
                             backgroundColor: AppColors.surfaceLight,
                             backgroundImage: _avatarPath != null
-                                ? ( _avatarPath!.startsWith('http')
-                                    ? NetworkImage(_avatarPath!) as ImageProvider
-                                    : FileImage(File(_avatarPath!)) as ImageProvider )
+                                ? (_avatarPath!.startsWith('http')
+                                      ? NetworkImage(_avatarPath!)
+                                            as ImageProvider
+                                      : FileImage(File(_avatarPath!))
+                                            as ImageProvider)
                                 : null,
                             child: _avatarPath == null
-                                ? const Icon(Icons.person, size: 48, color: AppColors.textTertiary)
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 48,
+                                    color: AppColors.textTertiary,
+                                  )
                                 : null,
                           ),
                         ),
@@ -324,7 +426,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                 color: AppColors.primary,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                             ),
                           ),
                         ),
@@ -335,16 +441,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   Center(
                     child: Text(
                       'Toca para cambiar foto de perfil',
-                      style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary),
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ),
 
                   const SizedBox(height: 24),
 
                   // ─── Personal Data Section ────────────────
-                  Text('Datos del Jugador', style: AppTypography.labelMedium),
+                  Text(
+                    user.role == 'padre' ? 'Datos del Tutor' : 'Datos del Jugador',
+                    style: AppTypography.labelMedium,
+                  ),
                   const SizedBox(height: 8),
-                  
+
                   JNCard(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -352,15 +463,23 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                         TextFormField(
                           controller: _nameController,
                           style: AppTypography.bodyLarge,
-                          decoration: const InputDecoration(labelText: 'Nombre'),
-                          validator: (v) => v == null || v.isEmpty ? 'Ingresa el nombre' : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Nombre',
+                          ),
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Ingresa el nombre'
+                              : null,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _lastNameController,
                           style: AppTypography.bodyLarge,
-                          decoration: const InputDecoration(labelText: 'Apellido'),
-                          validator: (v) => v == null || v.isEmpty ? 'Ingresa el apellido' : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Apellido',
+                          ),
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Ingresa el apellido'
+                              : null,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -369,127 +488,312 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           decoration: const InputDecoration(labelText: 'DNI'),
                           keyboardType: TextInputType.number,
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _ageController,
-                                style: AppTypography.bodyLarge,
-                                decoration: const InputDecoration(labelText: 'Edad'),
-                                keyboardType: TextInputType.number,
-                              ),
+                        if (user.role == 'padre') ...[
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _phone1Controller,
+                            style: AppTypography.bodyLarge,
+                            decoration: const InputDecoration(
+                              labelText: 'Teléfono de Contacto 1',
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _heightController,
-                                style: AppTypography.bodyLarge,
-                                decoration: const InputDecoration(labelText: 'Altura (ej. 1.55 m)'),
-                              ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _phone2Controller,
+                            style: AppTypography.bodyLarge,
+                            decoration: const InputDecoration(
+                              labelText: 'Teléfono de Contacto 2 (Opcional)',
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _weightController,
-                                style: AppTypography.bodyLarge,
-                                decoration: const InputDecoration(labelText: 'Peso (ej. 45 kg)'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ─── Parents Data Section ─────────────────
-                  Text('Datos Familiares', style: AppTypography.labelMedium),
-                  const SizedBox(height: 8),
-
-                  JNCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _fatherNameController,
-                          style: AppTypography.bodyLarge,
-                          decoration: const InputDecoration(labelText: 'Nombre y Apellido del Padre'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _motherNameController,
-                          style: AppTypography.bodyLarge,
-                          decoration: const InputDecoration(labelText: 'Nombre y Apellido de la Madre'),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ─── Physical Fitness Section ─────────────
-                  Text('Certificado Médico (Apto Físico)', style: AppTypography.labelMedium),
-                  const SizedBox(height: 8),
-
-                  JNCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _aptoFisicoPath == null ? 'No cargado' : 'Archivo certificado cargado',
-                                    style: AppTypography.titleMedium.copyWith(
-                                      color: _aptoFisicoPath == null ? AppColors.textSecondary : AppColors.success,
-                                    ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _ageController,
+                                  style: AppTypography.bodyLarge,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Edad',
                                   ),
-                                  if (_aptoFisicoExpiry != null) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Vence el: ${_formatDate(_aptoFisicoExpiry!)}',
-                                      style: AppTypography.bodySmall.copyWith(
-                                        color: showAptoWarning ? AppColors.warning : AppColors.textTertiary,
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _heightController,
+                                  style: AppTypography.bodyLarge,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Altura (ej. 1.55 m)',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _weightController,
+                                  style: AppTypography.bodyLarge,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Peso (ej. 45 kg)',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  if (user.role == 'padre') ...[
+                    // Hijos / Jugadores a cargo
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Jugadores Registrados (Hijos)',
+                          style: AppTypography.labelMedium,
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const RegisterPlayerScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Registrar Hijo'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: _fetchChildren(user.id),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        final children = snapshot.data ?? [];
+                        if (children.isEmpty) {
+                          return JNCard(
+                            padding: const EdgeInsets.all(20),
+                            child: Center(
+                              child: Text(
+                                'No tienes hijos/jugadores vinculados.',
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return Column(
+                          children: children.map((child) {
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => EditChildProfileScreen(
+                                        childId: child['id'],
+                                        childData: child,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: JNCard(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 24,
+                                      backgroundColor: AppColors.surfaceLight,
+                                      backgroundImage: child['avatarUrl'] != null &&
+                                              child['avatarUrl'].toString().isNotEmpty
+                                          ? (child['avatarUrl'].toString().startsWith('http')
+                                              ? NetworkImage(child['avatarUrl'].toString())
+                                                  as ImageProvider
+                                              : FileImage(File(child['avatarUrl'].toString()))
+                                                  as ImageProvider)
+                                          : null,
+                                      child: child['avatarUrl'] == null ||
+                                              child['avatarUrl'].toString().isEmpty
+                                          ? const Icon(
+                                              Icons.person,
+                                              color: AppColors.textTertiary,
+                                            )
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${child['name']} ${child['lastName'] ?? ''}',
+                                            style: AppTypography.titleMedium,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'DNI: ${child['dni'] ?? ''} · Cat: ${child['category'] ?? ''}',
+                                            style: AppTypography.bodySmall,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: (child['linkStatus'] == 'linked'
+                                                ? AppColors.success
+                                                : AppColors.warning)
+                                            .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        child['linkStatus'] == 'linked'
+                                            ? 'Vinculado'
+                                            : 'Pendiente',
+                                        style: AppTypography.labelSmall.copyWith(
+                                          color: child['linkStatus'] == 'linked'
+                                              ? AppColors.success
+                                              : AppColors.warning,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ],
-                                ],
+                                ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.calendar_month, color: AppColors.primary),
-                              onPressed: () => _selectExpiryDate(context),
-                              tooltip: 'Seleccionar fecha de vencimiento',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        if (_aptoFisicoPath != null && !_aptoFisicoPath!.startsWith('http')) ...[
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              File(_aptoFisicoPath!),
-                              height: 120,
-                              fit: BoxFit.cover,
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                  ] else ...[
+                    // ─── Parents Data Section ─────────────────
+                    Text('Datos Familiares', style: AppTypography.labelMedium),
+                    const SizedBox(height: 8),
+
+                    JNCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _fatherNameController,
+                            style: AppTypography.bodyLarge,
+                            decoration: const InputDecoration(
+                              labelText: 'Nombre y Apellido del Padre',
                             ),
                           ),
                           const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _motherNameController,
+                            style: AppTypography.bodyLarge,
+                            decoration: const InputDecoration(
+                              labelText: 'Nombre y Apellido de la Madre',
+                            ),
+                          ),
                         ],
-                        JNButton(
-                          label: _aptoFisicoPath == null ? 'Cargar Certificado' : 'Cambiar Certificado',
-                          onPressed: _pickAptoFisico,
-                          variant: JNButtonVariant.outline,
-                          icon: Icons.upload_file,
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+
+                    const SizedBox(height: 20),
+
+                    // ─── Physical Fitness Section ─────────────
+                    Text(
+                      'Certificado Médico (Apto Físico)',
+                      style: AppTypography.labelMedium,
+                    ),
+                    const SizedBox(height: 8),
+
+                    JNCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _aptoFisicoPath == null
+                                          ? 'No cargado'
+                                          : 'Archivo certificado cargado',
+                                      style: AppTypography.titleMedium.copyWith(
+                                        color: _aptoFisicoPath == null
+                                            ? AppColors.textSecondary
+                                            : AppColors.success,
+                                      ),
+                                    ),
+                                    if (_aptoFisicoExpiry != null) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Vence el: ${_formatDate(_aptoFisicoExpiry!)}',
+                                        style: AppTypography.bodySmall.copyWith(
+                                          color: showAptoWarning
+                                              ? AppColors.warning
+                                              : AppColors.textTertiary,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.calendar_month,
+                                  color: AppColors.primary,
+                                ),
+                                onPressed: () => _selectExpiryDate(context),
+                                tooltip: 'Seleccionar fecha de vencimiento',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_aptoFisicoPath != null &&
+                              !_aptoFisicoPath!.startsWith('http')) ...[
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File(_aptoFisicoPath!),
+                                height: 120,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          JNButton(
+                            label: _aptoFisicoPath == null
+                                ? 'Cargar Certificado'
+                                : 'Cambiar Certificado',
+                            onPressed: _pickAptoFisico,
+                            variant: JNButtonVariant.outline,
+                            icon: Icons.upload_file,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 32),
 

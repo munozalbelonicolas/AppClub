@@ -5,8 +5,8 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_badge.dart';
-import '../../../../data/mock/mock_data.dart';
 
+// TODO: Connect to Firestore
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
   @override
@@ -20,7 +20,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   final filters = ['Todos', 'Partidos', 'Entrenamientos', 'Eventos'];
 
   List<Map<String, dynamic>> get _filteredEvents {
-    return MockData.calendarEvents.where((e) {
+    // TODO: Fetch events from Firestore. Currently set to empty.
+    final List<Map<String, dynamic>> events = [];
+    return events.where((e) {
       if (_selectedFilter == 'Todos') return true;
       if (_selectedFilter == 'Partidos') return e['type'] == 'match';
       if (_selectedFilter == 'Entrenamientos') return e['type'] == 'training';
@@ -51,15 +53,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.chevron_left,
+                    color: AppColors.textSecondary,
+                  ),
                   onPressed: () {},
                 ),
-                Text(
-                  'Junio 2026',
-                  style: AppTypography.headlineMedium,
-                ),
+                Text('Junio 2026', style: AppTypography.headlineMedium),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.textSecondary,
+                  ),
                   onPressed: () {},
                 ),
               ],
@@ -71,14 +76,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-                  .map((d) => Expanded(
-                        child: Center(
-                          child: Text(
-                            d,
-                            style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary),
+                  .map(
+                    (d) => Expanded(
+                      child: Center(
+                        child: Text(
+                          d,
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textTertiary,
                           ),
                         ),
-                      ))
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -108,10 +117,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   onTap: () => setState(() => _selectedFilter = f),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isActive ? AppColors.primary : AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusRound),
+                      color: isActive
+                          ? AppColors.primary
+                          : AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusRound,
+                      ),
                       border: Border.all(
                         color: isActive ? AppColors.primary : AppColors.border,
                         width: 0.5,
@@ -120,8 +136,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: Text(
                       f,
                       style: AppTypography.labelMedium.copyWith(
-                        color: isActive ? Colors.white : AppColors.textSecondary,
-                        fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                        color: isActive
+                            ? Colors.white
+                            : AppColors.textSecondary,
+                        fontWeight: isActive
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                       ),
                     ),
                   ),
@@ -134,22 +154,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
           // ─── Events List ──────────────────────────
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-              itemCount: _filteredEvents.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final event = _filteredEvents[index];
-                return _CalendarEventCard(
-                  title: event['title'] as String,
-                  type: event['type'] as String,
-                  date: event['date'] as String,
-                  time: event['time'] as String,
-                  location: event['location'] as String,
-                  category: event['category'] as String,
-                ).animate(delay: (300 + index * 60).ms).fadeIn(duration: 400.ms).slideX(begin: 0.03);
-              },
-            ),
+            child: _filteredEvents.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.event_busy,
+                            size: 48,
+                            color: AppColors.textTertiary,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No hay eventos',
+                            style: AppTypography.titleMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                    itemCount: _filteredEvents.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final event = _filteredEvents[index];
+                      return _CalendarEventCard(
+                            title: event['title'] as String,
+                            type: event['type'] as String,
+                            date: event['date'] as String,
+                            time: event['time'] as String,
+                            location: event['location'] as String,
+                            category: event['category'] as String,
+                          )
+                          .animate(delay: (300 + index * 60).ms)
+                          .fadeIn(duration: 400.ms)
+                          .slideX(begin: 0.03);
+                    },
+                  ),
           ),
         ],
       ),
@@ -162,11 +208,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final startWeekday = 1; // Monday = 1
 
     // Event days for highlighting
-    final eventDays = MockData.calendarEvents.map((e) {
+    final List<Map<String, dynamic>> allEvents = [];
+    final eventDays = allEvents.map((e) {
       return int.parse((e['date'] as String).split('-')[2]);
     }).toSet();
 
-    final matchDays = MockData.calendarEvents
+    final matchDays = allEvents
         .where((e) => e['type'] == 'match')
         .map((e) => int.parse((e['date'] as String).split('-')[2]))
         .toSet();
@@ -199,8 +246,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               color: isSelected
                   ? AppColors.primary
                   : isToday
-                      ? AppColors.surfaceVariant
-                      : Colors.transparent,
+                  ? AppColors.surfaceVariant
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(
@@ -212,9 +259,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     color: isSelected
                         ? Colors.white
                         : isToday
-                            ? AppColors.accent
-                            : AppColors.textPrimary,
-                    fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w400,
+                        ? AppColors.accent
+                        : AppColors.textPrimary,
+                    fontWeight: isSelected || isToday
+                        ? FontWeight.w700
+                        : FontWeight.w400,
                   ),
                 ),
                 if (hasEvent && !isSelected) ...[
@@ -314,12 +363,16 @@ class _CalendarEventCard extends StatelessWidget {
                       type: type == 'match'
                           ? JNBadgeType.error
                           : type == 'training'
-                              ? JNBadgeType.success
-                              : JNBadgeType.accent,
+                          ? JNBadgeType.success
+                          : JNBadgeType.accent,
                       small: true,
                     ),
                     const SizedBox(width: 6),
-                    JNBadge(label: category.toUpperCase(), type: JNBadgeType.neutral, small: true),
+                    JNBadge(
+                      label: category.toUpperCase(),
+                      type: JNBadgeType.neutral,
+                      small: true,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -327,14 +380,27 @@ class _CalendarEventCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.schedule, size: 13, color: AppColors.textTertiary),
+                    Icon(
+                      Icons.schedule,
+                      size: 13,
+                      color: AppColors.textTertiary,
+                    ),
                     const SizedBox(width: 4),
                     Text(time, style: AppTypography.bodySmall),
                     const SizedBox(width: 12),
-                    Icon(Icons.location_on_outlined, size: 13, color: AppColors.textTertiary),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 13,
+                      color: AppColors.textTertiary,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
-                      child: Text(location, style: AppTypography.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        location,
+                        style: AppTypography.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),

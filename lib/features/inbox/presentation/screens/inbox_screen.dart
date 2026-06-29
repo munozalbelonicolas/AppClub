@@ -44,14 +44,18 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           onUserSelected: (selectedUser) async {
             Navigator.pop(context);
             // Create or get thread
-            final threadId = await _getOrCreateThread(currentUser, selectedUser);
+            final threadId = await _getOrCreateThread(
+              currentUser,
+              selectedUser,
+            );
             if (context.mounted) {
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => ChatScreen(
                     threadId: threadId,
-                    otherUserName: '${selectedUser['name']} ${selectedUser['lastName']}',
+                    otherUserName:
+                        '${selectedUser['name']} ${selectedUser['lastName']}',
                     otherUserRole: selectedUser['role'],
                   ),
                 ),
@@ -63,7 +67,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     );
   }
 
-  Future<String> _getOrCreateThread(dynamic currentUser, Map<String, dynamic> otherUser) async {
+  Future<String> _getOrCreateThread(
+    dynamic currentUser,
+    Map<String, dynamic> otherUser,
+  ) async {
     final db = FirebaseFirestore.instance;
     // Thread ID format: lower id first to ensure uniqueness between two users
     final participants = [currentUser.id, otherUser['id']];
@@ -95,7 +102,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         'userCategories': {
           currentUser.id: currentUser.category ?? 'Todos',
           otherUser['id']: otherUser['category'] ?? 'Todos',
-        }
+        },
       });
     }
 
@@ -104,7 +111,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = ref.watch(currentUserProvider) ?? SessionMocks.users['padre']!;
+    final currentUser = ref.watch(currentUserProvider)!;
     final isStaff = !currentUser.isNormalUser;
 
     return Scaffold(
@@ -118,7 +125,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               onPressed: () => _startNewChatDialog(context, currentUser),
               backgroundColor: AppColors.primary,
               child: const Icon(Icons.message, color: Colors.white),
-            ).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack)
+            ).animate().scale(
+              delay: 200.ms,
+              duration: 400.ms,
+              curve: Curves.easeOutBack,
+            )
           : null,
       body: Column(
         children: [
@@ -145,7 +156,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               child: Row(
-                children: ['Todas', 'Sub-12', 'Sub-14', 'Padres', 'DTs'].map((cat) {
+                children: ['Todas', 'Sub-12', 'Sub-14', 'Padres', 'DTs'].map((
+                  cat,
+                ) {
                   final isSelected = _selectedCategoryFilter == cat;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),
@@ -160,7 +173,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                         }
                       },
                       labelStyle: AppTypography.labelSmall.copyWith(
-                        color: isSelected ? Colors.white : AppColors.textSecondary,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.textSecondary,
                       ),
                       selectedColor: AppColors.primary,
                       backgroundColor: AppColors.surfaceLight,
@@ -178,7 +193,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 color: AppColors.surfaceLight,
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, color: AppColors.accent, size: 20),
+                    const Icon(
+                      Icons.info_outline,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -191,10 +210,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               ),
             ),
           ],
-          
-          Expanded(
-            child: _buildThreadsStream(currentUser),
-          ),
+
+          Expanded(child: _buildThreadsStream(currentUser)),
         ],
       ),
     );
@@ -207,7 +224,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     Query filteredQuery = query;
     if (currentUser.isNormalUser) {
       // Normal users only see threads they participate in
-      filteredQuery = query.where('participants', arrayContains: currentUser.id);
+      filteredQuery = query.where(
+        'participants',
+        arrayContains: currentUser.id,
+      );
     } else if (currentUser.role == 'dt') {
       // Coaches can see threads of participants in their category
       // For simplicity, we get threads containing the DT or we fetch all and filter in memory
@@ -241,8 +261,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         docsList.sort((a, b) {
           final aData = a.data() as Map<String, dynamic>;
           final bData = b.data() as Map<String, dynamic>;
-          final aTime = (aData['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
-          final bTime = (bData['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+          final aTime =
+              (aData['lastMessageTime'] as Timestamp?)?.toDate() ??
+              DateTime(2000);
+          final bTime =
+              (bData['lastMessageTime'] as Timestamp?)?.toDate() ??
+              DateTime(2000);
           return bTime.compareTo(aTime); // descending
         });
 
@@ -252,7 +276,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             final data = doc.data() as Map<String, dynamic>;
             final namesMap = data['userNames'] as Map<String, dynamic>? ?? {};
             final rolesMap = data['userRoles'] as Map<String, dynamic>? ?? {};
-            final categoriesMap = data['userCategories'] as Map<String, dynamic>? ?? {};
+            final categoriesMap =
+                data['userCategories'] as Map<String, dynamic>? ?? {};
 
             // Find the other participant (the normal user)
             String otherUserId = '';
@@ -265,9 +290,15 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
             if (otherUserId.isEmpty) return false;
 
-            final otherName = (namesMap[otherUserId] ?? '').toString().toLowerCase();
-            final otherRole = (rolesMap[otherUserId] ?? '').toString().toLowerCase();
-            final otherCategory = (categoriesMap[otherUserId] ?? '').toString().toLowerCase();
+            final otherName = (namesMap[otherUserId] ?? '')
+                .toString()
+                .toLowerCase();
+            final otherRole = (rolesMap[otherUserId] ?? '')
+                .toString()
+                .toLowerCase();
+            final otherCategory = (categoriesMap[otherUserId] ?? '')
+                .toString()
+                .toLowerCase();
 
             // Search filter
             if (_searchQuery.isNotEmpty && !otherName.contains(_searchQuery)) {
@@ -277,16 +308,23 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             // Coach restriction: DTs only manage their own category
             if (currentUser.role == 'dt') {
               final dtCategory = (currentUser.category ?? '').toLowerCase();
-              if (otherCategory != dtCategory && otherUserId != currentUser.id) {
+              if (otherCategory != dtCategory &&
+                  otherUserId != currentUser.id) {
                 return false;
               }
             }
 
             // Category filters
-            if (_selectedCategoryFilter == 'Sub-12' && otherCategory != 'sub-12') return false;
-            if (_selectedCategoryFilter == 'Sub-14' && otherCategory != 'sub-14') return false;
-            if (_selectedCategoryFilter == 'Padres' && otherRole != 'padre') return false;
-            if (_selectedCategoryFilter == 'DTs' && otherRole != 'dt') return false;
+            if (_selectedCategoryFilter == 'Sub-12' &&
+                otherCategory != 'sub-12')
+              return false;
+            if (_selectedCategoryFilter == 'Sub-14' &&
+                otherCategory != 'sub-14')
+              return false;
+            if (_selectedCategoryFilter == 'Padres' && otherRole != 'padre')
+              return false;
+            if (_selectedCategoryFilter == 'DTs' && otherRole != 'dt')
+              return false;
 
             return true;
           }).toList();
@@ -305,7 +343,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                       color: AppColors.surfaceLight,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.forum_outlined, size: 48, color: AppColors.textTertiary),
+                    child: const Icon(
+                      Icons.forum_outlined,
+                      size: 48,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -333,7 +375,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           'role': 'secretario',
                           'category': 'Todos',
                         };
-                        final threadId = await _getOrCreateThread(currentUser, secUser);
+                        final threadId = await _getOrCreateThread(
+                          currentUser,
+                          secUser,
+                        );
                         if (context.mounted) {
                           Navigator.push(
                             context,
@@ -374,15 +419,18 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
             final namesMap = data['userNames'] as Map<String, dynamic>? ?? {};
             final rolesMap = data['userRoles'] as Map<String, dynamic>? ?? {};
-            final categoriesMap = data['userCategories'] as Map<String, dynamic>? ?? {};
+            final categoriesMap =
+                data['userCategories'] as Map<String, dynamic>? ?? {};
 
             final String otherName = namesMap[otherUserId] ?? 'Usuario';
             final String otherRole = rolesMap[otherUserId] ?? 'padre';
             final String otherCategory = categoriesMap[otherUserId] ?? '';
 
             final lastMsg = data['lastMessageText'] ?? '';
-            final Timestamp? lastTimeTimestamp = data['lastMessageTime'] as Timestamp?;
-            final DateTime lastTime = lastTimeTimestamp?.toDate() ?? DateTime.now();
+            final Timestamp? lastTimeTimestamp =
+                data['lastMessageTime'] as Timestamp?;
+            final DateTime lastTime =
+                lastTimeTimestamp?.toDate() ?? DateTime.now();
 
             final bool isUnread = currentUser.isNormalUser
                 ? (data['unreadByUser'] ?? false)
@@ -396,9 +444,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   FirebaseFirestore.instance
                       .collection('inbox_threads')
                       .doc(threadId)
-                      .update(currentUser.isNormalUser
-                          ? {'unreadByUser': false}
-                          : {'unreadByAdmin': false});
+                      .update(
+                        currentUser.isNormalUser
+                            ? {'unreadByUser': false}
+                            : {'unreadByAdmin': false},
+                      );
 
                   Navigator.push(
                     context,
@@ -412,7 +462,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   );
                 },
                 border: isUnread
-                    ? Border.all(color: AppColors.primary.withValues(alpha: 0.5), width: 1.2)
+                    ? Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.5),
+                        width: 1.2,
+                      )
                     : null,
                 padding: const EdgeInsets.all(14),
                 child: Row(
@@ -432,15 +485,20 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                 type: otherRole == 'directivo'
                                     ? JNBadgeType.error
                                     : otherRole == 'secretario'
-                                        ? JNBadgeType.info
-                                        : otherRole == 'dt'
-                                            ? JNBadgeType.accent
-                                            : JNBadgeType.neutral,
+                                    ? JNBadgeType.info
+                                    : otherRole == 'dt'
+                                    ? JNBadgeType.accent
+                                    : JNBadgeType.neutral,
                                 small: true,
                               ),
-                              if (otherCategory.isNotEmpty && otherCategory != 'Todos') ...[
+                              if (otherCategory.isNotEmpty &&
+                                  otherCategory != 'Todos') ...[
                                 const SizedBox(width: 4),
-                                JNBadge(label: otherCategory, type: JNBadgeType.neutral, small: true),
+                                JNBadge(
+                                  label: otherCategory,
+                                  type: JNBadgeType.neutral,
+                                  small: true,
+                                ),
                               ],
                             ],
                           ),
@@ -448,8 +506,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           Text(
                             lastMsg,
                             style: AppTypography.bodySmall.copyWith(
-                              color: isUnread ? AppColors.textPrimary : AppColors.textTertiary,
-                              fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
+                              color: isUnread
+                                  ? AppColors.textPrimary
+                                  : AppColors.textTertiary,
+                              fontWeight: isUnread
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -490,7 +552,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   String _formatTime(DateTime time) {
     final now = DateTime.now();
-    if (now.day == time.day && now.month == time.month && now.year == time.year) {
+    if (now.day == time.day &&
+        now.month == time.month &&
+        now.year == time.year) {
       return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
     }
     return '${time.day}/${time.month}';
@@ -531,35 +595,42 @@ class _NewChatUserSelector extends StatelessWidget {
           const SizedBox(height: 8),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').snapshots(),
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: AppColors.error)));
+                  return Center(
+                    child: Text(
+                      'Error: ${snapshot.error}',
+                      style: const TextStyle(color: AppColors.error),
+                    ),
+                  );
                 }
 
                 var docs = snapshot.data?.docs ?? [];
-                
+
                 // Convert to Maps and filter
-                var users = docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return <String, dynamic>{
-                    'id': doc.id,
-                    ...data,
-                  };
-                }).where((u) {
-                  // Don't chat with self
-                  if (u['id'] == currentUserId) return false;
+                var users = docs
+                    .map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return <String, dynamic>{'id': doc.id, ...data};
+                    })
+                    .where((u) {
+                      // Don't chat with self
+                      if (u['id'] == currentUserId) return false;
 
-                  // Coaches (DT) can only message users of their category
-                  if (currentUserRole == 'dt') {
-                    return u['category'] == currentUserCategory;
-                  }
+                      // Coaches (DT) can only message users of their category
+                      if (currentUserRole == 'dt') {
+                        return u['category'] == currentUserCategory;
+                      }
 
-                  return true;
-                }).toList();
+                      return true;
+                    })
+                    .toList();
 
                 if (users.isEmpty) {
                   return Center(
@@ -572,7 +643,8 @@ class _NewChatUserSelector extends StatelessWidget {
 
                 return ListView.separated(
                   itemCount: users.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.divider),
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1, color: AppColors.divider),
                   itemBuilder: (context, index) {
                     final user = users[index];
                     final String name = '${user['name']} ${user['lastName']}';
@@ -585,7 +657,13 @@ class _NewChatUserSelector extends StatelessWidget {
                       title: Text(name, style: AppTypography.titleMedium),
                       subtitle: Row(
                         children: [
-                          Text(role.toUpperCase(), style: const TextStyle(fontSize: 10, color: AppColors.accent)),
+                          Text(
+                            role.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.accent,
+                            ),
+                          ),
                           if (category.isNotEmpty) ...[
                             const SizedBox(width: 6),
                             Text('·', style: AppTypography.bodySmall),

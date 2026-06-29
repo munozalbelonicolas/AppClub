@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "173425300822",
+    "project_id": "appclub-1fe94",
+    "storage_bucket": "appclub-1fe94.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:173425300822:android:3008ce025c956e92b4b2f7",
+        "android_client_info": {
+          "package_name": "com.jorgenewbery.jorge_newbery_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcbQkZ9F0fqDqFYmvc2wnlv_R_GFuzYoc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

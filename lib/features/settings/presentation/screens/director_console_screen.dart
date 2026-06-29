@@ -8,106 +8,26 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
+import '../widgets/admin_notifications_dialog.dart';
+import 'admin_user_profile_screen.dart';
 
 class DirectorConsoleScreen extends ConsumerWidget {
   const DirectorConsoleScreen({super.key});
 
-  static final List<Map<String, dynamic>> _mockUsers = [
-    {
-      'id': 'mock_usr_sec_01',
-      'name': 'Roberto',
-      'lastName': 'Pérez',
-      'email': 'secretaria.demo@appclub.com',
-      'role': 'secretario',
-      'dni': '24123789',
-      'age': 52,
-      'hasPendingDebt': false,
-    },
-    {
-      'id': 'mock_usr_dt_01',
-      'name': 'Pablo',
-      'lastName': 'Ramírez',
-      'email': 'dt.sub12@appclub.com',
-      'role': 'dt',
-      'category': 'Sub-12',
-      'dni': '30456123',
-      'age': 38,
-      'hasPendingDebt': false,
-    },
-    {
-      'id': 'mock_usr_dt_02',
-      'name': 'Diego',
-      'lastName': 'Simeone',
-      'email': 'dt.sub14@appclub.com',
-      'role': 'dt',
-      'category': 'Sub-14',
-      'dni': '28456111',
-      'age': 45,
-      'hasPendingDebt': false,
-    },
-    {
-      'id': 'mock_usr_padre_01',
-      'name': 'Carlos',
-      'lastName': 'Gutiérrez',
-      'email': 'padre.deudor@appclub.com',
-      'role': 'padre',
-      'category': 'Sub-12',
-      'dni': '35123456',
-      'age': 40,
-      'fatherName': 'Ramón Gutiérrez',
-      'motherName': 'Isabel Díaz',
-      'hasPendingDebt': true, // Debtor
-      'aptoFisicoUrl': 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=100',
-      'aptoFisicoExpiry': Timestamp.fromDate(DateTime.now().add(const Duration(days: 10))), // Expiring soon (10 days)
-    },
-    {
-      'id': 'mock_usr_jugador_01',
-      'name': 'Juan',
-      'lastName': 'Pérez',
-      'email': 'jugador.vencido@appclub.com',
-      'role': 'jugador',
-      'category': 'Sub-12',
-      'dni': '45123999',
-      'age': 11,
-      'fatherName': 'Roberto Pérez',
-      'motherName': 'Ana Gómez',
-      'hasPendingDebt': false,
-      'aptoFisicoUrl': 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=100',
-      'aptoFisicoExpiry': Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 5))), // Expired (5 days ago)
-    },
-    {
-      'id': 'mock_usr_jugador_02',
-      'name': 'Lucas',
-      'lastName': 'Díaz',
-      'email': 'jugador.sano@appclub.com',
-      'role': 'jugador',
-      'category': 'Sub-14',
-      'dni': '46123888',
-      'age': 13,
-      'fatherName': 'Mario Díaz',
-      'motherName': 'Sofía Romero',
-      'hasPendingDebt': false,
-      'aptoFisicoUrl': 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=100',
-      'aptoFisicoExpiry': Timestamp.fromDate(DateTime.now().add(const Duration(days: 200))), // Active/Ok
-    },
-  ];
-
-  Future<void> _seedMockData(BuildContext context) async {
-    final FirebaseFirestore db = FirebaseFirestore.instance;
-    int count = 0;
+  Future<void> _approveUser(
+    BuildContext context,
+    String userId,
+    String userName,
+  ) async {
     try {
-      for (final user in _mockUsers) {
-        final docRef = db.collection('users').doc(user['id']);
-        await docRef.set({
-          ...user,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        count++;
-      }
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'status': 'active'});
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Se cargaron $count usuarios de prueba en Firestore.'),
+            content: Text('Usuario "$userName" aprobado con éxito.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -116,7 +36,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al poblar base de datos: $e'),
+            content: Text('Error al aprobar usuario: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -124,7 +44,11 @@ class DirectorConsoleScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _deleteUser(BuildContext context, String userId, String userName) async {
+  Future<void> _deleteUser(
+    BuildContext context,
+    String userId,
+    String userName,
+  ) async {
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).delete();
       if (context.mounted) {
@@ -154,10 +78,43 @@ class DirectorConsoleScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Consola del Director'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.playlist_add),
-            onPressed: () => _seedMockData(context),
-            tooltip: 'Cargar Usuarios de Prueba',
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('notifications')
+                .where('read', isEqualTo: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data?.docs.length ?? 0;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () => showAdminNotificationsDialog(context),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -168,7 +125,12 @@ class DirectorConsoleScreen extends ConsumerWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Error al cargar datos: ${snapshot.error}', style: TextStyle(color: AppColors.error)));
+            return Center(
+              child: Text(
+                'Error al cargar datos: ${snapshot.error}',
+                style: TextStyle(color: AppColors.error),
+              ),
+            );
           }
 
           final docs = snapshot.data?.docs ?? [];
@@ -201,20 +163,23 @@ class DirectorConsoleScreen extends ConsumerWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.people_outline, size: 64, color: AppColors.textTertiary),
+                          const Icon(
+                            Icons.people_outline,
+                            size: 64,
+                            color: AppColors.textTertiary,
+                          ),
                           const SizedBox(height: 16),
-                          Text('No hay usuarios registrados', style: AppTypography.titleLarge),
+                          Text(
+                            'No hay usuarios registrados',
+                            style: AppTypography.titleLarge,
+                          ),
                           const SizedBox(height: 8),
                           Text(
-                            'Pulsa el botón de arriba o el de abajo para poblar la base de datos con usuarios de prueba con deudas y aptos vencidos.',
+                            'Aún no hay usuarios registrados.',
                             textAlign: TextAlign.center,
-                            style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(height: 24),
-                          JNButton(
-                            label: 'Poblar Usuarios de Prueba',
-                            onPressed: () => _seedMockData(context),
-                            icon: Icons.playlist_add,
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
@@ -225,123 +190,218 @@ class DirectorConsoleScreen extends ConsumerWidget {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final doc = docs[index];
-                        final data = doc.data() as Map<String, dynamic>;
-                        final String userId = doc.id;
-                        final String name = data['name'] ?? '';
-                        final String lastName = data['lastName'] ?? '';
-                        final String email = data['email'] ?? '';
-                        final String role = data['role'] ?? 'padre';
-                        final String? category = data['category'];
-                        final bool hasDebt = data['hasPendingDebt'] ?? false;
-                        
-                        // Physical fitness status
-                        final Timestamp? expiryTimestamp = data['aptoFisicoExpiry'] as Timestamp?;
-                        final DateTime? expiry = expiryTimestamp?.toDate();
-                        
-                        bool hasAptoWarning = false;
-                        bool hasAptoExpired = false;
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final doc = docs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      final String userId = doc.id;
+                      final String name = data['name'] ?? '';
+                      final String lastName = data['lastName'] ?? '';
+                      final String email = data['email'] ?? '';
+                      final String role = data['role'] ?? 'padre';
+                      final String? category = data['category'];
+                      final String status = data['status'] ?? 'active';
+                      final bool isPending = status == 'pending_approval';
+                      final bool hasDebt = data['hasPendingDebt'] ?? false;
 
-                        if (expiry == null) {
-                          hasAptoWarning = true;
-                        } else {
-                          hasAptoExpired = expiry.isBefore(DateTime.now());
-                          hasAptoWarning = hasAptoExpired || expiry.difference(DateTime.now()).inDays <= 30;
-                        }
+                      // Physical fitness status
+                      final Timestamp? expiryTimestamp =
+                          data['aptoFisicoExpiry'] as Timestamp?;
+                      final DateTime? expiry = expiryTimestamp?.toDate();
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12.0),
-                          child: JNCard(
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                JNAvatar(name: '$name $lastName', size: 40),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('$name $lastName', style: AppTypography.titleMedium),
-                                      Text(email, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary)),
-                                      const SizedBox(height: 6),
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 4,
-                                        children: [
-                                          JNBadge(
-                                            label: role.toUpperCase(),
-                                            type: role == 'directivo'
-                                                ? JNBadgeType.error
-                                                : role == 'secretario'
-                                                    ? JNBadgeType.info
-                                                    : role == 'dt'
-                                                        ? JNBadgeType.accent
-                                                        : JNBadgeType.neutral,
-                                            small: true,
-                                          ),
-                                          if (category != null)
-                                            JNBadge(label: category, type: JNBadgeType.neutral, small: true),
-                                          if (hasDebt)
-                                            const JNBadge(label: 'DEUDA', type: JNBadgeType.error, small: true),
-                                          if (expiry == null)
-                                            const JNBadge(label: 'SIN APTO', type: JNBadgeType.error, small: true)
-                                          else if (hasAptoExpired)
-                                            const JNBadge(label: 'APTO VENCIDO', type: JNBadgeType.error, small: true)
-                                          else if (hasAptoWarning)
-                                            const JNBadge(label: 'APTO X VENCER', type: JNBadgeType.accent, small: true),
-                                        ],
-                                      ),
-                                    ],
+                      bool hasAptoWarning = false;
+                      bool hasAptoExpired = false;
+
+                      if (expiry == null) {
+                        hasAptoWarning = true;
+                      } else {
+                        hasAptoExpired = expiry.isBefore(DateTime.now());
+                        hasAptoWarning =
+                            hasAptoExpired ||
+                            expiry.difference(DateTime.now()).inDays <= 30;
+                      }
+
+                      return Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AdminUserProfileScreen(userId: userId),
                                   ),
-                                ),
-                                // Delete user button
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                                  onPressed: () {
-                                    // Prevent Director from deleting themselves
-                                    if (email == 'munozalbelonicolas@gmail.com') {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('El Director no puede ser eliminado.'),
-                                          backgroundColor: AppColors.error,
+                                );
+                              },
+                              child: JNCard(
+                                padding: const EdgeInsets.all(14),
+                                child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  JNAvatar(name: '$name $lastName', size: 40),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '$name $lastName',
+                                          style: AppTypography.titleMedium,
+                                        ),
+                                        Text(
+                                          email,
+                                          style: AppTypography.bodySmall
+                                              .copyWith(
+                                                color: AppColors.textTertiary,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          children: [
+                                            if (isPending)
+                                              const JNBadge(
+                                                label: 'PENDIENTE',
+                                                type: JNBadgeType.accent,
+                                                small: true,
+                                              ),
+                                            JNBadge(
+                                              label: role.toUpperCase(),
+                                              type: role == 'directivo'
+                                                  ? JNBadgeType.error
+                                                  : role == 'secretario'
+                                                  ? JNBadgeType.info
+                                                  : role == 'dt'
+                                                  ? JNBadgeType.accent
+                                                  : JNBadgeType.neutral,
+                                              small: true,
+                                            ),
+                                            if (category != null)
+                                              JNBadge(
+                                                label: category,
+                                                type: JNBadgeType.neutral,
+                                                small: true,
+                                              ),
+                                            if (hasDebt)
+                                              const JNBadge(
+                                                label: 'DEUDA',
+                                                type: JNBadgeType.error,
+                                                small: true,
+                                              ),
+                                            if (expiry == null)
+                                              const JNBadge(
+                                                label: 'SIN APTO',
+                                                type: JNBadgeType.error,
+                                                small: true,
+                                              )
+                                            else if (hasAptoExpired)
+                                              const JNBadge(
+                                                label: 'APTO VENCIDO',
+                                                type: JNBadgeType.error,
+                                                small: true,
+                                              )
+                                            else if (hasAptoWarning)
+                                              const JNBadge(
+                                                label: 'APTO X VENCER',
+                                                type: JNBadgeType.accent,
+                                                small: true,
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (isPending)
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.check_circle_outline,
+                                            color: AppColors.success,
+                                          ),
+                                          tooltip: 'Aprobar',
+                                          onPressed: () => _approveUser(
+                                            context,
+                                            userId,
+                                            '$name $lastName',
+                                          ),
+                                        ),
+                                      // Delete user button
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: AppColors.error,
+                                    ),
+                                    onPressed: () {
+                                      // Prevent Director from deleting themselves
+                                      if (email ==
+                                          'munozalbelonicolas@gmail.com') {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'El Director no puede ser eliminado.',
+                                            ),
+                                            backgroundColor: AppColors.error,
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          backgroundColor: AppColors.surface,
+                                          title: const Text('Eliminar Usuario'),
+                                          content: Text(
+                                            '¿Estás seguro de que deseas eliminar a "$name $lastName" de la base de datos?',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: Text(
+                                                'Cancelar',
+                                                style: TextStyle(
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
+                                              ),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.pop(context);
+                                                _deleteUser(
+                                                  context,
+                                                  userId,
+                                                  '$name $lastName',
+                                                );
+                                              },
+                                              child: const Text(
+                                                'Eliminar',
+                                                style: TextStyle(
+                                                  color: AppColors.error,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       );
-                                      return;
-                                    }
-
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => AlertDialog(
-                                        backgroundColor: AppColors.surface,
-                                        title: const Text('Eliminar Usuario'),
-                                        content: Text('¿Estás seguro de que deseas eliminar a "$name $lastName" de la base de datos?'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.pop(context);
-                                              _deleteUser(context, userId, '$name $lastName');
-                                            },
-                                            child: const Text('Eliminar', style: TextStyle(color: AppColors.error)),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ).animate(delay: (index * 40).ms).fadeIn(duration: 300.ms).slideY(begin: 0.05);
-                      },
-                      childCount: docs.length,
-                    ),
+                        ),
+                      ),
+                    )
+                          .animate(delay: (index * 40).ms)
+                          .fadeIn(duration: 300.ms)
+                          .slideY(begin: 0.05);
+                    }, childCount: docs.length),
                   ),
                 ),
             ],
@@ -355,7 +415,8 @@ class DirectorConsoleScreen extends ConsumerWidget {
 class _SupportEmailConfigCard extends StatefulWidget {
   const _SupportEmailConfigCard();
   @override
-  State<_SupportEmailConfigCard> createState() => _SupportEmailConfigCardState();
+  State<_SupportEmailConfigCard> createState() =>
+      _SupportEmailConfigCardState();
 }
 
 class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
@@ -385,10 +446,13 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
     });
 
     try {
-      await FirebaseFirestore.instance.collection('config').doc('support_settings').set({
-        'support_email': email,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await FirebaseFirestore.instance
+          .collection('config')
+          .doc('support_settings')
+          .set({
+            'support_email': email,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -419,11 +483,17 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('config').doc('support_settings').snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('config')
+          .doc('support_settings')
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasData && snapshot.data!.exists) {
           final data = snapshot.data!.data() as Map<String, dynamic>?;
-          if (data != null && data['support_email'] != null && !_isSaving && _emailController.text.isEmpty) {
+          if (data != null &&
+              data['support_email'] != null &&
+              !_isSaving &&
+              _emailController.text.isEmpty) {
             _emailController.text = data['support_email'];
           }
         }
@@ -436,9 +506,16 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.mark_email_read, color: AppColors.primary, size: 20),
+                  const Icon(
+                    Icons.mark_email_read,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
-                  Text('Configuración de Soporte', style: AppTypography.titleLarge),
+                  Text(
+                    'Configuración de Soporte',
+                    style: AppTypography.titleLarge,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -456,7 +533,10 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
                       decoration: const InputDecoration(
                         labelText: 'Email de Soporte',
                         hintText: 'ejemplo@club.com',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                   ),
@@ -481,4 +561,3 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
     );
   }
 }
-

@@ -53,11 +53,7 @@ class JNShimmerList extends StatelessWidget {
   final int itemCount;
   final double itemHeight;
 
-  const JNShimmerList({
-    super.key,
-    this.itemCount = 5,
-    this.itemHeight = 80,
-  });
+  const JNShimmerList({super.key, this.itemCount = 5, this.itemHeight = 80});
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +61,8 @@ class JNShimmerList extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
       physics: const NeverScrollableScrollPhysics(),
       itemCount: itemCount,
-      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.listItemGap),
+      separatorBuilder: (_, _) =>
+          const SizedBox(height: AppSpacing.listItemGap),
       itemBuilder: (_, _) => JNShimmer.card(height: itemHeight),
     );
   }

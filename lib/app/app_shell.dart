@@ -5,7 +5,7 @@ import '../features/home/presentation/screens/home_screen.dart';
 import '../features/calendar/presentation/screens/calendar_screen.dart';
 import '../features/lineup/presentation/screens/lineup_screen.dart';
 import '../features/communications/presentation/screens/communications_screen.dart';
-import '../features/results/presentation/screens/results_screen.dart';
+import '../features/store/presentation/screens/store_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
 
 /// Main app shell with bottom navigation
@@ -25,8 +25,6 @@ class _AppShellState extends State<AppShell> {
       _currentIndex = index;
     });
   }
-
-
 
   void _handleHomeNavigation(int actionIndex) {
     // Map quick action indexes to specific screens
@@ -79,7 +77,7 @@ class _AppShellState extends State<AppShell> {
       case 3:
         return const CommunicationsScreen(key: ValueKey('communications'));
       case 4:
-        return const ResultsScreen(key: ValueKey('results'));
+        return const StoreScreen(key: ValueKey('store'));
       case 5:
         return SettingsScreen(
           key: const ValueKey('settings'),
@@ -97,9 +95,7 @@ class _AppShellState extends State<AppShell> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: 0.5),
-        ),
+        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: SafeArea(
         child: Padding(
@@ -136,9 +132,9 @@ class _AppShellState extends State<AppShell> {
                 badge: 1,
               ),
               _NavItem(
-                icon: Icons.emoji_events_outlined,
-                activeIcon: Icons.emoji_events,
-                label: 'Resultados',
+                icon: Icons.storefront_outlined,
+                activeIcon: Icons.storefront,
+                label: 'Tienda',
                 isActive: _currentIndex == 4,
                 onTap: () => _navigateTo(4),
               ),
@@ -198,7 +194,9 @@ class _NavItem extends StatelessWidget {
                       isActive ? activeIcon : icon,
                       key: ValueKey(isActive),
                       size: 24,
-                      color: isActive ? AppColors.primary : AppColors.textTertiary,
+                      color: isActive
+                          ? AppColors.primary
+                          : AppColors.textTertiary,
                     ),
                   ),
                   if (badge != null && badge! > 0)
@@ -253,4 +251,3 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
-

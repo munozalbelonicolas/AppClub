@@ -1,0 +1,100 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper Functions ───
+
+    /// Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /// Check if the user has admin role (directivo or secretario)
+    /// Reads the user document to verify role
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['directivo', 'secretario'];
+    }
+
+    /// Check if the user is the document owner
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ─── Users ───
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Store Products ───
+
+    match /store_products/{productId} {
+      // Any authenticated user can browse products
+      allow read: if isAuthenticated();
+      // Only admins can create, update, or delete products
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Store Orders ───
+
+    match /store_orders/{orderId} {
+      // Users can read their own orders; admins can read all
+      allow read: if isAuthenticated() &&
+        (resource.data.buyerId == request.auth.uid || isAdmin());
+
+      // Any authenticated user can create an order (for themselves)
+      allow create: if isAuthenticated() &&
+        request.resource.data.buyerId == request.auth.uid;
+
+      // Buyers can update their own orders (e.g., upload receipt)
+      // Admins can update any order (e.g., confirm/reject)
+      allow update: if isAuthenticated() &&
+        (resource.data.buyerId == request.auth.uid || isAdmin());
+
+      // Only admins can delete orders
+      allow delete: if isAdmin();
+    }
+
+    // ─── Settings (Store Config, etc.) ───
+
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Notifications ───
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Events ───
+
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Announcements ───
+
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Default: deny everything not explicitly matched ───
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

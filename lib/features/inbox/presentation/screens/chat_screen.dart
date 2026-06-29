@@ -68,7 +68,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       });
 
       await batch.commit();
-      
+
       // Scroll to bottom
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -91,7 +91,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = ref.watch(currentUserProvider) ?? SessionMocks.users['padre']!;
+    final currentUser = ref.watch(currentUserProvider)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -159,11 +159,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.forum_outlined, size: 40, color: AppColors.textTertiary),
+                          const Icon(
+                            Icons.forum_outlined,
+                            size: 40,
+                            color: AppColors.textTertiary,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'Comienzo de la conversación',
-                            style: AppTypography.titleMedium.copyWith(color: AppColors.textTertiary),
+                            style: AppTypography.titleMedium.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -180,15 +186,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 return ListView.builder(
                   controller: _scrollController,
                   reverse: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     final doc = docs[index];
                     final data = doc.data() as Map<String, dynamic>;
                     final senderId = data['senderId'] ?? '';
                     final text = data['text'] ?? '';
-                    final Timestamp? createdAtTimestamp = data['createdAt'] as Timestamp?;
-                    final DateTime createdAt = createdAtTimestamp?.toDate() ?? DateTime.now();
+                    final Timestamp? createdAtTimestamp =
+                        data['createdAt'] as Timestamp?;
+                    final DateTime createdAt =
+                        createdAtTimestamp?.toDate() ?? DateTime.now();
 
                     final isMe = senderId == currentUser.id;
 
@@ -265,9 +276,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: 0.5),
-        ),
+        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: Row(
         children: [
@@ -278,7 +287,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               maxLines: null,
               decoration: const InputDecoration(
                 hintText: 'Escribe un mensaje privado...',
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
               onSubmitted: (_) => _sendMessage(currentUser),
             ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -17,7 +18,7 @@ class SponsorCarousel extends ConsumerStatefulWidget {
 }
 
 class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(viewportFraction: 0.85);
   int _currentPage = 0;
   Timer? _timer;
   List<Map<String, dynamic>> _sponsorsList = [];
@@ -36,7 +37,7 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
         _pageController.animateToPage(
           nextPage,
           duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOutCubic,
+          curve: Curves.fastOutSlowIn,
         );
       }
     });
@@ -49,6 +50,30 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
     super.dispose();
   }
 
+  Future<void> _launchSponsorUrl(String urlString, BuildContext context) async {
+    if (urlString.isEmpty) return;
+    
+    try {
+      // Ensure URL has a scheme
+      if (!urlString.startsWith('http://') && !urlString.startsWith('https://')) {
+        urlString = 'https://$urlString';
+      }
+      
+      final url = Uri.parse(urlString);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo abrir el enlace del sponsor'), backgroundColor: AppColors.error),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final sponsorsAsync = ref.watch(sponsorsStreamProvider);
@@ -57,12 +82,12 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
       data: (sponsors) {
         _sponsorsList = sponsors;
         if (sponsors.isEmpty) {
-          return _buildFallbackEmptyCarousel();
+          return const SizedBox.shrink();
         }
 
         return Container(
-          height: 120,
-          margin: const EdgeInsets.symmetric(horizontal: 20),
+          height: 140,
+          margin: const EdgeInsets.symmetric(vertical: 10),
           child: Column(
             children: [
               Expanded(
@@ -84,12 +109,7 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
                             onTap: () {
                               final link = sponsor['linkUrl']?.toString() ?? '';
                               if (link.isNotEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Abriendo enlace de ${sponsor['name']}...'),
-                                    duration: const Duration(seconds: 1),
-                                  ),
-                                );
+                                _launchSponsorUrl(link, context);
                               }
                             },
                             child: Stack(
@@ -176,63 +196,6 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
     );
   }
 
-  Widget _buildFallbackEmptyCarousel() {
-    return Container(
-      height: 120,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary.withValues(alpha: 0.8), AppColors.accent.withValues(alpha: 0.8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.star, color: Colors.white, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '¡Tu marca aquí!',
-                      style: AppTypography.titleLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Apoya a Jorge Newbery y destaca en nuestra app oficial.',
-                      style: AppTypography.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.9)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ).animate().fadeIn(duration: 400.ms);
-  }
-
   Widget _buildShimmerLoading() {
     return Shimmer.fromColors(
       baseColor: AppColors.surfaceLight,
@@ -264,28 +227,29 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
       ),
     );
   }
-}
 
-Widget _buildSponsorImage(String url) {
-  if (url.startsWith('assets/')) {
-    return Image.asset(
-      url,
+  Widget _buildSponsorImage(String url) {
+    if (url.startsWith('assets/')) {
+      return Image.asset(url, fit: BoxFit.cover);
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
       fit: BoxFit.cover,
+      placeholder: (context, url) => Shimmer.fromColors(
+        baseColor: AppColors.surfaceLight,
+        highlightColor: AppColors.surface,
+        child: Container(color: AppColors.surfaceLight),
+      ),
+      errorWidget: (context, url, error) => Container(
+        color: AppColors.surfaceLight,
+        child: const Center(
+          child: Icon(
+            Icons.broken_image,
+            size: 36,
+            color: AppColors.textTertiary,
+          ),
+        ),
+      ),
     );
   }
-  return CachedNetworkImage(
-    imageUrl: url,
-    fit: BoxFit.cover,
-    placeholder: (context, url) => Shimmer.fromColors(
-      baseColor: AppColors.surfaceLight,
-      highlightColor: AppColors.surface,
-      child: Container(color: AppColors.surfaceLight),
-    ),
-    errorWidget: (context, url, error) => Container(
-      color: AppColors.surfaceLight,
-      child: const Center(
-        child: Icon(Icons.broken_image, size: 36, color: AppColors.textTertiary),
-      ),
-    ),
-  );
 }

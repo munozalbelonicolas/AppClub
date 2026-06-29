@@ -63,7 +63,9 @@ class SponsorsManagementScreen extends ConsumerWidget {
                           labelText: 'Nombre',
                         ),
                         validator: (value) =>
-                            value == null || value.trim().isEmpty ? 'Ingresa el nombre' : null,
+                            value == null || value.trim().isEmpty
+                            ? 'Ingresa el nombre'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -77,7 +79,8 @@ class SponsorsManagementScreen extends ConsumerWidget {
                           if (value == null || value.trim().isEmpty) {
                             return 'Ingresa la URL o ruta del recurso';
                           }
-                          if (!value.startsWith('http') && !value.startsWith('assets/')) {
+                          if (!value.startsWith('http') &&
+                              !value.startsWith('assets/')) {
                             return 'Debe ser una URL válida o ruta de asset (assets/)';
                           }
                           return null;
@@ -95,7 +98,9 @@ class SponsorsManagementScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         'Preseteados rápidos:',
-                        style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary),
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Wrap(
@@ -104,7 +109,9 @@ class SponsorsManagementScreen extends ConsumerWidget {
                         children: _presetSponsors.map((preset) {
                           return ActionChip(
                             label: Text(preset['name']!),
-                            labelStyle: AppTypography.labelSmall.copyWith(color: Colors.white),
+                            labelStyle: AppTypography.labelSmall.copyWith(
+                              color: Colors.white,
+                            ),
                             backgroundColor: AppColors.surfaceLight,
                             onPressed: () {
                               setDialogState(() {
@@ -123,7 +130,10 @@ class SponsorsManagementScreen extends ConsumerWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                  child: Text(
+                    'Cancelar',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -134,7 +144,9 @@ class SponsorsManagementScreen extends ConsumerWidget {
                   ),
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
-                      final firestoreService = ref.read(firestoreServiceProvider);
+                      final firestoreService = ref.read(
+                        firestoreServiceProvider,
+                      );
                       await firestoreService.addSponsor({
                         'name': nameController.text.trim(),
                         'imageUrl': imageUrlController.text.trim(),
@@ -144,7 +156,9 @@ class SponsorsManagementScreen extends ConsumerWidget {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Sponsor "${nameController.text}" añadido con éxito!'),
+                            content: Text(
+                              'Sponsor "${nameController.text}" añadido con éxito!',
+                            ),
                             backgroundColor: AppColors.success,
                           ),
                         );
@@ -172,12 +186,20 @@ class SponsorsManagementScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddSponsorDialog(context, ref),
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Añadir Sponsor', style: TextStyle(color: Colors.white)),
-      ).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack),
+      floatingActionButton:
+          FloatingActionButton.extended(
+            onPressed: () => _showAddSponsorDialog(context, ref),
+            backgroundColor: AppColors.primary,
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text(
+              'Añadir Sponsor',
+              style: TextStyle(color: Colors.white),
+            ),
+          ).animate().scale(
+            delay: 200.ms,
+            duration: 400.ms,
+            curve: Curves.easeOutBack,
+          ),
       body: sponsorsAsync.when(
         data: (sponsors) {
           if (sponsors.isEmpty) {
@@ -193,7 +215,11 @@ class SponsorsManagementScreen extends ConsumerWidget {
                         color: AppColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.business, size: 64, color: AppColors.primary.withValues(alpha: 0.8)),
+                      child: Icon(
+                        Icons.business,
+                        size: 64,
+                        color: AppColors.primary.withValues(alpha: 0.8),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -203,14 +229,18 @@ class SponsorsManagementScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Text(
                       'Añade patrocinadores oficiales del club para que se visualicen en el carrusel de la pantalla de inicio.',
-                      style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
                     JNButton(
                       label: 'Cargar Sponsors de Prueba',
                       onPressed: () async {
-                        final firestoreService = ref.read(firestoreServiceProvider);
+                        final firestoreService = ref.read(
+                          firestoreServiceProvider,
+                        );
                         for (final preset in _presetSponsors) {
                           await firestoreService.addSponsor(preset);
                         }
@@ -237,88 +267,116 @@ class SponsorsManagementScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final sponsor = sponsors[index];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: JNCard(
-                  padding: EdgeInsets.zero,
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(AppSpacing.radiusMd),
-                          bottomLeft: Radius.circular(AppSpacing.radiusMd),
-                        ),
-                        child: _buildSponsorImage(sponsor['imageUrl'] ?? ''),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              sponsor['name'] ?? 'Sponsor',
-                              style: AppTypography.titleMedium,
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: JNCard(
+                      padding: EdgeInsets.zero,
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(AppSpacing.radiusMd),
+                              bottomLeft: Radius.circular(AppSpacing.radiusMd),
                             ),
-                            if (sponsor['linkUrl'] != null &&
-                                sponsor['linkUrl'].toString().isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                sponsor['linkUrl'],
-                                style: AppTypography.bodySmall.copyWith(color: AppColors.primary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              backgroundColor: AppColors.surface,
-                              title: const Text('Eliminar Sponsor'),
-                              content: Text('¿Estás seguro de eliminar a ${sponsor['name']}?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: Text('Cancelar',
-                                      style: TextStyle(color: AppColors.textSecondary)),
+                            child: _buildSponsorImage(
+                              sponsor['imageUrl'] ?? '',
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  sponsor['name'] ?? 'Sponsor',
+                                  style: AppTypography.titleMedium,
                                 ),
-                                TextButton(
-                                  onPressed: () async {
-                                    await ref
-                                        .read(firestoreServiceProvider)
-                                        .deleteSponsor(sponsor['id']);
-                                    if (context.mounted) {
-                                      Navigator.pop(context);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Sponsor ${sponsor['name']} eliminado'),
-                                          backgroundColor: AppColors.warning,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: const Text('Eliminar',
-                                      style: TextStyle(color: AppColors.error)),
-                                ),
+                                if (sponsor['linkUrl'] != null &&
+                                    sponsor['linkUrl']
+                                        .toString()
+                                        .isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    sponsor['linkUrl'],
+                                    style: AppTypography.bodySmall.copyWith(
+                                      color: AppColors.primary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ],
                             ),
-                          );
-                        },
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: AppColors.error,
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  backgroundColor: AppColors.surface,
+                                  title: const Text('Eliminar Sponsor'),
+                                  content: Text(
+                                    '¿Estás seguro de eliminar a ${sponsor['name']}?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: Text(
+                                        'Cancelar',
+                                        style: TextStyle(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () async {
+                                        await ref
+                                            .read(firestoreServiceProvider)
+                                            .deleteSponsor(sponsor['id']);
+                                        if (context.mounted) {
+                                          Navigator.pop(context);
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Sponsor ${sponsor['name']} eliminado',
+                                              ),
+                                              backgroundColor:
+                                                  AppColors.warning,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: const Text(
+                                        'Eliminar',
+                                        style: TextStyle(
+                                          color: AppColors.error,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                    ],
-                  ),
-                ),
-              ).animate(delay: (index * 50).ms).fadeIn(duration: 300.ms).slideX(begin: 0.05);
+                    ),
+                  )
+                  .animate(delay: (index * 50).ms)
+                  .fadeIn(duration: 300.ms)
+                  .slideX(begin: 0.05);
             },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error al cargar sponsors: $err')),
+        error: (err, stack) =>
+            Center(child: Text('Error al cargar sponsors: $err')),
       ),
     );
   }
@@ -326,12 +384,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
 
 Widget _buildSponsorImage(String url) {
   if (url.startsWith('assets/')) {
-    return Image.asset(
-      url,
-      width: 80,
-      height: 80,
-      fit: BoxFit.cover,
-    );
+    return Image.asset(url, width: 80, height: 80, fit: BoxFit.cover);
   }
   return CachedNetworkImage(
     imageUrl: url,

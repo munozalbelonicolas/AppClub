@@ -35,11 +35,7 @@ class JNEmptyState extends StatelessWidget {
                 color: AppColors.surfaceVariant,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 48,
-                color: AppColors.textTertiary,
-              ),
+              child: Icon(icon, size: 48, color: AppColors.textTertiary),
             ),
             const SizedBox(height: AppSpacing.xl),
             Text(

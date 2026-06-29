@@ -28,25 +28,25 @@ class _SplashScreenState extends State<SplashScreen> {
           children: [
             // Club Logo / Emblem
             Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.4),
-                    blurRadius: 40,
-                    spreadRadius: 2,
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.4),
+                        blurRadius: 40,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/app_logo.jpg',
-                  fit: BoxFit.cover,
-                ),
-              ),
-            )
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/app_logo.jpg',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                )
                 .animate()
                 .scale(
                   begin: const Offset(0.5, 0.5),
@@ -60,15 +60,20 @@ class _SplashScreenState extends State<SplashScreen> {
 
             // Club Name
             Text(
-              'JORGE NEWBERY',
-              style: AppTypography.displaySmall.copyWith(
-                letterSpacing: 4,
-                fontWeight: FontWeight.w800,
-              ),
-            )
+                  'JORGE NEWBERY',
+                  style: AppTypography.displaySmall.copyWith(
+                    letterSpacing: 4,
+                    fontWeight: FontWeight.w800,
+                  ),
+                )
                 .animate(delay: 400.ms)
                 .fadeIn(duration: 500.ms)
-                .slideY(begin: 0.3, end: 0, duration: 500.ms, curve: Curves.easeOut),
+                .slideY(
+                  begin: 0.3,
+                  end: 0,
+                  duration: 500.ms,
+                  curve: Curves.easeOut,
+                ),
 
             const SizedBox(height: 8),
 
@@ -78,9 +83,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 letterSpacing: 2.5,
                 color: AppColors.textTertiary,
               ),
-            )
-                .animate(delay: 600.ms)
-                .fadeIn(duration: 500.ms),
+            ).animate(delay: 600.ms).fadeIn(duration: 500.ms),
 
             const SizedBox(height: 48),
 
@@ -90,11 +93,11 @@ class _SplashScreenState extends State<SplashScreen> {
               height: 32,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation(AppColors.primary.withValues(alpha: 0.7)),
+                valueColor: AlwaysStoppedAnimation(
+                  AppColors.primary.withValues(alpha: 0.7),
+                ),
               ),
-            )
-                .animate(delay: 800.ms)
-                .fadeIn(duration: 400.ms),
+            ).animate(delay: 800.ms).fadeIn(duration: 400.ms),
           ],
         ),
       ),
