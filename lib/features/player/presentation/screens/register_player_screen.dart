@@ -134,25 +134,23 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                             playerName: e.playerName,
                             enableAccount: _enableLogin,
                           );
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Solicitud enviada con éxito.'),
-                            backgroundColor: AppColors.success,
-                          ),
-                        );
-                        if (widget.onSuccess != null) {
-                          widget.onSuccess!();
-                        } else {
-                          Navigator.pop(context);
-                        }
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Solicitud enviada con éxito.'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                      if (widget.onSuccess != null) {
+                        widget.onSuccess!();
+                      } else {
+                        Navigator.pop(context);
                       }
                     } catch (err) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error: $err'), backgroundColor: AppColors.error),
-                        );
-                      }
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $err'), backgroundColor: AppColors.error),
+                      );
                     } finally {
                       if (mounted) setState(() => _isLoading = false);
                     }

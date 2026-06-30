@@ -87,7 +87,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
         return ListView.separated(
           padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
           itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (context, index) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
             final data = docs[index].data() as Map<String, dynamic>;
             final orderId = docs[index].id;

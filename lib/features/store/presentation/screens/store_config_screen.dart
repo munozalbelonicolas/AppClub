@@ -138,7 +138,7 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
                     ),
                     Switch(
                       value: _isStoreEnabled,
-                      activeColor: AppColors.success,
+                      activeThumbColor: AppColors.success,
                       onChanged: (v) => setState(() => _isStoreEnabled = v),
                     ),
                   ],

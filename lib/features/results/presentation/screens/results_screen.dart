@@ -5,14 +5,16 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_match_card.dart';
 
-// TODO: Connect to Firestore
-class ResultsScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/firestore_service.dart';
+
+class ResultsScreen extends ConsumerStatefulWidget {
   const ResultsScreen({super.key});
   @override
-  State<ResultsScreen> createState() => _ResultsScreenState();
+  ConsumerState<ResultsScreen> createState() => _ResultsScreenState();
 }
 
-class _ResultsScreenState extends State<ResultsScreen>
+class _ResultsScreenState extends ConsumerState<ResultsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -56,7 +58,9 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   // ─── Fixture Tab ──────────────────────────────────
   Widget _buildFixtureTab() {
-    final List<Map<String, dynamic>> matches = [];
+    final matchesAsync = ref.watch(matchesStreamProvider);
+    final List<Map<String, dynamic>> matches = matchesAsync.valueOrNull ?? [];
+    
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
       children: [

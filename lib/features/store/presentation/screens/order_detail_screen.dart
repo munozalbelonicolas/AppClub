@@ -353,7 +353,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => placeholder,
+        errorBuilder: (context, error, stackTrace) => placeholder,
       );
     }
     return Image.file(
@@ -361,7 +361,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       width: size,
       height: size,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => placeholder,
+      errorBuilder: (context, error, stackTrace) => placeholder,
     );
   }
 
@@ -388,7 +388,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         width: double.infinity,
         height: 300,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => errorWidget,
+        errorBuilder: (context, error, stackTrace) => errorWidget,
       );
     }
     return Image.file(
@@ -396,7 +396,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       width: double.infinity,
       height: 300,
       fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => errorWidget,
+      errorBuilder: (context, error, stackTrace) => errorWidget,
     );
   }
 

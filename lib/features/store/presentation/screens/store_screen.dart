@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -12,6 +11,7 @@ import 'create_product_screen.dart';
 import 'my_orders_screen.dart';
 import 'store_config_screen.dart';
 import 'admin_orders_screen.dart';
+import '../../data/repositories/store_repository.dart';
 
 class StoreScreen extends ConsumerStatefulWidget {
   const StoreScreen({super.key});
@@ -36,11 +36,13 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     final user = ref.watch(currentUserProvider);
     final isAdmin = user != null && (user.role == 'directivo' || user.role == 'secretario');
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.doc('settings/store_config').snapshots(),
-      builder: (context, configSnapshot) {
-        final configData = configSnapshot.data?.data() as Map<String, dynamic>?;
-        final isStoreEnabled = configData?['isStoreEnabled'] ?? true;
+    final storeConfigAsync = ref.watch(storeConfigProvider);
+
+    return storeConfigAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => Scaffold(body: Center(child: Text('Error: $e'))),
+      data: (config) {
+        final isStoreEnabled = config.isStoreEnabled;
 
         // If store is disabled and user is not admin, show closed message
         if (!isStoreEnabled && !isAdmin) {
@@ -62,10 +64,10 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                     style: AppTypography.titleMedium.copyWith(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Volvé a intentar más tarde.',
-                    style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
-                  ),
+                    Text(
+                      config.closureMessage ?? 'Volvé a intentar más tarde.',
+                      style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
+                    ),
                 ],
               ),
             ),
@@ -117,7 +119,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenHorizontal, vertical: 8),
               itemCount: _filters.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final filter = _filters[index];
                 final isSelected = _selectedFilter == filter['key'];
@@ -147,13 +149,11 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
 
           // Product grid
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _buildQuery(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            child: ref.watch(storeProductsProvider(_selectedFilter)).when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => Center(child: Text('Error: $e')),
+              data: (products) {
+                if (products.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -170,7 +170,6 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                   );
                 }
 
-                final docs = snapshot.data!.docs;
                 return GridView.builder(
                   padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -179,20 +178,15 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                     mainAxisSpacing: 12,
                     childAspectRatio: 0.68,
                   ),
-                  itemCount: docs.length,
+                  itemCount: products.length,
                   itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    final productId = docs[index].id;
+                    final product = products[index];
                     return ProductCard(
-                      name: data['name'] ?? '',
-                      price: (data['price'] ?? 0).toDouble(),
-                      imageUrl: data['imageUrl'],
-                      stock: data['stock'] ?? 0,
-                      category: data['category'] ?? '',
+                      product: product,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => ProductDetailScreen(productId: productId),
+                          builder: (_) => ProductDetailScreen(productId: product.id),
                         ),
                       ),
                     ).animate().fadeIn(duration: 300.ms, delay: (index * 50).ms).slideY(begin: 0.1, end: 0);
@@ -216,22 +210,5 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     );
       },
     );
-  }
-
-  Stream<QuerySnapshot> _buildQuery() {
-    var query = FirebaseFirestore.instance
-        .collection('store_products')
-        .where('isActive', isEqualTo: true)
-        .orderBy('createdAt', descending: true);
-
-    if (_selectedFilter != 'todos') {
-      query = FirebaseFirestore.instance
-          .collection('store_products')
-          .where('isActive', isEqualTo: true)
-          .where('category', isEqualTo: _selectedFilter)
-          .orderBy('createdAt', descending: true);
-    }
-
-    return query.snapshots();
   }
 }

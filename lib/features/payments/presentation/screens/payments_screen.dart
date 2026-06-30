@@ -6,6 +6,7 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../../core/providers/session_provider.dart';
 
 class PaymentsScreen extends ConsumerWidget {
@@ -15,11 +16,11 @@ class PaymentsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionUser = ref.watch(currentUserProvider)!;
 
-    // TODO: Fetch payments from Firestore. Currently set to empty.
-    final List<Map<String, dynamic>> payments = [];
+    final paymentsAsync = ref.watch(userPaymentsStreamProvider(sessionUser.id));
+    final List<Map<String, dynamic>> payments = paymentsAsync.valueOrNull ?? [];
     final pending = payments.where((p) => p['status'] == 'pending').toList();
     final paid = payments.where((p) => p['status'] == 'paid').toList();
-    final totalPaid = paid.fold<int>(0, (sum, p) => sum + (p['amount'] as int));
+    final totalPaid = paid.fold<int>(0, (sum, p) => sum + (p['amount'] as num).toInt());
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -29,12 +30,12 @@ class PaymentsScreen extends ConsumerWidget {
         children: [
           // ─── Balance Card ─────────────────────────
           JNCard(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
                 AppColors.surfaceLight,
-                AppColors.primary.withValues(alpha: 0.08),
+                AppColors.primary,
               ],
             ),
             border: Border.all(

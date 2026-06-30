@@ -200,7 +200,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
                                 File(_existingImageUrl!),
                                 fit: BoxFit.cover,
                                 width: double.infinity,
-                                errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                                errorBuilder: (context, error, stackTrace) => _imagePlaceholder(),
                               ),
                             )
                           : _imagePlaceholder(),
@@ -288,7 +288,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
 
               // Category dropdown
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: InputDecoration(
                   labelText: 'Categoría',
                   prefixIcon: const Icon(Icons.category_outlined, size: 20),

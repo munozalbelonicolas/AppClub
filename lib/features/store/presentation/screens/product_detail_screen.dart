@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -250,12 +249,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       );
     }
     if (imageUrl.startsWith('http')) {
-      return Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(
+      return Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(
         color: AppColors.surfaceLight,
         child: const Center(child: Icon(Icons.broken_image, size: 80, color: AppColors.textTertiary)),
       ));
     }
-    return Image.file(File(imageUrl), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(
+    return Image.file(File(imageUrl), fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(
       color: AppColors.surfaceLight,
       child: const Center(child: Icon(Icons.broken_image, size: 80, color: AppColors.textTertiary)),
     ));
@@ -274,7 +273,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               await FirebaseFirestore.instance.collection('store_products').doc(widget.productId).update({'isActive': false});
-              if (mounted) Navigator.pop(context);
+              if (!context.mounted) return;
+              Navigator.pop(context);
             },
             child: const Text('Eliminar', style: TextStyle(color: AppColors.error)),
           ),

@@ -316,15 +316,19 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
             // Category filters
             if (_selectedCategoryFilter == 'Sub-12' &&
-                otherCategory != 'sub-12')
+                otherCategory != 'sub-12') {
               return false;
+            }
             if (_selectedCategoryFilter == 'Sub-14' &&
-                otherCategory != 'sub-14')
+                otherCategory != 'sub-14') {
               return false;
-            if (_selectedCategoryFilter == 'Padres' && otherRole != 'padre')
+            }
+            if (_selectedCategoryFilter == 'Padres' && otherRole != 'padre') {
               return false;
-            if (_selectedCategoryFilter == 'DTs' && otherRole != 'dt')
+            }
+            if (_selectedCategoryFilter == 'DTs' && otherRole != 'dt') {
               return false;
+            }
 
             return true;
           }).toList();

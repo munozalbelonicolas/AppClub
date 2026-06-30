@@ -9,14 +9,19 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/providers/session_provider.dart';
-import 'sponsors_management_screen.dart';
+
+// Import screens from other features
 import '../../../player/presentation/screens/my_profile_screen.dart';
-import 'director_console_screen.dart';
+import '../../../inbox/presentation/screens/inbox_screen.dart';
+import '../../../results/presentation/screens/results_screen.dart';
+import '../../../results/presentation/screens/fixture_screen.dart';
+import '../../../results/presentation/screens/league_report_screen.dart';
+import 'club_management_screen.dart';
+import 'sponsors_management_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_conditions_screen.dart';
 import 'support_form_screen.dart';
-import '../../../inbox/presentation/screens/inbox_screen.dart';
-import '../../../results/presentation/screens/results_screen.dart';
+import 'director_console_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   final VoidCallback onLogout;
@@ -227,6 +232,30 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
+              _SettingNav(
+                icon: Icons.calendar_view_week_outlined,
+                label: 'Fixture',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FixtureScreen(),
+                    ),
+                  );
+                },
+              ),
+              _SettingNav(
+                icon: Icons.assignment_outlined,
+                label: 'Informe Liga',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LeagueReportScreen(),
+                    ),
+                  );
+                },
+              ),
             ],
           ).animate(delay: 135.ms).fadeIn(duration: 400.ms),
 
@@ -265,6 +294,29 @@ class SettingsScreen extends ConsumerWidget {
                   ),
               ],
             ).animate(delay: 150.ms).fadeIn(duration: 400.ms),
+            const SizedBox(height: 20),
+          ],
+
+          // ─── Directivos, Secretarios y DTs ──────────────────────
+          if (user.isAdmin || user.isCoach) ...[
+            Text('Competiciones y Rivalidades', style: AppTypography.labelMedium),
+            const SizedBox(height: 8),
+            _SettingsGroup(
+              items: [
+                _SettingNav(
+                  icon: Icons.shield,
+                  label: 'Gestión de Clubes',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ClubManagementScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ).animate(delay: 160.ms).fadeIn(duration: 400.ms),
             const SizedBox(height: 20),
           ],
 

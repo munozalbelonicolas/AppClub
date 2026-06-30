@@ -25,8 +25,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (_emailController.text.trim().isEmpty ||
-        _passwordController.text.isEmpty)
+        _passwordController.text.isEmpty) {
       return;
+    }
     setState(() => _isLoading = true);
 
     try {
@@ -34,7 +35,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await authService.signInWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
-        ref,
       );
       // Wait for provider update
       if (mounted) {
@@ -217,10 +217,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onPressed: () async {
                   setState(() => _isLoading = true);
                   final authService = ref.read(authServiceProvider);
-                  final session = await authService.signInWithGoogle(
-                    context,
-                    ref,
-                  );
+                  final session = await authService.signInWithGoogle(context);
                   setState(() => _isLoading = false);
                   if (session != null) {
                     widget.onLogin();

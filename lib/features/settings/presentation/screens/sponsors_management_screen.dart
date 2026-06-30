@@ -6,7 +6,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/services/firestore_service.dart';
+import '../../../home/data/repositories/sponsor_repository.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class SponsorsManagementScreen extends ConsumerWidget {
@@ -144,10 +144,8 @@ class SponsorsManagementScreen extends ConsumerWidget {
                   ),
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
-                      final firestoreService = ref.read(
-                        firestoreServiceProvider,
-                      );
-                      await firestoreService.addSponsor({
+                      final sponsorRepo = ref.read(sponsorRepositoryProvider);
+                      await sponsorRepo.addSponsor({
                         'name': nameController.text.trim(),
                         'imageUrl': imageUrlController.text.trim(),
                         'linkUrl': linkUrlController.text.trim(),
@@ -238,11 +236,9 @@ class SponsorsManagementScreen extends ConsumerWidget {
                     JNButton(
                       label: 'Cargar Sponsors de Prueba',
                       onPressed: () async {
-                        final firestoreService = ref.read(
-                          firestoreServiceProvider,
-                        );
+                        final sponsorRepo = ref.read(sponsorRepositoryProvider);
                         for (final preset in _presetSponsors) {
-                          await firestoreService.addSponsor(preset);
+                          await sponsorRepo.addSponsor(preset);
                         }
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -333,9 +329,8 @@ class SponsorsManagementScreen extends ConsumerWidget {
                                     ),
                                     TextButton(
                                       onPressed: () async {
-                                        await ref
-                                            .read(firestoreServiceProvider)
-                                            .deleteSponsor(sponsor['id']);
+                                        final sponsorRepo = ref.read(sponsorRepositoryProvider);
+                                        await sponsorRepo.deleteSponsor(sponsor['id']);
                                         if (context.mounted) {
                                           Navigator.pop(context);
                                           ScaffoldMessenger.of(

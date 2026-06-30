@@ -26,7 +26,7 @@ class PendingApprovalScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.logout, color: AppColors.error),
             onPressed: () async {
-              await ref.read(authServiceProvider).signOut(ref);
+              await ref.read(authServiceProvider).signOut();
               onSignOut();
             },
           ),

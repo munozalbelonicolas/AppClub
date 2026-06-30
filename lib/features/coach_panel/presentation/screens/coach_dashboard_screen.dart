@@ -9,8 +9,8 @@ import '../../../../core/widgets/jn_stat_card.dart';
 import '../../../../core/widgets/jn_section_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/firestore_service.dart';
 
-// TODO: Connect to Firestore
 class CoachDashboardScreen extends ConsumerWidget {
   const CoachDashboardScreen({super.key});
 
@@ -18,9 +18,11 @@ class CoachDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionUser = ref.watch(currentUserProvider)!;
 
-    // TODO: Fetch players and nextMatch from Firestore. Currently set to empty/null.
-    final List<Map<String, dynamic>> players = [];
-    final Map<String, dynamic>? nextMatch = null;
+    final playersAsync = ref.watch(playersStreamProvider);
+    final List<Map<String, dynamic>> players = playersAsync.valueOrNull ?? [];
+    
+    final matchesAsync = ref.watch(matchesStreamProvider);
+    final Map<String, dynamic>? nextMatch = matchesAsync.valueOrNull?.firstOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.background,

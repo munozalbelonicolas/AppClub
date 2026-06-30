@@ -27,7 +27,7 @@ class VerifyEmailScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.logout, color: AppColors.error),
             onPressed: () async {
-              await ref.read(authServiceProvider).signOut(ref);
+              await ref.read(authServiceProvider).signOut();
               onSignOut();
             },
           ),
@@ -67,7 +67,7 @@ class VerifyEmailScreen extends ConsumerWidget {
               JNButton(
                 label: 'Ya lo verifiqué',
                 onPressed: () async {
-                  await ref.read(authServiceProvider).checkEmailVerified(ref);
+                  await ref.read(authServiceProvider).checkEmailVerified();
                   // Will force refresh of user session in AppNavigator
                   onRefresh();
                 },

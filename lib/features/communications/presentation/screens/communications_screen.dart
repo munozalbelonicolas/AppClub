@@ -11,6 +11,7 @@ import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../data/repositories/announcement_repository.dart';
 import '../../../../core/models/user_session.dart';
 
 class CommunicationsScreen extends ConsumerStatefulWidget {
@@ -51,10 +52,13 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     });
   }
 
-  void _showCreateAnnouncementDialog(BuildContext context, dynamic sessionUser) {
+  void _showCreateAnnouncementDialog(BuildContext context, dynamic sessionUser, List<Map<String, dynamic>> clubs) {
     final titleController = TextEditingController();
     final bodyController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+
+    bool isMatch = false;
+    String? selectedOpponentId;
 
     String selectedCategory = 'deportivo';
     String selectedPriority = 'normal';
@@ -156,6 +160,38 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           });
                         },
                       ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('¿Es publicación de un Partido?'),
+                        value: isMatch,
+                        activeThumbColor: AppColors.primary,
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            isMatch = val;
+                          });
+                        },
+                      ),
+                      if (isMatch) ...[
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          dropdownColor: AppColors.surface,
+                          initialValue: selectedOpponentId,
+                          decoration: const InputDecoration(labelText: 'Club Rival'),
+                          items: clubs.where((c) => c['isLocal'] != true).map((club) {
+                            return DropdownMenuItem<String>(
+                              value: club['id'],
+                              child: Text(club['name'], style: AppTypography.bodyLarge),
+                            );
+                          }).toList(),
+                          validator: (val) => isMatch && val == null ? 'Selecciona un rival' : null,
+                          onChanged: (val) {
+                            setDialogState(() {
+                              selectedOpponentId = val;
+                            });
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -177,8 +213,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                       final now = DateTime.now();
                       final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
                       
-                      final firestoreService = ref.read(firestoreServiceProvider);
-                      await firestoreService.addAnnouncement({
+                      final announcementRepo = ref.read(announcementRepositoryProvider);
+                      await announcementRepo.addAnnouncement({
                         'title': titleController.text.trim(),
                         'body': bodyController.text.trim(),
                         'category': selectedCategory,
@@ -189,6 +225,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         'authorName': '${sessionUser.name} ${sessionUser.lastName}',
                         'authorRole': sessionUser.role,
                         'commentsEnabled': commentsEnabled,
+                        'isMatch': isMatch,
+                        'opponentClubId': isMatch ? selectedOpponentId : null,
                       });
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -225,11 +263,11 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
           ),
           TextButton(
             onPressed: () async {
-              final firestoreService = ref.read(firestoreServiceProvider);
+              final announcementRepo = ref.read(announcementRepositoryProvider);
               final now = DateTime.now();
               final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
               
-              await firestoreService.addAnnouncement({
+              await announcementRepo.addAnnouncement({
                 'title': 'Cierre de inscripciones para el torneo',
                 'body': 'Recordamos a los padres que este viernes vence el plazo para presentar la ficha médica y completar el registro del torneo anual. No se aceptarán prórrogas.',
                 'category': 'administrativo',
@@ -241,7 +279,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                 'authorRole': 'directivo',
               });
 
-              await firestoreService.addAnnouncement({
+              await announcementRepo.addAnnouncement({
                 'title': 'Convocatoria amistoso contra Central',
                 'body': 'El sábado jugamos un partido amistoso de preparación contra Rosario Central. La citación es a las 9:00 hs en la puerta del club. Traer indumentaria blanca.',
                 'category': 'Sub-12',
@@ -281,10 +319,9 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
           role: 'padre',
         );
     final isNormalUser = sessionUser.isNormalUser;
-    
-    // Fetch announcements filtered by user category using family provider
     final query = UserAnnouncementQuery(category: sessionUser.category, isAdmin: sessionUser.isAdmin);
     final announcementsAsync = ref.watch(userAnnouncementsStreamProvider(query));
+    final clubs = ref.watch(clubsStreamProvider).value ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -304,7 +341,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
       ),
       floatingActionButton: !isNormalUser
           ? FloatingActionButton(
-              onPressed: () => _showCreateAnnouncementDialog(context, sessionUser),
+              onPressed: () => _showCreateAnnouncementDialog(context, sessionUser, clubs),
               backgroundColor: AppColors.primary,
               child: const Icon(Icons.add, color: Colors.white),
             ).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack)
@@ -357,9 +394,9 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
           return TabBarView(
             controller: _tabController,
             children: [
-              _buildAnnouncementList(allAnnouncements, sessionUser),
-              _buildAnnouncementList(deportivoAnnouncements, sessionUser),
-              _buildAnnouncementList(administrativoAnnouncements, sessionUser),
+              _buildAnnouncementList(allAnnouncements, sessionUser, clubs),
+              _buildAnnouncementList(deportivoAnnouncements, sessionUser, clubs),
+              _buildAnnouncementList(administrativoAnnouncements, sessionUser, clubs),
             ],
           );
         },
@@ -371,7 +408,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     );
   }
 
-  Widget _buildAnnouncementList(List<Map<String, dynamic>> announcements, dynamic sessionUser) {
+  Widget _buildAnnouncementList(List<Map<String, dynamic>> announcements, dynamic sessionUser, List<Map<String, dynamic>> clubs) {
     if (announcements.isEmpty) {
       return Center(
         child: Text(
@@ -397,7 +434,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
 
         if (!hasSeen) {
           Future.microtask(() {
-            ref.read(firestoreServiceProvider).markAnnouncementAsSeen(annId, sessionUser);
+            ref.read(announcementRepositoryProvider).markAnnouncementAsSeen(annId, sessionUser);
           });
         }
 
@@ -408,7 +445,6 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
         final bool canDelete = sessionUser.isAdmin || ann['authorId'] == sessionUser.id;
         final bool commentsEnabled = ann['commentsEnabled'] ?? true;
 
-        // Sort comments chronologically
         comments.sort((a, b) {
           final aTime = a['createdAt'];
           final bTime = b['createdAt'];
@@ -417,6 +453,12 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
           }
           return 0;
         });
+
+        final isMatch = ann['isMatch'] == true;
+        final opponentClub = isMatch
+            ? clubs.where((c) => c['id'] == ann['opponentClubId']).firstOrNull
+            : null;
+        final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
 
         return JNCard(
           border: !hasSeen
@@ -466,7 +508,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           _confirmDeleteAnnouncement(context, annId);
                         } else if (value == 'toggle_comments') {
                           ref
-                              .read(firestoreServiceProvider)
+                              .read(announcementRepositoryProvider)
                               .toggleAnnouncementComments(
                                 annId,
                                 !commentsEnabled,
@@ -542,6 +584,37 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                 ann['body'] as String,
                 style: AppTypography.bodyMedium,
               ),
+
+              if (isMatch && opponentClub != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border, width: 0.5),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildClubLogo(localClub),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Text(
+                          'VS',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ),
+                      _buildClubLogo(opponentClub),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -567,7 +640,6 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
               ),
               const Divider(height: 24, color: AppColors.divider),
               
-              // Comment Section Toggle
               GestureDetector(
                 onTap: () => _toggleComments(annId),
                 child: Row(
@@ -601,7 +673,6 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                 ),
               ),
 
-              // Expanded comments
               if (isExpanded) ...[
                 const SizedBox(height: 12),
                 if (!commentsEnabled) ...[
@@ -735,7 +806,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
           ),
           TextButton(
             onPressed: () async {
-              await ref.read(firestoreServiceProvider).deleteAnnouncement(annId);
+              await ref.read(announcementRepositoryProvider).deleteAnnouncement(annId);
               if (context.mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -767,7 +838,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
           ),
           TextButton(
             onPressed: () async {
-              await ref.read(firestoreServiceProvider).deleteCommentFromAnnouncement(annId, comment);
+              await ref.read(announcementRepositoryProvider).deleteCommentFromAnnouncement(annId, comment);
               if (context.mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -801,7 +872,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
       'createdAt': Timestamp.now(),
     };
 
-    await ref.read(firestoreServiceProvider).addCommentToAnnouncement(annId, commentData);
+    await ref.read(announcementRepositoryProvider).addCommentToAnnouncement(annId, commentData);
   }
 
   void _showViewsDialog(BuildContext context, List<Map<String, dynamic>> seenByList) {
@@ -858,5 +929,35 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     final day = int.parse(parts[2]);
     final month = int.parse(parts[1]);
     return '$day ${months[month]}';
+  }
+
+  Widget _buildClubLogo(Map<String, dynamic>? club) {
+    if (club == null) {
+      return const CircleAvatar(
+        radius: 30,
+        backgroundColor: AppColors.surface,
+        child: Icon(Icons.shield, color: AppColors.textTertiary),
+      );
+    }
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: AppColors.surface,
+          backgroundImage: club['logoUrl'] != null && club['logoUrl'].toString().isNotEmpty
+              ? NetworkImage(club['logoUrl'])
+              : null,
+          child: (club['logoUrl'] == null || club['logoUrl'].toString().isEmpty)
+              ? const Icon(Icons.shield, color: AppColors.textTertiary)
+              : null,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          club['name'] ?? '',
+          style: AppTypography.labelSmall,
+          overflow: TextOverflow.ellipsis,
+        )
+      ],
+    );
   }
 }

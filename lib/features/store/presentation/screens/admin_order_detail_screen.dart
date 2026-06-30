@@ -270,7 +270,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
         width: double.infinity,
         height: 300,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => errorWidget,
+        errorBuilder: (context, error, stackTrace) => errorWidget,
       );
     }
     return Image.file(
@@ -278,7 +278,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
       width: double.infinity,
       height: 300,
       fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => errorWidget,
+      errorBuilder: (context, error, stackTrace) => errorWidget,
     );
   }
 

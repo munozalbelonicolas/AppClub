@@ -106,11 +106,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
-  void _showCreatePostDialog(BuildContext context, dynamic sessionUser) {
+  void _showCreatePostDialog(BuildContext context, dynamic sessionUser, List<Map<String, dynamic>> clubs) {
     final titleController = TextEditingController();
     final bodyController = TextEditingController();
     final imageUrlController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+
+    bool isMatch = false;
+    String? selectedOpponentId;
 
     // Default category configuration
     String selectedCategory = 'all';
@@ -261,6 +264,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           },
                         ),
                       ],
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('¿Es publicación de un Partido?'),
+                        value: isMatch,
+                        activeThumbColor: AppColors.primary,
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            isMatch = val;
+                          });
+                        },
+                      ),
+                      if (isMatch) ...[
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          dropdownColor: AppColors.surface,
+                          initialValue: selectedOpponentId,
+                          decoration: const InputDecoration(labelText: 'Club Rival'),
+                          items: clubs.where((c) => c['isLocal'] != true).map((club) {
+                            return DropdownMenuItem<String>(
+                              value: club['id'],
+                              child: Text(club['name'], style: AppTypography.bodyLarge),
+                            );
+                          }).toList(),
+                          validator: (val) => isMatch && val == null ? 'Selecciona un rival' : null,
+                          onChanged: (val) {
+                            setDialogState(() {
+                              selectedOpponentId = val;
+                            });
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -296,6 +331,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         'authorName':
                             '${sessionUser.name} ${sessionUser.lastName}',
                         'authorRole': sessionUser.role,
+                        'isMatch': isMatch,
+                        'opponentClubId': isMatch ? selectedOpponentId : null,
                       });
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -322,6 +359,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final sessionUser = ref.watch(currentUserProvider)!;
     final isNormalUser = sessionUser.isNormalUser;
+    final clubs = ref.watch(clubsStreamProvider).value ?? [];
     final hasPlayer =
         sessionUser.role == 'padre' || sessionUser.role == 'jugador';
 
@@ -690,7 +728,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           size: 28,
                         ),
                         onPressed: () =>
-                            _showCreatePostDialog(context, sessionUser),
+                            _showCreatePostDialog(context, sessionUser, clubs),
                         tooltip: 'Publicar Novedad',
                       ),
                   ],

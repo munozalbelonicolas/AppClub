@@ -12,15 +12,17 @@ import '../theme/app_spacing.dart';
 import 'dart:async';
 
 class AuthService {
+  final Ref _ref;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   StreamSubscription<DocumentSnapshot>? _userSubscription;
 
+  AuthService(this._ref);
+
   Future<UserSession?> signInWithEmailAndPassword(
     String email,
     String password,
-    WidgetRef ref,
   ) async {
     try {
       final UserCredential userCredential = await _auth
@@ -34,7 +36,6 @@ class AuthService {
           firebaseUser.uid,
           firebaseUser.email ?? email,
           firebaseUser.displayName ?? '',
-          ref,
           emailVerified: firebaseUser.emailVerified,
         );
       }
@@ -52,7 +53,6 @@ class AuthService {
     required String lastName,
     required String phone1,
     String? phone2,
-    required WidgetRef ref,
   }) async {
     try {
       final UserCredential userCredential = await _auth
@@ -66,7 +66,6 @@ class AuthService {
           firebaseUser.uid,
           email,
           '$name $lastName',
-          ref,
           isNewRegistration: true,
           phone1: phone1,
           phone2: phone2,
@@ -88,14 +87,14 @@ class AuthService {
     }
   }
 
-  Future<void> checkEmailVerified(WidgetRef ref) async {
+  Future<void> checkEmailVerified() async {
     final user = _auth.currentUser;
     if (user != null) {
       await user.reload(); // Re-fetch user data from Firebase
       if (user.emailVerified) {
-        final session = ref.read(currentUserProvider);
+        final session = _ref.read(currentUserProvider);
         if (session != null) {
-          ref.read(currentUserProvider.notifier).state = session.copyWith(
+          _ref.read(currentUserProvider.notifier).state = session.copyWith(
             emailVerified: true,
           );
         }
@@ -108,7 +107,6 @@ class AuthService {
   /// so the user can test the email 'munozalbelonicolas@gmail.com' and other roles.
   Future<UserSession?> signInWithGoogle(
     BuildContext context,
-    WidgetRef ref,
   ) async {
     try {
       // 1. Tries to sign in with Google
@@ -132,14 +130,13 @@ class AuthService {
           firebaseUser.uid,
           firebaseUser.email ?? '',
           firebaseUser.displayName ?? '',
-          ref,
         );
       }
     } catch (e) {
       debugPrint('Real Google Sign-In failed or not configured: $e');
       // Fallback to beautiful Demo Dialog
       if (!context.mounted) return null;
-      return await _showDemoGoogleSignInDialog(context, ref);
+      return await _showDemoGoogleSignInDialog(context);
     }
     return null;
   }
@@ -148,8 +145,7 @@ class AuthService {
   Future<UserSession> _syncUserProfile(
     String uid,
     String email,
-    String displayName,
-    WidgetRef ref, {
+    String displayName, {
     bool isNewRegistration = false,
     String? phone1,
     String? phone2,
@@ -283,7 +279,7 @@ class AuthService {
               : null,
           termsVersion: snapshotData['termsVersion'],
         );
-        ref.read(currentUserProvider.notifier).state = updatedSession;
+        _ref.read(currentUserProvider.notifier).state = updatedSession;
       }
     });
 
@@ -293,7 +289,6 @@ class AuthService {
   /// Displays a dialog simulating Google Sign-In with preset emails and typing field
   Future<UserSession?> _showDemoGoogleSignInDialog(
     BuildContext context,
-    WidgetRef ref,
   ) async {
     final emailController = TextEditingController(
       text: 'munozalbelonicolas@gmail.com',
@@ -469,7 +464,6 @@ class AuthService {
                         mockUid,
                         email,
                         '$name $lastName',
-                        ref,
                       );
                       if (context.mounted) {
                         Navigator.pop(context, session);
@@ -487,20 +481,19 @@ class AuthService {
   }
 
   /// Sign out from Firebase and Google
-  Future<void> signOut(WidgetRef ref) async {
+  Future<void> signOut() async {
     _userSubscription?.cancel();
     _userSubscription = null;
     await _googleSignIn.signOut();
     await _auth.signOut();
-    ref.read(currentUserProvider.notifier).state = null;
+    _ref.read(currentUserProvider.notifier).state = null;
   }
 
   Future<void> completeRegistration({
     required String phone1,
     String? phone2,
-    required WidgetRef ref,
   }) async {
-    final session = ref.read(currentUserProvider);
+    final session = _ref.read(currentUserProvider);
     if (session == null) throw Exception('No session found');
 
     final docRef = _db.collection('users').doc(session.id);
@@ -517,11 +510,10 @@ class AuthService {
       session.id,
       session.email,
       '${session.name} ${session.lastName}',
-      ref,
     );
   }
 }
 
 final authServiceProvider = Provider<AuthService>((ref) {
-  return AuthService();
+  return AuthService(ref);
 });

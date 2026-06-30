@@ -326,7 +326,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => placeholder,
+        errorBuilder: (context, error, stackTrace) => placeholder,
       );
     }
     return Image.file(
@@ -334,7 +334,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       width: size,
       height: size,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => placeholder,
+      errorBuilder: (context, error, stackTrace) => placeholder,
     );
   }
 }

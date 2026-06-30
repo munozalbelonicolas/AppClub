@@ -48,7 +48,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         phone2: _phone2Controller.text.trim().isEmpty
             ? null
             : _phone2Controller.text.trim(),
-        ref: ref,
       );
 
       if (session != null && mounted) {

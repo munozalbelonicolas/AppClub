@@ -8,6 +8,8 @@ import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_stat_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/firestore_service.dart';
+import '../../../../core/providers/session_provider.dart';
 
 class PlayerProfileScreen extends ConsumerStatefulWidget {
   const PlayerProfileScreen({super.key});
@@ -34,8 +36,9 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Fetch from Firestore
-    final Map<String, dynamic>? player = null;
+    final sessionUser = ref.watch(currentUserProvider)!;
+    final playerAsync = ref.watch(playerProfileStreamProvider(sessionUser.id));
+    final Map<String, dynamic>? player = playerAsync.valueOrNull;
 
     if (player == null) {
       return Scaffold(

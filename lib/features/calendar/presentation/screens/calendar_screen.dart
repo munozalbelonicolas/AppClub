@@ -6,22 +6,22 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_badge.dart';
 
-// TODO: Connect to Firestore
-class CalendarScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/firestore_service.dart';
+
+class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
   @override
-  State<CalendarScreen> createState() => _CalendarScreenState();
+  ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarScreenState extends State<CalendarScreen> {
+class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   String _selectedFilter = 'Todos';
   int _selectedDay = 14; // June 14 selected by default (match day)
 
   final filters = ['Todos', 'Partidos', 'Entrenamientos', 'Eventos'];
 
-  List<Map<String, dynamic>> get _filteredEvents {
-    // TODO: Fetch events from Firestore. Currently set to empty.
-    final List<Map<String, dynamic>> events = [];
+  List<Map<String, dynamic>> _getFilteredEvents(List<Map<String, dynamic>> events) {
     return events.where((e) {
       if (_selectedFilter == 'Todos') return true;
       if (_selectedFilter == 'Partidos') return e['type'] == 'match';
@@ -33,6 +33,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final eventsAsync = ref.watch(calendarEventsStreamProvider);
+    final filteredEvents = _getFilteredEvents(eventsAsync.valueOrNull ?? []);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -154,7 +157,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
           // ─── Events List ──────────────────────────
           Expanded(
-            child: _filteredEvents.isEmpty
+            child: filteredEvents.isEmpty
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(32.0),
@@ -179,10 +182,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                    itemCount: _filteredEvents.length,
+                    itemCount: filteredEvents.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
-                      final event = _filteredEvents[index];
+                      final event = filteredEvents[index];
                       return _CalendarEventCard(
                             title: event['title'] as String,
                             type: event['type'] as String,

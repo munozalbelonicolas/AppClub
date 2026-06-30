@@ -6,33 +6,39 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_avatar.dart';
-// TODO: Connect to Firestore
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/firestore_service.dart';
 
-class AttendanceScreen extends StatefulWidget {
+class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
   @override
-  State<AttendanceScreen> createState() => _AttendanceScreenState();
+  ConsumerState<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen> {
-  // TODO: Fetch from Firestore
-  final Map<String, dynamic>? nextMatch = null;
-  late List<Map<String, dynamic>> _convocatoria;
-
+class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    _convocatoria = [];
   }
 
-  int get _confirmed =>
-      _convocatoria.where((c) => c['status'] == 'confirmed').length;
-  int get _pending =>
-      _convocatoria.where((c) => c['status'] == 'pending').length;
-  int get _absent => _convocatoria.where((c) => c['status'] == 'absent').length;
+  int getConfirmed(List<Map<String, dynamic>> conv) =>
+      conv.where((c) => c['status'] == 'confirmed').length;
+  int getPending(List<Map<String, dynamic>> conv) =>
+      conv.where((c) => c['status'] == 'pending').length;
+  int getAbsent(List<Map<String, dynamic>> conv) => 
+      conv.where((c) => c['status'] == 'absent').length;
 
   @override
   Widget build(BuildContext context) {
+    final matchesAsync = ref.watch(matchesStreamProvider);
+    final nextMatch = matchesAsync.valueOrNull?.firstOrNull;
+    
+    final convocatoriaAsync = nextMatch != null 
+        ? ref.watch(convocatoriaStreamProvider(nextMatch['id'])) 
+        : const AsyncValue.data(<Map<String, dynamic>>[]);
+    
+    final convocatoriaList = convocatoriaAsync.valueOrNull ?? [];
+    
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Convocatoria')),
@@ -81,7 +87,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '${nextMatch!['awayTeam']} vs ${nextMatch!['homeTeam']}',
+                    '${nextMatch['awayTeam']} vs ${nextMatch['homeTeam']}',
                     style: AppTypography.headlineSmall,
                   ),
                   const SizedBox(height: 6),
@@ -94,7 +100,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${nextMatch!['date']} · ${nextMatch!['time']}',
+                        '${nextMatch['date']} · ${nextMatch['time']}',
                         style: AppTypography.bodySmall,
                       ),
                       const SizedBox(width: 14),
@@ -105,7 +111,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        nextMatch!['venue'] as String,
+                        nextMatch['venue'] as String,
                         style: AppTypography.bodySmall,
                       ),
                     ],
@@ -121,19 +127,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Row(
             children: [
               _StatusChip(
-                count: _confirmed,
+                count: getConfirmed(convocatoriaList),
                 label: 'Confirmados',
                 color: AppColors.success,
               ),
               const SizedBox(width: 8),
               _StatusChip(
-                count: _pending,
+                count: getPending(convocatoriaList),
                 label: 'Pendientes',
                 color: AppColors.warning,
               ),
               const SizedBox(width: 8),
               _StatusChip(
-                count: _absent,
+                count: getAbsent(convocatoriaList),
                 label: 'Ausentes',
                 color: AppColors.error,
               ),
@@ -214,7 +220,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Text('Convocados', style: AppTypography.headlineSmall),
           const SizedBox(height: 12),
 
-          if (_convocatoria.isEmpty)
+          if (convocatoriaList.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(32.0),
@@ -237,7 +243,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
             ),
 
-          ..._convocatoria.asMap().entries.map((entry) {
+          ...convocatoriaList.asMap().entries.map((entry) {
             final index = entry.key;
             final player = entry.value;
 

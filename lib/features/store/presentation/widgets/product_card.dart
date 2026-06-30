@@ -4,28 +4,21 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../../data/models/product.dart';
 
 class ProductCard extends StatelessWidget {
-  final String name;
-  final double price;
-  final String? imageUrl;
-  final int stock;
-  final String category;
+  final Product product;
   final VoidCallback? onTap;
 
   const ProductCard({
     super.key,
-    required this.name,
-    required this.price,
-    this.imageUrl,
-    required this.stock,
-    required this.category,
+    required this.product,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isOutOfStock = stock <= 0;
+    final isOutOfStock = product.isOutOfStock;
 
     return JNCard(
       onTap: onTap,
@@ -54,7 +47,7 @@ class ProductCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    _categoryLabel(category),
+                    _categoryLabel(product.category),
                     style: AppTypography.badge.copyWith(color: AppColors.accent, fontSize: 10),
                   ),
                 ),
@@ -90,15 +83,15 @@ class ProductCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name,
+                  product.name,
                   style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '\$${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)}',
-                  style: AppTypography.titleMedium.copyWith(
+                  '\$${product.price.toStringAsFixed(product.price.truncateToDouble() == product.price ? 0 : 2)}',
+                  style: AppTypography.bodyLarge.copyWith(
                     color: AppColors.accent,
                     fontWeight: FontWeight.bold,
                   ),
@@ -112,7 +105,7 @@ class ProductCard extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    if (imageUrl == null || imageUrl!.isEmpty) {
+    if (product.imageUrl == null || product.imageUrl!.isEmpty) {
       return Container(
         color: AppColors.surfaceLight,
         child: const Center(
@@ -120,13 +113,13 @@ class ProductCard extends StatelessWidget {
         ),
       );
     }
-
+    
     // Check if it's a local file path or a network URL
-    if (imageUrl!.startsWith('http')) {
+    if (product.imageUrl!.startsWith('http')) {
       return Image.network(
-        imageUrl!,
+        product.imageUrl!,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
+        errorBuilder: (context, error, stackTrace) => Container(
           color: AppColors.surfaceLight,
           child: const Center(
             child: Icon(Icons.broken_image, size: 48, color: AppColors.textTertiary),
@@ -135,9 +128,9 @@ class ProductCard extends StatelessWidget {
       );
     } else {
       return Image.file(
-        File(imageUrl!),
+        File(product.imageUrl!),
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
+        errorBuilder: (context, error, stackTrace) => Container(
           color: AppColors.surfaceLight,
           child: const Center(
             child: Icon(Icons.broken_image, size: 48, color: AppColors.textTertiary),

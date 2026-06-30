@@ -5,140 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // ─── Announcements (Comunicados) ───────────────────
-
-  /// Stream of all announcements ordered by date
-  Stream<List<Map<String, dynamic>>> getAnnouncements() {
-    return _db
-        .collection('announcements')
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => {'id': doc.id, ...doc.data()})
-              .toList(),
-        );
-  }
-
-  /// Stream of announcements filtered by user category
-  Stream<List<Map<String, dynamic>>> getAnnouncementsForUser(
-    String? category,
-    bool isAdmin,
-  ) {
-    return _db.collection('announcements').snapshots().map((snapshot) {
-      final list = snapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data()})
-          .toList();
-
-      // Sort in memory by date (descending) or createdAt
-      list.sort((a, b) {
-        final aVal = a['date']?.toString() ?? '';
-        final bVal = b['date']?.toString() ?? '';
-        return bVal.compareTo(aVal);
-      });
-
-      if (isAdmin) return list;
-
-      return list.where((ann) {
-        final cat = ann['category']?.toString().toLowerCase();
-        if (cat == 'todos' ||
-            cat == 'all' ||
-            cat == 'general' ||
-            cat == 'deportivo' ||
-            cat == 'administrativo') {
-          return true;
-        }
-        if (category == null) return false;
-        return cat == category.toLowerCase();
-      }).toList();
-    });
-  }
-
-  /// Create a new announcement
-  Future<void> addAnnouncement(Map<String, dynamic> announcementData) async {
-    await _db.collection('announcements').add({
-      ...announcementData,
-      'createdAt': FieldValue.serverTimestamp(),
-      'comments': [],
-      'seenBy': [],
-    });
-  }
-
-  /// Delete an announcement
-  Future<void> deleteAnnouncement(String id) async {
-    await _db.collection('announcements').doc(id).delete();
-  }
-
-  /// Add comment to an announcement
-  Future<void> addCommentToAnnouncement(
-    String announcementId,
-    Map<String, dynamic> commentData,
-  ) async {
-    await _db.collection('announcements').doc(announcementId).update({
-      'comments': FieldValue.arrayUnion([commentData]),
-    });
-  }
-
-  /// Delete a comment from an announcement
-  Future<void> deleteCommentFromAnnouncement(
-    String announcementId,
-    Map<String, dynamic> commentData,
-  ) async {
-    await _db.collection('announcements').doc(announcementId).update({
-      'comments': FieldValue.arrayRemove([commentData]),
-    });
-  }
-
-  /// Enable or disable comments for an announcement
-  Future<void> toggleAnnouncementComments(
-    String announcementId,
-    bool isEnabled,
-  ) async {
-    await _db.collection('announcements').doc(announcementId).update({
-      'commentsEnabled': isEnabled,
-    });
-  }
-
-  /// Mark an announcement as seen by a user
-  Future<void> markAnnouncementAsSeen(
-    String announcementId,
-    dynamic sessionUser, // Using dynamic to avoid circular import if user_session is not imported here, but we will pass UserSession
-  ) async {
-    final viewData = {
-      'userId': sessionUser.id,
-      'userName': '${sessionUser.name} ${sessionUser.lastName}',
-      'userRole': sessionUser.role,
-      'timestamp': Timestamp.now(),
-    };
-    await _db.collection('announcements').doc(announcementId).update({
-      'seenBy': FieldValue.arrayUnion([viewData]),
-    });
-  }
-
-  // ─── Sponsors (Publicidades) ───────────────────
-
-  /// Stream of all sponsors
-  Stream<List<Map<String, dynamic>>> getSponsors() {
-    return _db
-        .collection('sponsors')
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => {'id': doc.id, ...doc.data()})
-              .toList(),
-        );
-  }
-
-  /// Create a new sponsor
-  Future<void> addSponsor(Map<String, dynamic> sponsorData) async {
-    await _db.collection('sponsors').add(sponsorData);
-  }
-
-  /// Delete a sponsor
-  Future<void> deleteSponsor(String id) async {
-    await _db.collection('sponsors').doc(id).delete();
-  }
-
   // ─── Novedades (Feed Principal) ───────────────────
 
   /// Stream of all novedades
@@ -243,6 +109,114 @@ class FirestoreService {
               .toList(),
         );
   }
+  // ─── Players (Jugadores) ──────────────────────────
+  Stream<List<Map<String, dynamic>>> getPlayers() {
+    return _db.collection('players').snapshots().map(
+          (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+        );
+  }
+
+  Stream<Map<String, dynamic>?> getPlayerProfile(String playerId) {
+    return _db.collection('players').doc(playerId).snapshots().map(
+          (doc) => doc.exists ? {'id': doc.id, ...doc.data()!} : null,
+        );
+  }
+
+  // ─── Convocatorias & Lineups (Convocatorias y Formaciones) ───
+  Stream<List<Map<String, dynamic>>> getConvocatoria(String matchId) {
+    return _db.collection('matches').doc(matchId).collection('convocatoria').snapshots().map(
+          (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+        );
+  }
+
+  Stream<List<Map<String, dynamic>>> getLineup(String matchId) {
+    return _db.collection('matches').doc(matchId).collection('lineup').snapshots().map(
+          (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+        );
+  }
+
+  // ─── Payments (Cuotas) ───────────────────────────
+  Stream<List<Map<String, dynamic>>> getPayments(String userId) {
+    return _db
+        .collection('payments')
+        .where('userId', isEqualTo: userId)
+        .orderBy('dueDate', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+        );
+  }
+
+  // ─── Clubs (Rival & Local) ─────────────────────────
+
+  /// Stream of all clubs
+  Stream<List<Map<String, dynamic>>> getClubs() {
+    return _db
+        .collection('clubs')
+        .orderBy('name', descending: false)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => {'id': doc.id, ...doc.data()})
+              .toList(),
+        );
+  }
+
+  /// Create a new club
+  Future<void> addClub(Map<String, dynamic> clubData) async {
+    await _db.collection('clubs').add({
+      ...clubData,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Update an existing club
+  Future<void> updateClub(String id, Map<String, dynamic> clubData) async {
+    await _db.collection('clubs').doc(id).update({
+      ...clubData,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Delete a club
+  Future<void> deleteClub(String id) async {
+    await _db.collection('clubs').doc(id).delete();
+  }
+  // ─── Fixtures ───────────────────────────────────────
+  Stream<List<Map<String, dynamic>>> getFixtures(String category) {
+    return _db.collection('fixtures').where('category', isEqualTo: category).orderBy('createdAt').snapshots().map(
+      (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+    );
+  }
+
+  Future<void> addFixture(Map<String, dynamic> data) async {
+    data['createdAt'] = FieldValue.serverTimestamp();
+    await _db.collection('fixtures').add(data);
+  }
+
+  Future<void> updateFixture(String id, Map<String, dynamic> data) async {
+    await _db.collection('fixtures').doc(id).update(data);
+  }
+
+  Future<void> deleteFixture(String id) async {
+    await _db.collection('fixtures').doc(id).delete();
+  }
+
+  // ─── League Reports ─────────────────────────────────
+  Stream<List<Map<String, dynamic>>> getLeagueReports() {
+    return _db.collection('league_reports').orderBy('createdAt', descending: true).snapshots().map(
+      (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+    );
+  }
+
+  Future<void> addLeagueReport(Map<String, dynamic> data) async {
+    data['createdAt'] = FieldValue.serverTimestamp();
+    await _db.collection('league_reports').add(data);
+  }
+
+  Future<void> deleteLeagueReport(String id) async {
+    await _db.collection('league_reports').doc(id).delete();
+  }
 }
 
 // ─── Riverpod Providers ──────────────────────────────
@@ -250,31 +224,6 @@ class FirestoreService {
 /// Provider to access FirestoreService
 final firestoreServiceProvider = Provider<FirestoreService>((ref) {
   return FirestoreService();
-});
-
-/// StreamProvider for announcements (legacy)
-final announcementsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((
-  ref,
-) {
-  return ref.watch(firestoreServiceProvider).getAnnouncements();
-});
-
-/// StreamProvider for announcements filtered by category
-final userAnnouncementsStreamProvider =
-    StreamProvider.family<List<Map<String, dynamic>>, UserAnnouncementQuery>((
-      ref,
-      query,
-    ) {
-      return ref
-          .watch(firestoreServiceProvider)
-          .getAnnouncementsForUser(query.category, query.isAdmin);
-    });
-
-/// StreamProvider for all sponsors
-final sponsorsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((
-  ref,
-) {
-  return ref.watch(firestoreServiceProvider).getSponsors();
 });
 
 /// StreamProvider for all novedades (visible to admin/coordinators)
@@ -302,21 +251,40 @@ final matchesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return ref.watch(firestoreServiceProvider).getMatches();
 });
 
-/// Helper class for user announcements query parameter
-class UserAnnouncementQuery {
-  final String? category;
-  final bool isAdmin;
+/// StreamProvider for players
+final playersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  return ref.watch(firestoreServiceProvider).getPlayers();
+});
 
-  const UserAnnouncementQuery({this.category, required this.isAdmin});
+/// StreamProvider for player profile
+final playerProfileStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, playerId) {
+  return ref.watch(firestoreServiceProvider).getPlayerProfile(playerId);
+});
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is UserAnnouncementQuery &&
-          runtimeType == other.runtimeType &&
-          category == other.category &&
-          isAdmin == other.isAdmin;
+/// StreamProvider for a match's convocatoria
+final convocatoriaStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, matchId) {
+  return ref.watch(firestoreServiceProvider).getConvocatoria(matchId);
+});
 
-  @override
-  int get hashCode => category.hashCode ^ isAdmin.hashCode;
-}
+/// StreamProvider for a match's lineup
+final lineupStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, matchId) {
+  return ref.watch(firestoreServiceProvider).getLineup(matchId);
+});
+
+/// StreamProvider for user payments
+final userPaymentsStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, userId) {
+  return ref.watch(firestoreServiceProvider).getPayments(userId);
+});
+
+/// StreamProvider for clubs
+final clubsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  return ref.watch(firestoreServiceProvider).getClubs();
+});
+
+final fixturesStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, category) {
+  return ref.watch(firestoreServiceProvider).getFixtures(category);
+});
+
+final leagueReportsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  return ref.watch(firestoreServiceProvider).getLeagueReports();
+});

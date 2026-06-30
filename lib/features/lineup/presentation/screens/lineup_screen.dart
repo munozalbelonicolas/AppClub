@@ -8,7 +8,7 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_avatar.dart';
-// TODO: Connect to Firestore
+import '../../../../core/services/firestore_service.dart';
 import '../../../../core/providers/session_provider.dart';
 
 class LineupScreen extends ConsumerStatefulWidget {
@@ -19,10 +19,6 @@ class LineupScreen extends ConsumerStatefulWidget {
 }
 
 class _LineupScreenState extends ConsumerState<LineupScreen> {
-  // TODO: Fetch from Firestore
-  final Map<String, dynamic>? nextMatch = null;
-  final List<Map<String, dynamic>> _allConvocados = [];
-
   // Local state for assignments: positionKey -> playerId
   final Map<String, String> _positions = {};
   bool _isSaving = false;
@@ -107,7 +103,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     // Left empty for production, will fetch from Firestore
   }
 
-  Future<void> _saveLineup() async {
+  Future<void> _saveLineup(Map<String, dynamic>? nextMatch) async {
     setState(() {
       _isSaving = true;
     });
@@ -152,6 +148,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     BuildContext context,
     String posKey,
     String posName,
+    List<Map<String, dynamic>> allConvocadosList,
   ) {
     showModalBottomSheet(
       context: context,
@@ -208,11 +205,11 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               const Divider(height: 1),
               Expanded(
                 child: ListView.separated(
-                  itemCount: _allConvocados.length,
+                  itemCount: allConvocadosList.length,
                   separatorBuilder: (context, index) =>
                       const Divider(height: 1, color: AppColors.divider),
                   itemBuilder: (context, idx) {
-                    final player = _allConvocados[idx];
+                    final player = allConvocadosList[idx];
                     final playerId = player['playerId'] as String;
 
                     // Check if player is already assigned somewhere else
@@ -267,6 +264,15 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final matchesAsync = ref.watch(matchesStreamProvider);
+    final nextMatch = matchesAsync.valueOrNull?.firstOrNull;
+    
+    final convocatoriaAsync = nextMatch != null 
+        ? ref.watch(convocatoriaStreamProvider(nextMatch['id']))
+        : const AsyncValue.data(<Map<String, dynamic>>[]);
+        
+    final allConvocadosList = convocatoriaAsync.valueOrNull ?? [];
+
     final currentUser = ref.watch(currentUserProvider)!;
     final bool isCoach = currentUser.isCoach;
 
@@ -295,7 +301,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
           final List<Map<String, dynamic>> starters = [];
           final List<Map<String, dynamic>> bench = [];
 
-          for (final player in _allConvocados) {
+          for (final player in allConvocadosList) {
             final playerId = player['playerId'] as String;
             final isAssigned = _positions.values.contains(playerId);
             if (isAssigned) {
@@ -325,11 +331,11 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${nextMatch!['awayTeam']} vs ${nextMatch!['homeTeam']}',
+                              '${nextMatch['awayTeam']} vs ${nextMatch['homeTeam']}',
                               style: AppTypography.titleMedium,
                             ),
                             Text(
-                              'Fecha 6 · Cancha: ${nextMatch!['venue']}',
+                              'Fecha 6 · Cancha: ${nextMatch['venue']}',
                               style: AppTypography.bodySmall,
                             ),
                           ],
@@ -400,7 +406,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                             final String? assignedPlayerId = _positions[key];
                             Map<String, dynamic>? playerDetails;
                             if (assignedPlayerId != null) {
-                              playerDetails = _allConvocados.firstWhere(
+                                playerDetails = allConvocadosList.firstWhere(
                                 (c) => c['playerId'] == assignedPlayerId,
                                 orElse: () => <String, dynamic>{},
                               );
@@ -418,6 +424,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                                         context,
                                         key,
                                         pos['fullName'],
+                                        allConvocadosList,
                                       )
                                     : null,
                                 child: Column(
@@ -527,7 +534,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 JNButton(
                   label: 'Guardar Formación Oficial',
                   icon: Icons.save,
-                  onPressed: _saveLineup,
+                  onPressed: () => _saveLineup(nextMatch),
                   isLoading: _isSaving,
                   fullWidth: true,
                 ).animate(delay: 200.ms).fadeIn(),
