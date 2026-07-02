@@ -217,6 +217,22 @@ class FirestoreService {
   Future<void> deleteLeagueReport(String id) async {
     await _db.collection('league_reports').doc(id).delete();
   }
+
+  // ─── Coach Reports (Reportes de Profesores) ─────────
+  Stream<List<Map<String, dynamic>>> getCoachReports() {
+    return _db.collection('coach_reports').orderBy('createdAt', descending: true).snapshots().map(
+      (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+    );
+  }
+
+  Future<void> addCoachReport(Map<String, dynamic> data) async {
+    data['createdAt'] = FieldValue.serverTimestamp();
+    await _db.collection('coach_reports').add(data);
+  }
+
+  Future<void> deleteCoachReport(String id) async {
+    await _db.collection('coach_reports').doc(id).delete();
+  }
 }
 
 // ─── Riverpod Providers ──────────────────────────────
@@ -287,4 +303,8 @@ final fixturesStreamProvider = StreamProvider.family<List<Map<String, dynamic>>,
 
 final leagueReportsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return ref.watch(firestoreServiceProvider).getLeagueReports();
+});
+
+final coachReportsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  return ref.watch(firestoreServiceProvider).getCoachReports();
 });

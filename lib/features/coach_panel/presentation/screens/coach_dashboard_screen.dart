@@ -10,6 +10,7 @@ import '../../../../core/widgets/jn_section_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import 'create_coach_report_screen.dart';
 
 class CoachDashboardScreen extends ConsumerWidget {
   const CoachDashboardScreen({super.key});
@@ -290,6 +291,48 @@ class CoachDashboardScreen extends ConsumerWidget {
                       .slideX(begin: 0.03),
             );
           }),
+
+          const SizedBox(height: 24),
+
+          // ─── Comunicación Institucional ─────────────
+          JNSectionHeader(
+            title: 'Comunicación Institucional',
+            padding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 12),
+          JNCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Envía informes o novedades importantes directamente a la directiva del club.',
+                  style: AppTypography.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CreateCoachReportScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.send),
+                    label: const Text('Enviar Informe a Directiva'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ).animate(delay: 500.ms).fadeIn(duration: 400.ms),
         ],
       ),
     );
