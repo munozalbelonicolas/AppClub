@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
+import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_stat_card.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/services/firestore_service.dart';
-import '../../../../core/providers/session_provider.dart';
 
 class PlayerProfileScreen extends ConsumerStatefulWidget {
   const PlayerProfileScreen({super.key});
@@ -42,7 +43,7 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
 
     if (player == null) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: context.colors.background,
         appBar: AppBar(title: const Text('Perfil del Jugador')),
         body: Center(
           child: Padding(
@@ -50,12 +51,12 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.person_off, size: 48, color: AppColors.textTertiary),
+                Icon(Icons.person_off, size: 48, color: context.colors.textTertiary),
                 const SizedBox(height: 16),
                 Text(
                   'No se encontró perfil',
-                  style: AppTypography.titleMedium.copyWith(
-                    color: AppColors.textSecondary,
+                  style: context.typography.titleMedium.copyWith(
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
@@ -66,20 +67,20 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
-            backgroundColor: AppColors.surface,
+            backgroundColor: context.colors.surface,
             flexibleSpace: FlexibleSpaceBar(
               background: _buildPlayerHeader(player),
             ),
             title: innerBoxIsScrolled
                 ? Text(
                     '${player['name']} ${player['lastName']}',
-                    style: AppTypography.titleLarge,
+                    style: context.typography.titleLarge,
                   )
                 : null,
           ),
@@ -116,8 +117,8 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppColors.primary.withValues(alpha: 0.2),
-            AppColors.background,
+            context.colors.primary.withValues(alpha: 0.2),
+            context.colors.background,
           ],
         ),
       ),
@@ -129,7 +130,7 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
             JNAvatar(
               name: '${player['name']} ${player['lastName']}',
               size: 88,
-              borderColor: AppColors.accent,
+              borderColor: context.colors.accent,
               borderWidth: 3,
               number: player['number'] as int,
             ).animate().scale(
@@ -142,7 +143,7 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
 
             Text(
               '${player['name']} ${player['lastName']}',
-              style: AppTypography.headlineLarge,
+              style: context.typography.headlineLarge,
             ).animate(delay: 200.ms).fadeIn(duration: 400.ms),
 
             const SizedBox(height: 6),
@@ -157,7 +158,6 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
                 const SizedBox(width: 8),
                 JNBadge(
                   label: player['position'] as String,
-                  type: JNBadgeType.neutral,
                 ),
                 const SizedBox(width: 8),
                 JNBadge(label: '#${player['number']}', type: JNBadgeType.info),
@@ -171,11 +171,11 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _QuickStat(value: '${player['goals']}', label: 'Goles'),
-                Container(width: 1, height: 30, color: AppColors.border),
+                Container(width: 1, height: 30, color: context.colors.border),
                 _QuickStat(value: '${player['assists']}', label: 'Asistencias'),
-                Container(width: 1, height: 30, color: AppColors.border),
+                Container(width: 1, height: 30, color: context.colors.border),
                 _QuickStat(value: '${player['matches']}', label: 'Partidos'),
-                Container(width: 1, height: 30, color: AppColors.border),
+                Container(width: 1, height: 30, color: context.colors.border),
                 _QuickStat(
                   value: '${player['attendance']}%',
                   label: 'Asistencia',
@@ -205,25 +205,25 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
               value: '${player['goals']}',
               label: 'Goles',
               icon: Icons.sports_soccer,
-              color: AppColors.primary,
+              color: context.colors.primary,
             ),
             JNStatCard(
               value: '${player['assists']}',
               label: 'Asistencias',
               icon: Icons.handshake,
-              color: AppColors.accent,
+              color: context.colors.accent,
             ),
             JNStatCard(
               value: '${player['matches']}',
               label: 'Partidos',
               icon: Icons.stadium,
-              color: AppColors.info,
+              color: context.colors.info,
             ),
             JNStatCard(
               value: '${player['yellowCards']}',
               label: 'Amarillas',
               icon: Icons.square,
-              color: AppColors.warning,
+              color: context.colors.warning,
             ),
           ],
         ).animate().fadeIn(duration: 400.ms),
@@ -231,7 +231,7 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
         const SizedBox(height: 24),
 
         // Attendance ring
-        Text('Asistencia general', style: AppTypography.headlineSmall),
+        Text('Asistencia general', style: context.typography.headlineSmall),
         const SizedBox(height: 16),
         Center(
               child: CircularPercentIndicator(
@@ -243,15 +243,15 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
                   children: [
                     Text(
                       '${player['attendance']}%',
-                      style: AppTypography.headlineLarge.copyWith(
-                        color: AppColors.success,
+                      style: context.typography.headlineLarge.copyWith(
+                        color: context.colors.success,
                       ),
                     ),
-                    Text('asistencia', style: AppTypography.bodySmall),
+                    Text('asistencia', style: context.typography.bodySmall),
                   ],
                 ),
-                progressColor: AppColors.success,
-                backgroundColor: AppColors.surfaceVariant,
+                progressColor: context.colors.success,
+                backgroundColor: context.colors.surfaceVariant,
                 circularStrokeCap: CircularStrokeCap.round,
               ),
             )
@@ -262,7 +262,7 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
         const SizedBox(height: 24),
 
         // Performance summary
-        Text('Rendimiento por partido', style: AppTypography.headlineSmall),
+        Text('Rendimiento por partido', style: context.typography.headlineSmall),
         const SizedBox(height: 12),
         JNCard(
           padding: const EdgeInsets.all(16),
@@ -271,13 +271,11 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
               _PerformanceRow(
                 label: 'Goles por partido',
                 value: (player['goals'] as int) / (player['matches'] as int),
-                maxValue: 1.0,
               ),
               const SizedBox(height: 12),
               _PerformanceRow(
                 label: 'Asistencias por partido',
                 value: (player['assists'] as int) / (player['matches'] as int),
-                maxValue: 1.0,
               ),
               const SizedBox(height: 12),
               _PerformanceRow(
@@ -286,7 +284,7 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
                     ((player['goals'] as int) + (player['assists'] as int)) /
                     20,
                 maxValue: 1.5,
-                color: AppColors.accent,
+                color: context.colors.accent,
               ),
             ],
           ),
@@ -371,24 +369,24 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.success.withValues(alpha: 0.08),
-              AppColors.surfaceLight,
+              context.colors.success.withValues(alpha: 0.08),
+              context.colors.surfaceLight,
             ],
           ),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+          border: Border.all(color: context.colors.success.withValues(alpha: 0.3)),
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
+                  color: context.colors.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.verified,
                   size: 28,
-                  color: AppColors.success,
+                  color: context.colors.success,
                 ),
               ),
               const SizedBox(width: 16),
@@ -398,14 +396,14 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
                   children: [
                     Text(
                       'Apto médico vigente',
-                      style: AppTypography.titleLarge.copyWith(
-                        color: AppColors.success,
+                      style: context.typography.titleLarge.copyWith(
+                        color: context.colors.success,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Última revisión: 15 Mar 2026',
-                      style: AppTypography.bodySmall,
+                      style: context.typography.bodySmall,
                     ),
                   ],
                 ),
@@ -436,13 +434,13 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
           ),
 
         const SizedBox(height: 16),
-        Text('Observaciones', style: AppTypography.headlineSmall),
+        Text('Observaciones', style: context.typography.headlineSmall),
         const SizedBox(height: 8),
         JNCard(
           padding: const EdgeInsets.all(16),
           child: Text(
             'Sin alergias conocidas. Última revisión médica sin observaciones. Apto para actividad física completa.',
-            style: AppTypography.bodyMedium,
+            style: context.typography.bodyMedium,
           ),
         ),
       ],
@@ -459,8 +457,8 @@ class _QuickStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: AppTypography.headlineMedium),
-        Text(label, style: AppTypography.labelSmall),
+        Text(value, style: context.typography.headlineMedium),
+        Text(label, style: context.typography.labelSmall),
       ],
     );
   }
@@ -485,14 +483,14 @@ class _InfoTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
+              color: context.colors.surfaceVariant,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 18, color: AppColors.textSecondary),
+            child: Icon(icon, size: 18, color: context.colors.textSecondary),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(label, style: AppTypography.bodyMedium)),
-          Text(value, style: AppTypography.titleSmall),
+          Expanded(child: Text(label, style: context.typography.bodyMedium)),
+          Text(value, style: context.typography.titleSmall),
         ],
       ),
     );
@@ -513,17 +511,17 @@ class _PerformanceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.primary;
+    final c = color ?? context.colors.primary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: AppTypography.bodySmall),
+            Text(label, style: context.typography.bodySmall),
             Text(
               value.toStringAsFixed(2),
-              style: AppTypography.labelMedium.copyWith(color: c),
+              style: context.typography.labelMedium.copyWith(color: c),
             ),
           ],
         ),
@@ -532,7 +530,7 @@ class _PerformanceRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(3),
           child: LinearProgressIndicator(
             value: (value / maxValue).clamp(0.0, 1.0),
-            backgroundColor: AppColors.surfaceVariant,
+            backgroundColor: context.colors.surfaceVariant,
             valueColor: AlwaysStoppedAnimation(c),
             minHeight: 5,
           ),
@@ -552,7 +550,7 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return Container(color: AppColors.background, child: tabBar);
+    return Container(color: context.colors.background, child: tabBar);
   }
 
   @override

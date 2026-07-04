@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
+
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 
 class PendingApprovalScreen extends ConsumerWidget {
   final VoidCallback onSignOut;
@@ -18,13 +19,13 @@ class PendingApprovalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.error),
+            icon: Icon(Icons.logout, color: context.colors.error),
             onPressed: () async {
               await ref.read(authServiceProvider).signOut();
               onSignOut();
@@ -41,16 +42,16 @@ class PendingApprovalScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(
+              Icon(
                 Icons.admin_panel_settings_outlined,
                 size: 80,
-                color: AppColors.warning,
+                color: context.colors.warning,
               ),
               const SizedBox(height: 24),
               Text(
                 'Cuenta en revisión',
                 textAlign: TextAlign.center,
-                style: AppTypography.headlineMedium.copyWith(
+                style: context.typography.headlineMedium.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -58,17 +59,17 @@ class PendingApprovalScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.1),
+                  color: context.colors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.5),
+                    color: context.colors.warning.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Text(
                   'Tu cuenta se encuentra pendiente de aprobación por parte del Club. Recibirás una notificación cuando sea aprobada.',
                   textAlign: TextAlign.center,
-                  style: AppTypography.bodyLarge.copyWith(
-                    color: AppColors.textPrimary,
+                  style: context.typography.bodyLarge.copyWith(
+                    color: context.colors.textPrimary,
                   ),
                 ),
               ),
@@ -78,8 +79,8 @@ class PendingApprovalScreen extends ConsumerWidget {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Actualizar estado'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.surfaceLight,
-                  foregroundColor: AppColors.textPrimary,
+                  backgroundColor: context.colors.surfaceLight,
+                  foregroundColor: context.colors.textPrimary,
                 ),
               ),
             ],

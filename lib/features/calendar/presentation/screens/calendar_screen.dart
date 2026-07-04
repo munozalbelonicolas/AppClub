@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_badge.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_badge.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -37,7 +37,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final filteredEvents = _getFilteredEvents(eventsAsync.valueOrNull ?? []);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Calendario'),
         actions: [
@@ -56,17 +56,17 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.chevron_left,
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                   onPressed: () {},
                 ),
-                Text('Junio 2026', style: AppTypography.headlineMedium),
+                Text('Junio 2026', style: context.typography.headlineMedium),
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.chevron_right,
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                   onPressed: () {},
                 ),
@@ -84,8 +84,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       child: Center(
                         child: Text(
                           d,
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.textTertiary,
+                          style: context.typography.labelSmall.copyWith(
+                            color: context.colors.textTertiary,
                           ),
                         ),
                       ),
@@ -126,22 +126,22 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: isActive
-                          ? AppColors.primary
-                          : AppColors.surfaceLight,
+                          ? context.colors.primary
+                          : context.colors.surfaceLight,
                       borderRadius: BorderRadius.circular(
                         AppSpacing.radiusRound,
                       ),
                       border: Border.all(
-                        color: isActive ? AppColors.primary : AppColors.border,
+                        color: isActive ? context.colors.primary : context.colors.border,
                         width: 0.5,
                       ),
                     ),
                     child: Text(
                       f,
-                      style: AppTypography.labelMedium.copyWith(
+                      style: context.typography.labelMedium.copyWith(
                         color: isActive
                             ? Colors.white
-                            : AppColors.textSecondary,
+                            : context.colors.textSecondary,
                         fontWeight: isActive
                             ? FontWeight.w600
                             : FontWeight.w400,
@@ -167,13 +167,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           Icon(
                             Icons.event_busy,
                             size: 48,
-                            color: AppColors.textTertiary,
+                            color: context.colors.textTertiary,
                           ),
                           const SizedBox(height: 16),
                           Text(
                             'No hay eventos',
-                            style: AppTypography.titleMedium.copyWith(
-                              color: AppColors.textSecondary,
+                            style: context.typography.titleMedium.copyWith(
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -207,8 +207,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   Widget _buildCalendarGrid() {
     // June 2026 starts on Monday (day 1 = Monday)
-    final daysInMonth = 30;
-    final startWeekday = 1; // Monday = 1
+    const daysInMonth = 30;
+    const startWeekday = 1; // Monday = 1
 
     // Event days for highlighting
     final List<Map<String, dynamic>> allEvents = [];
@@ -226,7 +226,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
-        childAspectRatio: 1,
       ),
       itemCount: daysInMonth + startWeekday - 1,
       itemBuilder: (context, index) {
@@ -247,9 +246,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             margin: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppColors.primary
+                  ? context.colors.primary
                   : isToday
-                  ? AppColors.surfaceVariant
+                  ? context.colors.surfaceVariant
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
             ),
@@ -258,12 +257,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               children: [
                 Text(
                   '$day',
-                  style: AppTypography.titleSmall.copyWith(
+                  style: context.typography.titleSmall.copyWith(
                     color: isSelected
                         ? Colors.white
                         : isToday
-                        ? AppColors.accent
-                        : AppColors.textPrimary,
+                        ? context.colors.accent
+                        : context.colors.textPrimary,
                     fontWeight: isSelected || isToday
                         ? FontWeight.w700
                         : FontWeight.w400,
@@ -275,7 +274,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     width: 5,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: hasMatch ? AppColors.primary : AppColors.success,
+                      color: hasMatch ? context.colors.primary : context.colors.success,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -306,14 +305,14 @@ class _CalendarEventCard extends StatelessWidget {
     required this.category,
   });
 
-  Color get _color {
+  Color _color(BuildContext context) {
     switch (type) {
       case 'match':
-        return AppColors.primary;
+        return context.colors.primary;
       case 'training':
-        return AppColors.success;
+        return context.colors.success;
       default:
-        return AppColors.accent;
+        return context.colors.accent;
     }
   }
 
@@ -341,6 +340,7 @@ class _CalendarEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = _color(context);
     return JNCard(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -349,10 +349,10 @@ class _CalendarEventCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _color.withValues(alpha: 0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(_icon, size: 22, color: _color),
+            child: Icon(_icon, size: 22, color: color),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -373,34 +373,33 @@ class _CalendarEventCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     JNBadge(
                       label: category.toUpperCase(),
-                      type: JNBadgeType.neutral,
                       small: true,
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(title, style: AppTypography.titleMedium),
+                Text(title, style: context.typography.titleMedium),
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     Icon(
                       Icons.schedule,
                       size: 13,
-                      color: AppColors.textTertiary,
+                      color: context.colors.textTertiary,
                     ),
                     const SizedBox(width: 4),
-                    Text(time, style: AppTypography.bodySmall),
+                    Text(time, style: context.typography.bodySmall),
                     const SizedBox(width: 12),
                     Icon(
                       Icons.location_on_outlined,
                       size: 13,
-                      color: AppColors.textTertiary,
+                      color: context.colors.textTertiary,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         location,
-                        style: AppTypography.bodySmall,
+                        style: context.typography.bodySmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../theme/app_spacing.dart';
 
 enum JNButtonVariant { primary, outline, ghost, accent, danger, success }
@@ -32,7 +32,7 @@ class JNButton extends StatelessWidget {
     return SizedBox(
       width: fullWidth ? double.infinity : null,
       height: _height,
-      child: _buildButton(),
+      child: _buildButton(context),
     );
   }
 
@@ -58,15 +58,15 @@ class JNButton extends StatelessWidget {
     }
   }
 
-  Widget _buildButton() {
+  Widget _buildButton(BuildContext context) {
     switch (variant) {
       case JNButtonVariant.primary:
         return ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.onPrimary,
-            disabledBackgroundColor: AppColors.primaryDark.withValues(
+            backgroundColor: context.colors.primary,
+            foregroundColor: context.colors.onPrimary,
+            disabledBackgroundColor: context.colors.primaryDark.withValues(
               alpha: 0.5,
             ),
             shape: RoundedRectangleBorder(
@@ -78,13 +78,13 @@ class JNButton extends StatelessWidget {
               letterSpacing: 0.5,
             ),
           ),
-          child: _buildChild(AppColors.onPrimary),
+          child: _buildChild(context, context.colors.onPrimary),
         );
       case JNButtonVariant.accent:
         return ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.accent,
+            backgroundColor: context.colors.accent,
             foregroundColor: Colors.black,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -95,14 +95,14 @@ class JNButton extends StatelessWidget {
               letterSpacing: 0.5,
             ),
           ),
-          child: _buildChild(Colors.black),
+          child: _buildChild(context, Colors.black),
         );
       case JNButtonVariant.outline:
         return OutlinedButton(
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.textPrimary,
-            side: const BorderSide(color: AppColors.border),
+            foregroundColor: context.colors.textPrimary,
+            side: BorderSide(color: context.colors.border),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
@@ -112,13 +112,13 @@ class JNButton extends StatelessWidget {
               letterSpacing: 0.5,
             ),
           ),
-          child: _buildChild(AppColors.textPrimary),
+          child: _buildChild(context, context.colors.textPrimary),
         );
       case JNButtonVariant.ghost:
         return TextButton(
           onPressed: isLoading ? null : onPressed,
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.textSecondary,
+            foregroundColor: context.colors.textSecondary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
@@ -127,13 +127,13 @@ class JNButton extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          child: _buildChild(AppColors.textSecondary),
+          child: _buildChild(context, context.colors.textSecondary),
         );
       case JNButtonVariant.danger:
         return ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -144,13 +144,13 @@ class JNButton extends StatelessWidget {
               letterSpacing: 0.5,
             ),
           ),
-          child: _buildChild(Colors.white),
+          child: _buildChild(context, Colors.white),
         );
       case JNButtonVariant.success:
         return ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.success,
+            backgroundColor: context.colors.success,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -161,12 +161,12 @@ class JNButton extends StatelessWidget {
               letterSpacing: 0.5,
             ),
           ),
-          child: _buildChild(Colors.white),
+          child: _buildChild(context, Colors.white),
         );
     }
   }
 
-  Widget _buildChild(Color color) {
+  Widget _buildChild(BuildContext context, Color color) {
     if (isLoading) {
       return SizedBox(
         width: 20,

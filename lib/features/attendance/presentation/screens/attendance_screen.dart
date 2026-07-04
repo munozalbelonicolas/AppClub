@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../../core/theme/app_colors.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
+import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/widgets/jn_avatar.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/services/firestore_service.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -40,7 +41,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final convocatoriaList = convocatoriaAsync.valueOrNull ?? [];
     
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(title: const Text('Convocatoria')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
@@ -52,12 +53,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.surfaceLight,
-                  AppColors.primary.withValues(alpha: 0.06),
+                  context.colors.surfaceLight,
+                  context.colors.primary.withValues(alpha: 0.06),
                 ],
               ),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.2),
+                color: context.colors.primary.withValues(alpha: 0.2),
               ),
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -71,24 +72,24 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
+                          color: context.colors.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           'PRÓXIMO PARTIDO',
-                          style: AppTypography.badge.copyWith(
-                            color: AppColors.primary,
+                          style: context.typography.badge.copyWith(
+                            color: context.colors.primary,
                           ),
                         ),
                       ),
                       const Spacer(),
-                      Text('Fecha 6', style: AppTypography.labelSmall),
+                      Text('Fecha 6', style: context.typography.labelSmall),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
                     '${nextMatch['awayTeam']} vs ${nextMatch['homeTeam']}',
-                    style: AppTypography.headlineSmall,
+                    style: context.typography.headlineSmall,
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -96,23 +97,23 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       Icon(
                         Icons.calendar_today,
                         size: 13,
-                        color: AppColors.textTertiary,
+                        color: context.colors.textTertiary,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${nextMatch['date']} · ${nextMatch['time']}',
-                        style: AppTypography.bodySmall,
+                        style: context.typography.bodySmall,
                       ),
                       const SizedBox(width: 14),
                       Icon(
                         Icons.location_on_outlined,
                         size: 13,
-                        color: AppColors.textTertiary,
+                        color: context.colors.textTertiary,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         nextMatch['venue'] as String,
-                        style: AppTypography.bodySmall,
+                        style: context.typography.bodySmall,
                       ),
                     ],
                   ),
@@ -129,19 +130,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               _StatusChip(
                 count: getConfirmed(convocatoriaList),
                 label: 'Confirmados',
-                color: AppColors.success,
+                color: context.colors.success,
               ),
               const SizedBox(width: 8),
               _StatusChip(
                 count: getPending(convocatoriaList),
                 label: 'Pendientes',
-                color: AppColors.warning,
+                color: context.colors.warning,
               ),
               const SizedBox(width: 8),
               _StatusChip(
                 count: getAbsent(convocatoriaList),
                 label: 'Ausentes',
-                color: AppColors.error,
+                color: context.colors.error,
               ),
             ],
           ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
@@ -154,23 +155,23 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.accent.withValues(alpha: 0.08),
-                AppColors.surfaceLight,
+                context.colors.accent.withValues(alpha: 0.08),
+                context.colors.surfaceLight,
               ],
             ),
-            border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+            border: Border.all(color: context.colors.accent.withValues(alpha: 0.3)),
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.person_pin, size: 20, color: AppColors.accent),
+                    Icon(Icons.person_pin, size: 20, color: context.colors.accent),
                     const SizedBox(width: 8),
                     Text(
                       'Tu confirmación',
-                      style: AppTypography.titleMedium.copyWith(
-                        color: AppColors.accent,
+                      style: context.typography.titleMedium.copyWith(
+                        color: context.colors.accent,
                       ),
                     ),
                     const Spacer(),
@@ -217,7 +218,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           const SizedBox(height: 20),
 
           // ─── Squad List ───────────────────────────
-          Text('Convocados', style: AppTypography.headlineSmall),
+          Text('Convocados', style: context.typography.headlineSmall),
           const SizedBox(height: 12),
 
           if (convocatoriaList.isEmpty)
@@ -229,13 +230,13 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     Icon(
                       Icons.how_to_reg,
                       size: 48,
-                      color: AppColors.textTertiary,
+                      color: context.colors.textTertiary,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'Aún no hay convocados',
-                      style: AppTypography.titleMedium.copyWith(
-                        color: AppColors.textSecondary,
+                      style: context.typography.titleMedium.copyWith(
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -263,7 +264,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                               borderColor: _statusColor(
                                 player['status'] as String,
                               ),
-                              borderWidth: 2,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -272,20 +272,20 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                 children: [
                                   Text(
                                     player['name'] as String,
-                                    style: AppTypography.titleSmall,
+                                    style: context.typography.titleSmall,
                                   ),
                                   Row(
                                     children: [
                                       Text(
                                         '#${player['number']}',
-                                        style: AppTypography.bodySmall,
+                                        style: context.typography.bodySmall,
                                       ),
                                       const SizedBox(width: 6),
-                                      Text('·', style: AppTypography.bodySmall),
+                                      Text('·', style: context.typography.bodySmall),
                                       const SizedBox(width: 6),
                                       Text(
                                         player['position'] as String,
-                                        style: AppTypography.bodySmall,
+                                        style: context.typography.bodySmall,
                                       ),
                                     ],
                                   ),
@@ -309,15 +309,15 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   Color _statusColor(String status) {
     switch (status) {
       case 'confirmed':
-        return AppColors.success;
+        return context.colors.success;
       case 'pending':
-        return AppColors.warning;
+        return context.colors.warning;
       case 'absent':
-        return AppColors.error;
+        return context.colors.error;
       case 'delayed':
-        return AppColors.warning;
+        return context.colors.warning;
       default:
-        return AppColors.textTertiary;
+        return context.colors.textTertiary;
     }
   }
 
@@ -356,9 +356,9 @@ class _StatusChip extends StatelessWidget {
           children: [
             Text(
               '$count',
-              style: AppTypography.headlineMedium.copyWith(color: color),
+              style: context.typography.headlineMedium.copyWith(color: color),
             ),
-            Text(label, style: AppTypography.labelSmall),
+            Text(label, style: context.typography.labelSmall),
           ],
         ),
       ),

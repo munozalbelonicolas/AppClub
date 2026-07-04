@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/store_config.dart';
+
 import '../models/product.dart';
+import '../models/store_config.dart';
 
 class StoreRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;

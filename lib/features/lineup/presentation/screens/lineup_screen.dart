@@ -1,15 +1,16 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/widgets/jn_badge.dart';
-import '../../../../core/widgets/jn_avatar.dart';
-import '../../../../core/services/firestore_service.dart';
+
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_avatar.dart';
+import '../../../../core/widgets/jn_badge.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class LineupScreen extends ConsumerStatefulWidget {
   const LineupScreen({super.key});
@@ -120,9 +121,9 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Alineación guardada correctamente en Firestore.'),
-            backgroundColor: AppColors.success,
+          SnackBar(
+            content: const Text('Alineación guardada correctamente en Firestore.'),
+            backgroundColor: context.colors.success,
           ),
         );
       }
@@ -131,7 +132,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al guardar alineación: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -152,7 +153,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
   ) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -167,7 +168,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 children: [
                   Text(
                     'Asignar Posición: $posName',
-                    style: AppTypography.headlineSmall,
+                    style: context.typography.headlineSmall,
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -182,13 +183,13 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.textTertiary),
+                    border: Border.all(color: context.colors.textTertiary),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.remove,
                     size: 18,
-                    color: AppColors.textTertiary,
+                    color: context.colors.textTertiary,
                   ),
                 ),
                 title: const Text(
@@ -207,7 +208,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 child: ListView.separated(
                   itemCount: allConvocadosList.length,
                   separatorBuilder: (context, index) =>
-                      const Divider(height: 1, color: AppColors.divider),
+                      Divider(height: 1, color: context.colors.divider),
                   itemBuilder: (context, idx) {
                     final player = allConvocadosList[idx];
                     final playerId = player['playerId'] as String;
@@ -228,18 +229,18 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                       ),
                       title: Text(
                         player['name'] as String,
-                        style: AppTypography.titleMedium,
+                        style: context.typography.titleMedium,
                       ),
                       subtitle: Text(
                         '#${player['number']} · ${player['position']}',
-                        style: AppTypography.bodySmall,
+                        style: context.typography.bodySmall,
                       ),
                       trailing: isAlreadyAssigned
                           ? Text(
                               'Asignado en $assignedPos',
                               style: TextStyle(
                                 fontSize: 10,
-                                color: AppColors.accent,
+                                color: context.colors.accent,
                                 fontWeight: FontWeight.bold,
                               ),
                             )
@@ -277,7 +278,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     final bool isCoach = currentUser.isCoach;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(title: const Text('Formación del Equipo'), elevation: 0),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
@@ -320,9 +321,9 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.sports_soccer,
-                        color: AppColors.primary,
+                        color: context.colors.primary,
                         size: 24,
                       ),
                       const SizedBox(width: 12),
@@ -332,11 +333,11 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                           children: [
                             Text(
                               '${nextMatch['awayTeam']} vs ${nextMatch['homeTeam']}',
-                              style: AppTypography.titleMedium,
+                              style: context.typography.titleMedium,
                             ),
                             Text(
                               'Fecha 6 · Cancha: ${nextMatch['venue']}',
-                              style: AppTypography.bodySmall,
+                              style: context.typography.bodySmall,
                             ),
                           ],
                         ),
@@ -361,13 +362,13 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                         Icon(
                           Icons.sports_soccer,
                           size: 48,
-                          color: AppColors.textTertiary,
+                          color: context.colors.textTertiary,
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'No hay próximo partido',
-                          style: AppTypography.titleMedium.copyWith(
-                            color: AppColors.textSecondary,
+                          style: context.typography.titleMedium.copyWith(
+                            color: context.colors.textSecondary,
                           ),
                         ),
                       ],
@@ -439,7 +440,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                                       height: 44,
                                       decoration: BoxDecoration(
                                         color: hasPlayer
-                                            ? AppColors.primary
+                                            ? context.colors.primary
                                             : Colors.black.withValues(
                                                 alpha: 0.3,
                                               ),
@@ -447,7 +448,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                                         border: Border.all(
                                           color: hasPlayer
                                               ? Colors.white
-                                              : AppColors.primary.withValues(
+                                              : context.colors.primary.withValues(
                                                   alpha: 0.4,
                                                 ),
                                           width: 2,
@@ -477,7 +478,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                                                     ? Icons.add
                                                     : Icons.remove,
                                                 size: 14,
-                                                color: AppColors.primary
+                                                color: context.colors.primary
                                                     .withValues(alpha: 0.8),
                                               ),
                                       ),
@@ -547,7 +548,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 children: [
                   Text(
                     'Titulares (${starters.length})',
-                    style: AppTypography.headlineSmall,
+                    style: context.typography.headlineSmall,
                   ),
                   const JNBadge(label: '11 TITULARES', type: JNBadgeType.info),
                 ],
@@ -556,7 +557,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               if (starters.isEmpty)
                 Text(
                   'El técnico aún no ha colocado jugadores en la cancha.',
-                  style: AppTypography.bodySmall,
+                  style: context.typography.bodySmall,
                 )
               else
                 ...starters.map((p) => _buildPlayerTile(p, true)),
@@ -569,16 +570,16 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 children: [
                   Text(
                     'Suplentes / Banquillo (${bench.length})',
-                    style: AppTypography.headlineSmall,
+                    style: context.typography.headlineSmall,
                   ),
-                  const JNBadge(label: 'BANCO', type: JNBadgeType.neutral),
+                  const JNBadge(label: 'BANCO'),
                 ],
               ),
               const SizedBox(height: 8),
               if (bench.isEmpty)
                 Text(
                   'Todos los convocados están en la alineación titular.',
-                  style: AppTypography.bodySmall,
+                  style: context.typography.bodySmall,
                 )
               else
                 ...bench.map((p) => _buildPlayerTile(p, false)),
@@ -600,8 +601,8 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               name: player['name'] as String,
               size: 36,
               borderColor: isStarter
-                  ? AppColors.success
-                  : AppColors.textTertiary,
+                  ? context.colors.success
+                  : context.colors.textTertiary,
               borderWidth: 1.5,
             ),
             const SizedBox(width: 12),
@@ -611,11 +612,11 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 children: [
                   Text(
                     player['name'] as String,
-                    style: AppTypography.titleMedium,
+                    style: context.typography.titleMedium,
                   ),
                   Text(
                     '#${player['number']} · ${player['position']}',
-                    style: AppTypography.bodySmall,
+                    style: context.typography.bodySmall,
                   ),
                 ],
               ),

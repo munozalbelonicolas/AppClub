@@ -1,15 +1,18 @@
 import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
+
 import '../../../../core/providers/session_provider.dart';
-import 'create_product_screen.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 import 'checkout_screen.dart';
+import 'create_product_screen.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final String productId;
@@ -23,6 +26,13 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   String? _selectedSize;
   int _quantity = 1;
+  late final Stream<DocumentSnapshot> _productStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _productStream = FirebaseFirestore.instance.collection('store_products').doc(widget.productId).snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +40,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final isAdmin = user != null && (user.role == 'directivo' || user.role == 'secretario');
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('store_products').doc(widget.productId).snapshots(),
+        stream: _productStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -56,7 +66,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               SliverAppBar(
                 expandedHeight: 320,
                 pinned: true,
-                backgroundColor: AppColors.surface,
+                backgroundColor: context.colors.surface,
                 flexibleSpace: FlexibleSpaceBar(
                   background: _buildHeroImage(imageUrl),
                 ),
@@ -72,7 +82,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete, color: AppColors.error),
+                      icon: Icon(Icons.delete, color: context.colors.error),
                       onPressed: () => _confirmDelete(context, name),
                     ),
                   ],
@@ -86,14 +96,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Name
-                      Text(name, style: AppTypography.headlineMedium),
+                      Text(name, style: context.typography.headlineMedium),
                       const SizedBox(height: 8),
 
                       // Price
                       Text(
                         '\$${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)}',
-                        style: AppTypography.headlineLarge.copyWith(
-                          color: AppColors.accent,
+                        style: context.typography.headlineLarge.copyWith(
+                          color: context.colors.accent,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -102,22 +112,22 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       // Stock info
                       Text(
                         isOutOfStock ? 'Sin stock disponible' : '$stock unidades disponibles',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: isOutOfStock ? AppColors.error : AppColors.textTertiary,
+                        style: context.typography.bodySmall.copyWith(
+                          color: isOutOfStock ? context.colors.error : context.colors.textTertiary,
                         ),
                       ),
                       const SizedBox(height: 20),
 
                       // Description
-                      Text('Descripción', style: AppTypography.titleSmall.copyWith(color: AppColors.primary)),
+                      Text('Descripción', style: context.typography.titleSmall.copyWith(color: context.colors.primary)),
                       const SizedBox(height: 8),
-                      Text(description, style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary)),
+                      Text(description, style: context.typography.bodyMedium.copyWith(color: context.colors.textSecondary)),
 
                       const SizedBox(height: 24),
 
                       // Size selector
                       if (sizes.isNotEmpty) ...[
-                        Text('Seleccioná tu talle', style: AppTypography.titleSmall.copyWith(color: AppColors.primary)),
+                        Text('Seleccioná tu talle', style: context.typography.titleSmall.copyWith(color: context.colors.primary)),
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 10,
@@ -131,10 +141,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                 width: 50,
                                 height: 50,
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppColors.primary : AppColors.surfaceLight,
+                                  color: isSelected ? context.colors.primary : context.colors.surfaceLight,
                                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                                   border: Border.all(
-                                    color: isSelected ? AppColors.primary : AppColors.border,
+                                    color: isSelected ? context.colors.primary : context.colors.border,
                                     width: isSelected ? 2 : 1,
                                   ),
                                 ),
@@ -142,7 +152,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                 child: Text(
                                   size,
                                   style: TextStyle(
-                                    color: isSelected ? Colors.white : AppColors.textSecondary,
+                                    color: isSelected ? Colors.white : context.colors.textSecondary,
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),
@@ -155,7 +165,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
                       // Quantity selector
                       if (!isOutOfStock) ...[
-                        Text('Cantidad', style: AppTypography.titleSmall.copyWith(color: AppColors.primary)),
+                        Text('Cantidad', style: context.typography.titleSmall.copyWith(color: context.colors.primary)),
                         const SizedBox(height: 10),
                         JNCard(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -164,19 +174,19 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.remove_circle_outline),
-                                color: AppColors.textSecondary,
+                                color: context.colors.textSecondary,
                                 onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
                               ),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   '$_quantity',
-                                  style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                                  style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold),
                                 ),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.add_circle_outline),
-                                color: AppColors.primary,
+                                color: context.colors.primary,
                                 onPressed: _quantity < stock ? () => setState(() => _quantity++) : null,
                               ),
                             ],
@@ -185,7 +195,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Total: \$${(price * _quantity).toStringAsFixed(0)}',
-                          style: AppTypography.titleMedium.copyWith(color: AppColors.accent),
+                          style: context.typography.titleMedium.copyWith(color: context.colors.accent),
                         ),
                       ],
 
@@ -214,9 +224,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                 },
                         )
                       else
-                        JNButton(
+                        const JNButton(
                           label: 'Agotado',
-                          onPressed: null,
                         ),
 
                       if (_selectedSize == null && !isOutOfStock)
@@ -224,7 +233,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
                             'Seleccioná un talle para continuar',
-                            style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
+                            style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -244,19 +253,24 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   Widget _buildHeroImage(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) {
       return Container(
-        color: AppColors.surfaceLight,
-        child: const Center(child: Icon(Icons.shopping_bag_outlined, size: 80, color: AppColors.textTertiary)),
+        color: context.colors.surfaceLight,
+        child: Center(child: Icon(Icons.shopping_bag_outlined, size: 80, color: context.colors.textTertiary)),
       );
     }
     if (imageUrl.startsWith('http')) {
-      return Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(
-        color: AppColors.surfaceLight,
-        child: const Center(child: Icon(Icons.broken_image, size: 80, color: AppColors.textTertiary)),
-      ));
+      return CachedNetworkImage(
+        imageUrl: imageUrl, 
+        fit: BoxFit.cover, 
+        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+        errorWidget: (context, url, error) => Container(
+          color: context.colors.surfaceLight,
+          child: Center(child: Icon(Icons.broken_image, size: 80, color: context.colors.textTertiary)),
+        ),
+      );
     }
     return Image.file(File(imageUrl), fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(
-      color: AppColors.surfaceLight,
-      child: const Center(child: Icon(Icons.broken_image, size: 80, color: AppColors.textTertiary)),
+      color: context.colors.surfaceLight,
+      child: Center(child: Icon(Icons.broken_image, size: 80, color: context.colors.textTertiary)),
     ));
   }
 
@@ -264,7 +278,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.colors.surface,
         title: const Text('Eliminar Producto'),
         content: Text('¿Estás seguro de que querés eliminar "$name"?'),
         actions: [
@@ -276,7 +290,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               if (!context.mounted) return;
               Navigator.pop(context);
             },
-            child: const Text('Eliminar', style: TextStyle(color: AppColors.error)),
+            child: Text('Eliminar', style: TextStyle(color: context.colors.error)),
           ),
         ],
       ),

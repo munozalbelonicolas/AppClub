@@ -1,14 +1,17 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../data/repositories/sponsor_repository.dart';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../../../core/services/app_logger.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../data/repositories/sponsor_repository.dart';
 
 class SponsorCarousel extends ConsumerStatefulWidget {
   const SponsorCarousel({super.key});
@@ -65,12 +68,12 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo abrir el enlace del sponsor'), backgroundColor: AppColors.error),
+            SnackBar(content: const Text('No se pudo abrir el enlace del sponsor'), backgroundColor: context.colors.error),
           );
         }
       }
     } catch (e) {
-      debugPrint('Error launching URL: $e');
+      AppLogger.error('Error launching URL', error: e, tag: 'App');
     }
   }
 
@@ -140,8 +143,8 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
                                     children: [
                                       Text(
                                         'SPONSOR OFICIAL',
-                                        style: AppTypography.labelSmall.copyWith(
-                                          color: AppColors.accent,
+                                        style: context.typography.labelSmall.copyWith(
+                                          color: context.colors.accent,
                                           fontWeight: FontWeight.w700,
                                           letterSpacing: 1.5,
                                         ),
@@ -149,7 +152,7 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
                                       const SizedBox(height: 2),
                                       Text(
                                         sponsor['name'] ?? '',
-                                        style: AppTypography.titleLarge.copyWith(
+                                        style: context.typography.titleLarge.copyWith(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -175,7 +178,7 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
                               margin: const EdgeInsets.only(left: 4),
                               decoration: BoxDecoration(
                                 color: _currentPage == index
-                                    ? AppColors.accent
+                                    ? context.colors.accent
                                     : Colors.white.withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(3),
                               ),
@@ -198,13 +201,13 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
 
   Widget _buildShimmerLoading() {
     return Shimmer.fromColors(
-      baseColor: AppColors.surfaceLight,
-      highlightColor: AppColors.surface,
+      baseColor: context.colors.surfaceLight,
+      highlightColor: context.colors.surface,
       child: Container(
         height: 120,
         margin: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
+          color: context.colors.surfaceLight,
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
       ),
@@ -216,13 +219,13 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
       height: 120,
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: context.colors.surfaceLight,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
       ),
       child: Center(
         child: Text(
           'Error al cargar sponsors',
-          style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
+          style: context.typography.bodyMedium.copyWith(color: context.colors.error),
         ),
       ),
     );
@@ -236,17 +239,17 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
       imageUrl: url,
       fit: BoxFit.cover,
       placeholder: (context, url) => Shimmer.fromColors(
-        baseColor: AppColors.surfaceLight,
-        highlightColor: AppColors.surface,
-        child: Container(color: AppColors.surfaceLight),
+        baseColor: context.colors.surfaceLight,
+        highlightColor: context.colors.surface,
+        child: Container(color: context.colors.surfaceLight),
       ),
       errorWidget: (context, url, error) => Container(
-        color: AppColors.surfaceLight,
-        child: const Center(
+        color: context.colors.surfaceLight,
+        child: Center(
           child: Icon(
             Icons.broken_image,
             size: 36,
-            color: AppColors.textTertiary,
+            color: context.colors.textTertiary,
           ),
         ),
       ),

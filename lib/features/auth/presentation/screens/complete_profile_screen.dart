@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/services/auth_service.dart';
-import '../../../../core/providers/session_provider.dart';
 
 class CompleteProfileScreen extends ConsumerStatefulWidget {
   final VoidCallback onComplete;
@@ -64,17 +65,17 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
     final session = ref.watch(currentUserProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           TextButton.icon(
-            icon: const Icon(Icons.logout, color: AppColors.textSecondary),
+            icon: Icon(Icons.logout, color: context.colors.textSecondary),
             label: Text(
               'Salir',
-              style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary),
+              style: context.typography.bodySmall.copyWith(
+                  color: context.colors.textSecondary),
             ),
             onPressed: widget.onSignOut,
           ),
@@ -92,14 +93,14 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
               children: [
                 Text(
                   'Completá tu perfil',
-                  style: AppTypography.headlineLarge.copyWith(
+                  style: context.typography.headlineLarge.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Faltan algunos datos para finalizar tu registro con Google.',
-                  style: AppTypography.bodyMedium,
+                  style: context.typography.bodyMedium,
                 ),
                 const SizedBox(height: 32),
                 
@@ -109,10 +110,10 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                   enabled: false,
                   decoration: InputDecoration(
                     labelText: 'Nombre y Apellido',
-                    labelStyle: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textSecondary),
+                    labelStyle: context.typography.bodyMedium.copyWith(
+                        color: context.colors.textSecondary),
                     filled: true,
-                    fillColor: AppColors.surfaceLight,
+                    fillColor: context.colors.surfaceLight,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                       borderSide: BorderSide.none,
@@ -125,10 +126,10 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                   enabled: false,
                   decoration: InputDecoration(
                     labelText: 'Correo Electrónico',
-                    labelStyle: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textSecondary),
+                    labelStyle: context.typography.bodyMedium.copyWith(
+                        color: context.colors.textSecondary),
                     filled: true,
-                    fillColor: AppColors.surfaceLight,
+                    fillColor: context.colors.surfaceLight,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                       borderSide: BorderSide.none,
@@ -140,7 +141,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                 // Contact Details
                 Text(
                   'Datos de contacto',
-                  style: AppTypography.labelMedium,
+                  style: context.typography.labelMedium,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -148,10 +149,10 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                   decoration: InputDecoration(
                     labelText: 'Teléfono principal',
                     hintText: 'Ej. 11 1234 5678',
-                    labelStyle: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textSecondary),
+                    labelStyle: context.typography.bodyMedium.copyWith(
+                        color: context.colors.textSecondary),
                     filled: true,
-                    fillColor: AppColors.surfaceLight,
+                    fillColor: context.colors.surfaceLight,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                       borderSide: BorderSide.none,
@@ -167,10 +168,10 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                   decoration: InputDecoration(
                     labelText: 'Teléfono secundario (opcional)',
                     hintText: 'Ej. 11 1234 5678',
-                    labelStyle: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textSecondary),
+                    labelStyle: context.typography.bodyMedium.copyWith(
+                        color: context.colors.textSecondary),
                     filled: true,
-                    fillColor: AppColors.surfaceLight,
+                    fillColor: context.colors.surfaceLight,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                       borderSide: BorderSide.none,
@@ -182,7 +183,6 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
 
                 // Terms
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     SizedBox(
                       width: 24,
@@ -191,14 +191,14 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                         value: _termsAccepted,
                         onChanged: (v) =>
                             setState(() => _termsAccepted = v ?? false),
-                        activeColor: AppColors.primary,
+                        activeColor: context.colors.primary,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Acepto los términos y condiciones y el reglamento del club',
-                        style: AppTypography.bodySmall,
+                        style: context.typography.bodySmall,
                       ),
                     ),
                   ],

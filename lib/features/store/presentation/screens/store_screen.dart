@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_spacing.dart';
+
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../data/repositories/store_repository.dart';
 import '../widgets/product_card.dart';
-import 'product_detail_screen.dart';
+import 'admin_orders_screen.dart';
 import 'create_product_screen.dart';
 import 'my_orders_screen.dart';
+import 'product_detail_screen.dart';
 import 'store_config_screen.dart';
-import 'admin_orders_screen.dart';
-import '../../data/repositories/store_repository.dart';
 
 class StoreScreen extends ConsumerStatefulWidget {
   const StoreScreen({super.key});
@@ -47,26 +48,26 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         // If store is disabled and user is not admin, show closed message
         if (!isStoreEnabled && !isAdmin) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: context.colors.background,
             appBar: AppBar(
-              title: Text('Tienda', style: AppTypography.titleLarge),
-              backgroundColor: AppColors.surface,
+              title: Text('Tienda', style: context.typography.titleLarge),
+              backgroundColor: context.colors.surface,
               elevation: 0,
             ),
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.store_outlined, size: 72, color: AppColors.textTertiary),
+                  Icon(Icons.store_outlined, size: 72, color: context.colors.textTertiary),
                   const SizedBox(height: 16),
                   Text(
                     'Tienda temporalmente cerrada',
-                    style: AppTypography.titleMedium.copyWith(color: AppColors.textSecondary),
+                    style: context.typography.titleMedium.copyWith(color: context.colors.textSecondary),
                   ),
                   const SizedBox(height: 8),
                     Text(
                       config.closureMessage ?? 'Volvé a intentar más tarde.',
-                      style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
+                      style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
                     ),
                 ],
               ),
@@ -75,10 +76,10 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         }
 
         return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text('Tienda', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text('Tienda', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
         actions: [
           // My Orders button (for all users)
@@ -127,19 +128,19 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                   avatar: Icon(
                     filter['icon'] as IconData,
                     size: 16,
-                    color: isSelected ? Colors.white : AppColors.textSecondary,
+                    color: isSelected ? Colors.white : context.colors.textSecondary,
                   ),
                   label: Text(filter['label'] as String),
                   selected: isSelected,
-                  selectedColor: AppColors.primary,
-                  backgroundColor: AppColors.surfaceLight,
+                  selectedColor: context.colors.primary,
+                  backgroundColor: context.colors.surfaceLight,
                   labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.textSecondary,
+                    color: isSelected ? Colors.white : context.colors.textSecondary,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     fontSize: 12,
                   ),
                   side: BorderSide(
-                    color: isSelected ? AppColors.primary : AppColors.border,
+                    color: isSelected ? context.colors.primary : context.colors.border,
                   ),
                   onSelected: (_) => setState(() => _selectedFilter = filter['key'] as String),
                 );
@@ -158,12 +159,12 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.storefront_outlined, size: 64, color: AppColors.textTertiary),
+                        Icon(Icons.storefront_outlined, size: 64, color: context.colors.textTertiary),
                         const SizedBox(height: 16),
-                        Text('No hay productos disponibles', style: AppTypography.bodyLarge.copyWith(color: AppColors.textTertiary)),
+                        Text('No hay productos disponibles', style: context.typography.bodyLarge.copyWith(color: context.colors.textTertiary)),
                         if (isAdmin) ...[
                           const SizedBox(height: 16),
-                          Text('Tocá + para agregar uno', style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary)),
+                          Text('Tocá + para agregar uno', style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary)),
                         ],
                       ],
                     ),
@@ -199,7 +200,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
       ),
       floatingActionButton: isAdmin
           ? FloatingActionButton(
-              backgroundColor: AppColors.primary,
+              backgroundColor: context.colors.primary,
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const CreateProductScreen()),

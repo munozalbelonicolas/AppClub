@@ -1,13 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
-import '../../../home/data/repositories/sponsor_repository.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
+import '../../../home/data/repositories/sponsor_repository.dart';
 
 class SponsorsManagementScreen extends ConsumerWidget {
   const SponsorsManagementScreen({super.key});
@@ -42,12 +43,12 @@ class SponsorsManagementScreen extends ConsumerWidget {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.surface,
+              backgroundColor: context.colors.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                side: BorderSide(color: AppColors.border, width: 0.5),
+                side: BorderSide(color: context.colors.border, width: 0.5),
               ),
-              title: Text('Añadir Sponsor', style: AppTypography.titleLarge),
+              title: Text('Añadir Sponsor', style: context.typography.titleLarge),
               content: Form(
                 key: formKey,
                 child: SingleChildScrollView(
@@ -57,7 +58,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
                     children: [
                       TextFormField(
                         controller: nameController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           hintText: 'Nombre del Sponsor',
                           labelText: 'Nombre',
@@ -70,7 +71,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: imageUrlController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           hintText: 'URL de la imagen (HTTPS)',
                           labelText: 'Imagen URL',
@@ -89,7 +90,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: linkUrlController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           hintText: 'URL de destino (opcional)',
                           labelText: 'Enlace web',
@@ -98,8 +99,8 @@ class SponsorsManagementScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         'Preseteados rápidos:',
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.textTertiary,
+                        style: context.typography.labelSmall.copyWith(
+                          color: context.colors.textTertiary,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -109,10 +110,10 @@ class SponsorsManagementScreen extends ConsumerWidget {
                         children: _presetSponsors.map((preset) {
                           return ActionChip(
                             label: Text(preset['name']!),
-                            labelStyle: AppTypography.labelSmall.copyWith(
+                            labelStyle: context.typography.labelSmall.copyWith(
                               color: Colors.white,
                             ),
-                            backgroundColor: AppColors.surfaceLight,
+                            backgroundColor: context.colors.surfaceLight,
                             onPressed: () {
                               setDialogState(() {
                                 nameController.text = preset['name']!;
@@ -132,12 +133,12 @@ class SponsorsManagementScreen extends ConsumerWidget {
                   onPressed: () => Navigator.pop(context),
                   child: Text(
                     'Cancelar',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: context.colors.textSecondary),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: context.colors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
@@ -157,7 +158,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
                             content: Text(
                               'Sponsor "${nameController.text}" añadido con éxito!',
                             ),
-                            backgroundColor: AppColors.success,
+                            backgroundColor: context.colors.success,
                           ),
                         );
                       }
@@ -178,7 +179,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
     final sponsorsAsync = ref.watch(sponsorsStreamProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Gestión de Sponsors'),
         backgroundColor: Colors.transparent,
@@ -187,7 +188,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
       floatingActionButton:
           FloatingActionButton.extended(
             onPressed: () => _showAddSponsorDialog(context, ref),
-            backgroundColor: AppColors.primary,
+            backgroundColor: context.colors.primary,
             icon: const Icon(Icons.add, color: Colors.white),
             label: const Text(
               'Añadir Sponsor',
@@ -210,25 +211,25 @@ class SponsorsManagementScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                        color: context.colors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.business,
                         size: 64,
-                        color: AppColors.primary.withValues(alpha: 0.8),
+                        color: context.colors.primary.withValues(alpha: 0.8),
                       ),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       'No hay sponsors registrados',
-                      style: AppTypography.titleLarge,
+                      style: context.typography.titleLarge,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Añade patrocinadores oficiales del club para que se visualicen en el carrusel de la pantalla de inicio.',
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
+                      style: context.typography.bodyMedium.copyWith(
+                        color: context.colors.textSecondary,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -242,14 +243,13 @@ class SponsorsManagementScreen extends ConsumerWidget {
                         }
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Sponsors de prueba añadidos!'),
-                              backgroundColor: AppColors.success,
+                            SnackBar(
+                              content: const Text('Sponsors de prueba añadidos!'),
+                              backgroundColor: context.colors.success,
                             ),
                           );
                         }
                       },
-                      size: JNButtonSize.medium,
                     ),
                   ],
                 ),
@@ -284,7 +284,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   sponsor['name'] ?? 'Sponsor',
-                                  style: AppTypography.titleMedium,
+                                  style: context.typography.titleMedium,
                                 ),
                                 if (sponsor['linkUrl'] != null &&
                                     sponsor['linkUrl']
@@ -293,8 +293,8 @@ class SponsorsManagementScreen extends ConsumerWidget {
                                   const SizedBox(height: 4),
                                   Text(
                                     sponsor['linkUrl'],
-                                    style: AppTypography.bodySmall.copyWith(
-                                      color: AppColors.primary,
+                                    style: context.typography.bodySmall.copyWith(
+                                      color: context.colors.primary,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -304,15 +304,15 @@ class SponsorsManagementScreen extends ConsumerWidget {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.delete_outline,
-                              color: AppColors.error,
+                              color: context.colors.error,
                             ),
                             onPressed: () {
                               showDialog(
                                 context: context,
                                 builder: (context) => AlertDialog(
-                                  backgroundColor: AppColors.surface,
+                                  backgroundColor: context.colors.surface,
                                   title: const Text('Eliminar Sponsor'),
                                   content: Text(
                                     '¿Estás seguro de eliminar a ${sponsor['name']}?',
@@ -323,7 +323,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
                                       child: Text(
                                         'Cancelar',
                                         style: TextStyle(
-                                          color: AppColors.textSecondary,
+                                          color: context.colors.textSecondary,
                                         ),
                                       ),
                                     ),
@@ -341,15 +341,15 @@ class SponsorsManagementScreen extends ConsumerWidget {
                                                 'Sponsor ${sponsor['name']} eliminado',
                                               ),
                                               backgroundColor:
-                                                  AppColors.warning,
+                                                  context.colors.warning,
                                             ),
                                           );
                                         }
                                       },
-                                      child: const Text(
+                                      child: Text(
                                         'Eliminar',
                                         style: TextStyle(
-                                          color: AppColors.error,
+                                          color: context.colors.error,
                                         ),
                                       ),
                                     ),
@@ -387,7 +387,7 @@ Widget _buildSponsorImage(String url) {
     height: 80,
     fit: BoxFit.cover,
     placeholder: (context, url) => Container(
-      color: AppColors.surfaceLight,
+      color: context.colors.surfaceLight,
       child: const Center(
         child: SizedBox(
           width: 20,
@@ -397,7 +397,7 @@ Widget _buildSponsorImage(String url) {
       ),
     ),
     errorWidget: (context, url, error) => Container(
-      color: AppColors.surfaceLight,
+      color: context.colors.surfaceLight,
       child: const Icon(Icons.broken_image, size: 24),
     ),
   );

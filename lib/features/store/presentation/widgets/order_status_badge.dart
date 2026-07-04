@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
 class OrderStatusBadge extends StatelessWidget {
@@ -9,7 +9,7 @@ class OrderStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final config = _statusConfig(status);
+    final config = _statusConfig(status, context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -24,27 +24,27 @@ class OrderStatusBadge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             config.label,
-            style: AppTypography.badge.copyWith(color: config.color, fontSize: 11),
+            style: context.typography.badge.copyWith(color: config.color, fontSize: 11),
           ),
         ],
       ),
     );
   }
 
-  _StatusConfig _statusConfig(String s) {
+  _StatusConfig _statusConfig(String s, BuildContext context) {
     switch (s) {
       case 'pending_payment':
-        return _StatusConfig('🟡', 'Pendiente de Pago', AppColors.warning);
+        return _StatusConfig('🟡', 'Pendiente de Pago', context.colors.warning);
       case 'payment_uploaded':
-        return _StatusConfig('🔵', 'Comprobante Enviado', AppColors.info);
+        return _StatusConfig('🔵', 'Comprobante Enviado', context.colors.info);
       case 'confirmed':
-        return _StatusConfig('🟢', 'Pago Confirmado', AppColors.success);
+        return _StatusConfig('🟢', 'Listo para Retirar', context.colors.success);
       case 'delivered':
-        return _StatusConfig('✅', 'Entregado', AppColors.success);
+        return _StatusConfig('✅', 'Entregado', context.colors.success);
       case 'rejected':
-        return _StatusConfig('🔴', 'Rechazado', AppColors.error);
+        return _StatusConfig('🔴', 'Rechazado', context.colors.error);
       default:
-        return _StatusConfig('⚪', s, AppColors.textTertiary);
+        return _StatusConfig('⚪', s, context.colors.textTertiary);
     }
   }
 }

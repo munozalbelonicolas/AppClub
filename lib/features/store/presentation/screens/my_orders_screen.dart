@@ -1,51 +1,68 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jn_card.dart';
+
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_card.dart';
+import '../../../../core/widgets/jn_empty_state.dart';
+import '../../../../core/widgets/jn_skeleton_card.dart';
 import '../widgets/order_status_badge.dart';
 import 'order_detail_screen.dart';
 
-class MyOrdersScreen extends ConsumerWidget {
+class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyOrdersScreen> createState() => _MyOrdersScreenState();
+}
+
+class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
+  late final Stream<QuerySnapshot> _ordersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = ref.read(currentUserProvider);
+    _ordersStream = FirebaseFirestore.instance
+        .collection('store_orders')
+        .where('buyerId', isEqualTo: user?.id)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text('Mis Compras', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text('Mis Compras', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('store_orders')
-            .where('buyerId', isEqualTo: user.id)
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
+        stream: _ordersStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return ListView.builder(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              itemCount: 4,
+              itemBuilder: (context, index) => const JNSkeletonCard(height: 140),
+            );
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.shopping_bag_outlined, size: 64, color: AppColors.textTertiary),
-                  const SizedBox(height: 16),
-                  Text('No tenés compras aún', style: AppTypography.bodyLarge.copyWith(color: AppColors.textTertiary)),
-                ],
-              ),
+            return const JNEmptyState(
+              icon: Icons.shopping_bag_outlined,
+              title: 'No tienes compras',
+              message: 'Aún no has realizado ninguna compra en la tienda del club.',
             );
           }
 
@@ -71,12 +88,12 @@ class MyOrdersScreen extends ConsumerWidget {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
+                        color: context.colors.surfaceLight,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: _buildProductThumbnail(data['productImageUrl'] as String?),
+                        child: _buildProductThumbnail(context, data['imageUrl']),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -87,19 +104,19 @@ class MyOrdersScreen extends ConsumerWidget {
                         children: [
                           Text(
                             data['productName'] ?? '',
-                            style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                            style: context.typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Talle: ${data['selectedSize']} • \$${(data['totalPrice'] ?? 0).toStringAsFixed(0)}',
-                            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                            style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
                           ),
                           if (createdAt != null)
                             Text(
                               _formatDate(createdAt.toDate()),
-                              style: AppTypography.badge.copyWith(color: AppColors.textTertiary, fontSize: 10),
+                              style: context.typography.badge.copyWith(color: context.colors.textTertiary, fontSize: 10),
                             ),
                         ],
                       ),
@@ -119,8 +136,8 @@ class MyOrdersScreen extends ConsumerWidget {
     return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
   }
 
-  Widget _buildProductThumbnail(String? imageUrl) {
-    const placeholder = Icon(Icons.shopping_bag, color: AppColors.accent, size: 24);
+  Widget _buildProductThumbnail(BuildContext context, String? imageUrl) {
+    final placeholder = Icon(Icons.shopping_bag, color: context.colors.accent, size: 24);
 
     if (imageUrl == null || imageUrl.isEmpty) return placeholder;
 

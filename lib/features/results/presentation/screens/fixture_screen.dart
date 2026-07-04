@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
+
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class FixtureScreen extends ConsumerStatefulWidget {
   const FixtureScreen({super.key});
@@ -25,7 +26,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
     final clubs = clubsAsync.value ?? [];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Fixture'),
         actions: [
@@ -41,11 +42,11 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: DropdownButtonFormField<String>(
-              dropdownColor: AppColors.surface,
+              dropdownColor: context.colors.surface,
               initialValue: selectedCategory,
               decoration: const InputDecoration(labelText: 'Categoría'),
               items: categories.map((cat) {
-                return DropdownMenuItem(value: cat, child: Text(cat, style: AppTypography.bodyLarge));
+                return DropdownMenuItem(value: cat, child: Text(cat, style: context.typography.bodyLarge));
               }).toList(),
               onChanged: (val) {
                 if (val != null) {
@@ -61,7 +62,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                   return Center(
                     child: Text(
                       'No hay fechas en el fixture.',
-                      style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
+                      style: context.typography.bodyMedium.copyWith(color: context.colors.textSecondary),
                     ),
                   );
                 }
@@ -74,7 +75,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: AppColors.error))),
+              error: (err, _) => Center(child: Text('Error: $err', style: TextStyle(color: context.colors.error))),
             ),
           ),
         ],
@@ -94,10 +95,10 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(fixture['name'] ?? 'Fecha', style: AppTypography.titleMedium),
+                Text(fixture['name'] ?? 'Fecha', style: context.typography.titleMedium),
                 if (isAdmin)
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                    icon: Icon(Icons.delete_outline, color: context.colors.error),
                     onPressed: () {
                       ref.read(firestoreServiceProvider).deleteFixture(fixture['id']);
                     },
@@ -121,9 +122,9 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                         ],
                       ),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('VS', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textTertiary)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('VS', style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.textTertiary)),
                     ),
                     Expanded(
                       child: Column(
@@ -147,9 +148,9 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
     if (club == null) {
       return Column(
         children: [
-          const CircleAvatar(radius: 20, backgroundColor: AppColors.surfaceLight, child: Icon(Icons.shield, size: 20)),
+          CircleAvatar(radius: 20, backgroundColor: context.colors.surfaceLight, child: const Icon(Icons.shield, size: 20)),
           const SizedBox(height: 4),
-          Text('?', style: AppTypography.labelSmall),
+          Text('?', style: context.typography.labelSmall),
         ],
       );
     }
@@ -157,7 +158,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
       children: [
         CircleAvatar(
           radius: 20,
-          backgroundColor: AppColors.surfaceLight,
+          backgroundColor: context.colors.surfaceLight,
           backgroundImage: club['logoUrl'] != null && club['logoUrl'].toString().isNotEmpty
               ? NetworkImage(club['logoUrl'])
               : null,
@@ -166,14 +167,14 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
               : null,
         ),
         const SizedBox(height: 4),
-        Text(club['name'] ?? '', style: AppTypography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
+        Text(club['name'] ?? '', style: context.typography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
       ],
     );
   }
 
   void _showAddFixtureDialog(BuildContext context, List<Map<String, dynamic>> clubs) {
     final nameController = TextEditingController();
-    List<Map<String, dynamic>> newMatches = [];
+    final List<Map<String, dynamic>> newMatches = [];
 
     showDialog(
       context: context,
@@ -181,26 +182,26 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.surface,
-              title: Text('Nueva Fecha', style: AppTypography.titleLarge),
+              backgroundColor: context.colors.surface,
+              title: Text('Nueva Fecha', style: context.typography.titleLarge),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
                       controller: nameController,
-                      style: AppTypography.bodyLarge,
+                      style: context.typography.bodyLarge,
                       decoration: const InputDecoration(labelText: 'Nombre (Ej: 1ra Fecha)'),
                     ),
                     const SizedBox(height: 16),
-                    Text('Partidos', style: AppTypography.titleSmall),
+                    Text('Partidos', style: context.typography.titleSmall),
                     const SizedBox(height: 8),
                     ...newMatches.map((m) {
                       final home = clubs.where((c) => c['id'] == m['homeClubId']).firstOrNull;
                       final away = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: Text('${home?['name'] ?? '?'} vs ${away?['name'] ?? '?'}', style: AppTypography.bodyMedium),
+                        title: Text('${home?['name'] ?? '?'} vs ${away?['name'] ?? '?'}', style: context.typography.bodyMedium),
                       );
                     }),
                     TextButton.icon(
@@ -220,10 +221,10 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                  child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary),
                   onPressed: () async {
                     if (nameController.text.isNotEmpty && newMatches.isNotEmpty) {
                       await ref.read(firestoreServiceProvider).addFixture({
@@ -254,24 +255,24 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.surface,
-              title: Text('Agregar Partido', style: AppTypography.titleLarge),
+              backgroundColor: context.colors.surface,
+              title: Text('Agregar Partido', style: context.typography.titleLarge),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    dropdownColor: AppColors.surface,
+                    dropdownColor: context.colors.surface,
                     initialValue: homeClubId,
                     decoration: const InputDecoration(labelText: 'Club Local'),
-                    items: clubs.map((c) => DropdownMenuItem<String>(value: c['id'], child: Text(c['name'], style: AppTypography.bodyLarge))).toList(),
+                    items: clubs.map((c) => DropdownMenuItem<String>(value: c['id'], child: Text(c['name'], style: context.typography.bodyLarge))).toList(),
                     onChanged: (val) => setDialogState(() => homeClubId = val),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    dropdownColor: AppColors.surface,
+                    dropdownColor: context.colors.surface,
                     initialValue: awayClubId,
                     decoration: const InputDecoration(labelText: 'Club Visitante'),
-                    items: clubs.map((c) => DropdownMenuItem<String>(value: c['id'], child: Text(c['name'], style: AppTypography.bodyLarge))).toList(),
+                    items: clubs.map((c) => DropdownMenuItem<String>(value: c['id'], child: Text(c['name'], style: context.typography.bodyLarge))).toList(),
                     onChanged: (val) => setDialogState(() => awayClubId = val),
                   ),
                 ],
@@ -279,10 +280,10 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                  child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary),
                   onPressed: () {
                     if (homeClubId != null && awayClubId != null) {
                       onAdd({

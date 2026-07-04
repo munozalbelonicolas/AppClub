@@ -1,27 +1,30 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/providers/session_provider.dart';
-
+import '../../../../core/widgets/jn_card.dart';
+import '../../../inbox/presentation/screens/inbox_screen.dart';
 // Import screens from other features
 import '../../../player/presentation/screens/my_profile_screen.dart';
-import '../../../inbox/presentation/screens/inbox_screen.dart';
-import '../../../results/presentation/screens/results_screen.dart';
 import '../../../results/presentation/screens/fixture_screen.dart';
 import '../../../results/presentation/screens/league_report_screen.dart';
+import '../../../results/presentation/screens/manage_scorers_screen.dart';
+import '../../../results/presentation/screens/results_screen.dart';
 import 'club_management_screen.dart';
-import 'sponsors_management_screen.dart';
-import 'privacy_policy_screen.dart';
-import 'terms_conditions_screen.dart';
-import 'support_form_screen.dart';
 import 'director_console_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'sponsors_management_screen.dart';
+import 'support_form_screen.dart';
+import 'terms_conditions_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   final VoidCallback onLogout;
@@ -33,7 +36,7 @@ class SettingsScreen extends ConsumerWidget {
     // We will query children from Firestore using a StreamBuilder below instead of a single mock variable.
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(title: const Text('Configuración')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
@@ -46,16 +49,16 @@ class SettingsScreen extends ConsumerWidget {
                 JNAvatar(
                   name: '${user.name} ${user.lastName}',
                   size: 72,
-                  borderColor: AppColors.accent,
+                  borderColor: context.colors.accent,
                   borderWidth: 3,
                 ),
                 const SizedBox(height: 14),
                 Text(
                   '${user.name} ${user.lastName}',
-                  style: AppTypography.headlineMedium,
+                  style: context.typography.headlineMedium,
                 ),
                 const SizedBox(height: 4),
-                Text(user.email, style: AppTypography.bodyMedium),
+                Text(user.email, style: context.typography.bodyMedium),
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -63,13 +66,13 @@ class SettingsScreen extends ConsumerWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.12),
+                    color: context.colors.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     user.role.toUpperCase(),
-                    style: AppTypography.badge.copyWith(
-                      color: AppColors.accent,
+                    style: context.typography.badge.copyWith(
+                      color: context.colors.accent,
                     ),
                   ),
                 ),
@@ -81,7 +84,7 @@ class SettingsScreen extends ConsumerWidget {
 
           // ─── Hijos asociados (Tutor) ────────────────────────
           if (user.role == 'padre') ...[
-            Text('Mis Hijos (Jugadores)', style: AppTypography.labelMedium),
+            Text('Mis Hijos (Jugadores)', style: context.typography.labelMedium),
             const SizedBox(height: 8),
             StreamBuilder<List<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
@@ -89,7 +92,7 @@ class SettingsScreen extends ConsumerWidget {
                   .where('tutorId', isEqualTo: user.id)
                   .snapshots()
                   .asyncMap((snapshot) async {
-                List<Map<String, dynamic>> children = [];
+                final List<Map<String, dynamic>> children = [];
                 for (var doc in snapshot.docs) {
                   final data = doc.data();
                   final playerId = data['playerId'] as String?;
@@ -119,8 +122,8 @@ class SettingsScreen extends ConsumerWidget {
                     child: Center(
                       child: Text(
                         'Sin hijos registrados. Agrégalos desde "Mi Perfil".',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
+                        style: context.typography.bodySmall.copyWith(
+                          color: context.colors.textTertiary,
                         ),
                       ),
                     ),
@@ -136,7 +139,7 @@ class SettingsScreen extends ConsumerWidget {
                           children: [
                             CircleAvatar(
                               radius: 20,
-                              backgroundColor: AppColors.surfaceLight,
+                              backgroundColor: context.colors.surfaceLight,
                               backgroundImage: player['avatarUrl'] != null &&
                                       player['avatarUrl'].toString().isNotEmpty
                                   ? (player['avatarUrl'].toString().startsWith('http')
@@ -147,10 +150,10 @@ class SettingsScreen extends ConsumerWidget {
                                   : null,
                               child: player['avatarUrl'] == null ||
                                       player['avatarUrl'].toString().isEmpty
-                                  ? const Icon(
+                                  ? Icon(
                                       Icons.person,
                                       size: 20,
-                                      color: AppColors.textTertiary,
+                                      color: context.colors.textTertiary,
                                     )
                                   : null,
                             ),
@@ -161,11 +164,11 @@ class SettingsScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     '${player['name']} ${player['lastName'] ?? ''}',
-                                    style: AppTypography.titleMedium,
+                                    style: context.typography.titleMedium,
                                   ),
                                   Text(
                                     'Categoría: ${player['category'] ?? 'Sin Categoría'}',
-                                    style: AppTypography.bodySmall,
+                                    style: context.typography.bodySmall,
                                   ),
                                 ],
                               ),
@@ -182,7 +185,7 @@ class SettingsScreen extends ConsumerWidget {
           ],
 
           // ─── Mi Cuenta Group ──────────────────────
-          Text('Mi Perfil', style: AppTypography.labelMedium),
+          Text('Mi Perfil', style: context.typography.labelMedium),
           const SizedBox(height: 8),
           _SettingsGroup(
             items: [
@@ -216,7 +219,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // ─── Resultados ─────────────────────────────
-          Text('Deportivo', style: AppTypography.labelMedium),
+          Text('Deportivo', style: context.typography.labelMedium),
           const SizedBox(height: 8),
           _SettingsGroup(
             items: [
@@ -263,7 +266,7 @@ class SettingsScreen extends ConsumerWidget {
 
           // ─── Administration Group (Only for Secretarios and Directivos) ───
           if (user.isAdmin) ...[
-            Text('Administración del Club', style: AppTypography.labelMedium),
+            Text('Administración del Club', style: context.typography.labelMedium),
             const SizedBox(height: 8),
             _SettingsGroup(
               items: [
@@ -299,7 +302,7 @@ class SettingsScreen extends ConsumerWidget {
 
           // ─── Directivos, Secretarios y DTs ──────────────────────
           if (user.isAdmin || user.isCoach) ...[
-            Text('Competiciones y Rivalidades', style: AppTypography.labelMedium),
+            Text('Competiciones y Rivalidades', style: context.typography.labelMedium),
             const SizedBox(height: 8),
             _SettingsGroup(
               items: [
@@ -315,15 +318,27 @@ class SettingsScreen extends ConsumerWidget {
                     );
                   },
                 ),
+                _SettingNav(
+                  icon: Icons.sports_soccer,
+                  label: 'Gestión de Goleadores',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ManageScorersScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ).animate(delay: 160.ms).fadeIn(duration: 400.ms),
             const SizedBox(height: 20),
           ],
 
           // ─── Settings Groups ──────────────────────
-          Text('Notificaciones', style: AppTypography.labelMedium),
+          Text('Notificaciones', style: context.typography.labelMedium),
           const SizedBox(height: 8),
-          _SettingsGroup(
+          const _SettingsGroup(
             items: [
               _SettingToggle(
                 icon: Icons.notifications,
@@ -350,11 +365,47 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-          Text('General', style: AppTypography.labelMedium),
+          Text('General', style: context.typography.labelMedium),
           const SizedBox(height: 8),
           _SettingsGroup(
             items: [
-              _SettingNav(icon: Icons.info_outline, label: 'Sobre el club'),
+              Consumer(
+                builder: (context, ref, child) {
+                  final themeMode = ref.watch(themeModeProvider);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          themeMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
+                          size: 20,
+                          color: context.colors.textSecondary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Modo Oscuro',
+                            style: context.typography.bodyMedium.copyWith(
+                              color: context.colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: themeMode == ThemeMode.dark,
+                          onChanged: (isDark) {
+                            ref.read(themeModeProvider.notifier).setThemeMode(
+                              isDark ? ThemeMode.dark : ThemeMode.light,
+                            );
+                          },
+                          activeTrackColor: context.colors.primary,
+                          activeThumbColor: Colors.white,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const _SettingNav(icon: Icons.info_outline, label: 'Sobre el club'),
               _SettingNav(
                 icon: Icons.description_outlined,
                 label: 'Términos y condiciones',
@@ -400,8 +451,8 @@ class SettingsScreen extends ConsumerWidget {
           Center(
             child: Column(
               children: [
-                Text('Jorge Newbery App', style: AppTypography.bodySmall),
-                Text('v1.0.0', style: AppTypography.labelSmall),
+                Text('Jorge Newbery App', style: context.typography.bodySmall),
+                Text('v1.0.0', style: context.typography.labelSmall),
               ],
             ),
           ),
@@ -437,10 +488,10 @@ class _SettingsGroup extends StatelessWidget {
             children: [
               entry.value,
               if (!isLast)
-                const Divider(
+                Divider(
                   height: 0.5,
                   indent: 52,
-                  color: AppColors.divider,
+                  color: context.colors.divider,
                 ),
             ],
           );
@@ -480,20 +531,20 @@ class _SettingToggleState extends State<_SettingToggle> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(
         children: [
-          Icon(widget.icon, size: 20, color: AppColors.textSecondary),
+          Icon(widget.icon, size: 20, color: context.colors.textSecondary),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               widget.label,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textPrimary,
+              style: context.typography.bodyMedium.copyWith(
+                color: context.colors.textPrimary,
               ),
             ),
           ),
           Switch.adaptive(
             value: _value,
             onChanged: (v) => setState(() => _value = v),
-            activeTrackColor: AppColors.primary,
+            activeTrackColor: context.colors.primary,
             activeThumbColor: Colors.white,
           ),
         ],
@@ -516,20 +567,20 @@ class _SettingNav extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: AppColors.textSecondary),
+            Icon(icon, size: 20, color: context.colors.textSecondary),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.textPrimary,
+                style: context.typography.bodyMedium.copyWith(
+                  color: context.colors.textPrimary,
                 ),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               size: 18,
-              color: AppColors.textTertiary,
+              color: context.colors.textTertiary,
             ),
           ],
         ),

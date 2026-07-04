@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app_logger.dart';
 
 class BirthdayService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -38,7 +38,7 @@ class BirthdayService {
 
       if (!shouldRun) return; // Another user already triggered it today
 
-      debugPrint('Triggering local birthday check for $todayStr');
+      AppLogger.info('Triggering local birthday check for $todayStr', tag: 'BirthdayService');
 
       // 2. Query active players
       final playersSnapshot = await _db
@@ -139,9 +139,9 @@ class BirthdayService {
         await batch.commit();
       }
 
-      debugPrint('Local birthday check completed successfully.');
-    } catch (e) {
-      debugPrint('Error triggering local birthday check: $e');
+      AppLogger.info('Local birthday check completed successfully.', tag: 'BirthdayService');
+    } on FirebaseException catch (e) {
+      AppLogger.error('Error triggering local birthday check', error: e, tag: 'BirthdayService');
     }
   }
 }

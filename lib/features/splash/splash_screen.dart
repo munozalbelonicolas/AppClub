@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/app_typography.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -21,7 +21,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -34,7 +34,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.4),
+                        color: context.colors.primary.withValues(alpha: 0.4),
                         blurRadius: 40,
                         spreadRadius: 2,
                       ),
@@ -61,7 +61,7 @@ class _SplashScreenState extends State<SplashScreen> {
             // Club Name
             Text(
                   'JORGE NEWBERY',
-                  style: AppTypography.displaySmall.copyWith(
+                  style: context.typography.displaySmall.copyWith(
                     letterSpacing: 4,
                     fontWeight: FontWeight.w800,
                   ),
@@ -79,9 +79,9 @@ class _SplashScreenState extends State<SplashScreen> {
 
             Text(
               'ASOC. DEPORTIVA INF. Y JUV.',
-              style: AppTypography.labelMedium.copyWith(
+              style: context.typography.labelMedium.copyWith(
                 letterSpacing: 2.5,
-                color: AppColors.textTertiary,
+                color: context.colors.textTertiary,
               ),
             ).animate(delay: 600.ms).fadeIn(duration: 500.ms),
 
@@ -94,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen> {
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
                 valueColor: AlwaysStoppedAnimation(
-                  AppColors.primary.withValues(alpha: 0.7),
+                  context.colors.primary.withValues(alpha: 0.7),
                 ),
               ),
             ).animate(delay: 800.ms).fadeIn(duration: 400.ms),

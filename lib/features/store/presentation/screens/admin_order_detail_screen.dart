@@ -1,12 +1,14 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jn_card.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 import '../widgets/order_status_badge.dart';
 
 class AdminOrderDetailScreen extends ConsumerStatefulWidget {
@@ -19,6 +21,14 @@ class AdminOrderDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen> {
+  late final Stream<DocumentSnapshot> _orderStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _orderStream = FirebaseFirestore.instance.collection('store_orders').doc(widget.orderId).snapshots();
+  }
+
   Future<void> _updateStatus(String newStatus, {String? notes}) async {
     try {
       final updateData = <String, dynamic>{
@@ -38,7 +48,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
       switch (newStatus) {
         case 'confirmed':
           notifType = 'store_order_confirmed';
-          notifMessage = '✅ Tu pago por ${orderData['productName']} fue confirmado.';
+          notifMessage = '✅ Tu pago por ${orderData['productName']} fue confirmado. Ya podés pasar a retirarlo por el club.';
           break;
         case 'delivered':
           notifType = 'store_order_delivered';
@@ -67,13 +77,13 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Estado actualizado a: $newStatus'), backgroundColor: AppColors.success),
+          SnackBar(content: Text('Estado actualizado a: $newStatus'), backgroundColor: context.colors.success),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
         );
       }
     }
@@ -84,7 +94,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.colors.surface,
         title: const Text('Rechazar Pedido'),
         content: TextField(
           controller: controller,
@@ -101,7 +111,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
               Navigator.pop(ctx);
               _updateStatus('rejected', notes: controller.text.trim());
             },
-            child: const Text('Rechazar', style: TextStyle(color: AppColors.error)),
+            child: Text('Rechazar', style: TextStyle(color: context.colors.error)),
           ),
         ],
       ),
@@ -111,14 +121,14 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text('Gestionar Pedido', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text('Gestionar Pedido', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('store_orders').doc(widget.orderId).snapshots(),
+        stream: _orderStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -147,21 +157,21 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Comprador', style: AppTypography.labelMedium.copyWith(color: AppColors.textTertiary)),
+                      Text('Comprador', style: context.typography.labelMedium.copyWith(color: context.colors.textTertiary)),
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.person, color: AppColors.accent, size: 20),
+                          Icon(Icons.person, color: context.colors.accent, size: 20),
                           const SizedBox(width: 8),
-                          Text(data['buyerName'] ?? '', style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                          Text(data['buyerName'] ?? '', style: context.typography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
                         ],
                       ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.email_outlined, color: AppColors.textTertiary, size: 16),
+                          Icon(Icons.email_outlined, color: context.colors.textTertiary, size: 16),
                           const SizedBox(width: 8),
-                          Text(data['buyerEmail'] ?? '', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                          Text(data['buyerEmail'] ?? '', style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary)),
                         ],
                       ),
                     ],
@@ -175,9 +185,9 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Producto', style: AppTypography.labelMedium.copyWith(color: AppColors.textTertiary)),
+                      Text('Producto', style: context.typography.labelMedium.copyWith(color: context.colors.textTertiary)),
                       const SizedBox(height: 8),
-                      Text(data['productName'] ?? '', style: AppTypography.titleMedium),
+                      Text(data['productName'] ?? '', style: context.typography.titleMedium),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -192,7 +202,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                         const SizedBox(height: 8),
                         Text(
                           'Pedido el ${_formatDate(createdAt.toDate())}',
-                          style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
+                          style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
                         ),
                       ],
                     ],
@@ -203,7 +213,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
 
                 // Receipt
                 if (receiptUrl != null && receiptUrl.isNotEmpty) ...[
-                  Text('Comprobante', style: AppTypography.titleMedium.copyWith(color: AppColors.primary)),
+                  Text('Comprobante', style: context.typography.titleMedium.copyWith(color: context.colors.primary)),
                   const SizedBox(height: 12),
                   JNCard(
                     padding: const EdgeInsets.all(12),
@@ -217,9 +227,9 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                 const SizedBox(height: 24),
 
                 // Action buttons
-                if (status == 'payment_uploaded') ...[
+                if (status == 'pending_payment' || status == 'payment_uploaded') ...[
                   JNButton(
-                    label: '✅ Confirmar Pago',
+                    label: '✅ Confirmar y Listo para Retirar',
                     onPressed: () => _updateStatus('confirmed'),
                     variant: JNButtonVariant.success,
                   ),
@@ -235,7 +245,6 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                   JNButton(
                     label: '📦 Marcar como Entregado',
                     onPressed: () => _updateStatus('delivered'),
-                    variant: JNButtonVariant.primary,
                   ),
                 ],
 
@@ -251,14 +260,14 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
   Widget _buildReceiptImage(String url) {
     final errorWidget = Container(
       height: 200,
-      color: AppColors.surfaceLight,
-      child: const Center(
+      color: context.colors.surfaceLight,
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt, size: 48, color: AppColors.textTertiary),
-            SizedBox(height: 8),
-            Text('Comprobante enviado'),
+            Icon(Icons.receipt, size: 48, color: context.colors.textTertiary),
+            const SizedBox(height: 8),
+            const Text('Comprobante enviado'),
           ],
         ),
       ),
@@ -286,10 +295,10 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: context.colors.surfaceLight,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(text, style: AppTypography.badge.copyWith(fontSize: 11)),
+      child: Text(text, style: context.typography.badge.copyWith(fontSize: 11)),
     );
   }
 

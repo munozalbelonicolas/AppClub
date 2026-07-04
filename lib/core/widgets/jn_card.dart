@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_spacing.dart';
+
+import '../../core/theme/app_theme_colors.dart';
 import '../theme/app_shadows.dart';
+import '../theme/app_spacing.dart';
 
 /// Premium card component with subtle border and modern styling
 class JNCard extends StatelessWidget {
@@ -35,10 +36,10 @@ class JNCard extends StatelessWidget {
     return Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: gradient == null ? (color ?? AppColors.card) : null,
+        color: gradient == null ? (color ?? context.colors.card) : null,
         gradient: gradient,
         borderRadius: radius,
-        border: border ?? Border.all(color: AppColors.border, width: 0.5),
+        border: border ?? Border.all(color: context.colors.border, width: 0.5),
         boxShadow: shadow ?? AppShadows.none,
       ),
       child: Material(
@@ -47,8 +48,8 @@ class JNCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: radius,
-          splashColor: AppColors.primaryWithOpacity(0.08),
-          highlightColor: AppColors.primaryWithOpacity(0.04),
+          splashColor: context.colors.primary.withValues(alpha: 0.08),
+          highlightColor: context.colors.primary.withValues(alpha: 0.04),
           child: Padding(
             padding: padding ?? const EdgeInsets.all(AppSpacing.cardPadding),
             child: child,

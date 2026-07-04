@@ -1,14 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/providers/session_provider.dart';
+import '../../../../core/widgets/jn_card.dart';
+import '../../../../core/widgets/jn_empty_state.dart';
+import '../../../../core/widgets/jn_skeleton_card.dart';
 import 'chat_screen.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
@@ -32,7 +36,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   void _startNewChatDialog(BuildContext context, dynamic currentUser) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -115,7 +119,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final isStaff = !currentUser.isNormalUser;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Buzón de Entrada (Inbox)'),
         elevation: 0,
@@ -123,7 +127,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       floatingActionButton: isStaff
           ? FloatingActionButton(
               onPressed: () => _startNewChatDialog(context, currentUser),
-              backgroundColor: AppColors.primary,
+              backgroundColor: context.colors.primary,
               child: const Icon(Icons.message, color: Colors.white),
             ).animate().scale(
               delay: 200.ms,
@@ -139,7 +143,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: TextField(
                 controller: _searchController,
-                style: AppTypography.bodyMedium,
+                style: context.typography.bodyMedium,
                 decoration: const InputDecoration(
                   hintText: 'Buscar por nombre o apellido...',
                   prefixIcon: Icon(Icons.search, size: 20),
@@ -172,13 +176,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           });
                         }
                       },
-                      labelStyle: AppTypography.labelSmall.copyWith(
+                      labelStyle: context.typography.labelSmall.copyWith(
                         color: isSelected
                             ? Colors.white
-                            : AppColors.textSecondary,
+                            : context.colors.textSecondary,
                       ),
-                      selectedColor: AppColors.primary,
-                      backgroundColor: AppColors.surfaceLight,
+                      selectedColor: context.colors.primary,
+                      backgroundColor: context.colors.surfaceLight,
                     ),
                   );
                 }).toList(),
@@ -190,19 +194,19 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
               child: JNCard(
                 padding: const EdgeInsets.all(14),
-                color: AppColors.surfaceLight,
+                color: context.colors.surfaceLight,
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.info_outline,
-                      color: AppColors.accent,
+                      color: context.colors.accent,
                       size: 20,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Aquí puedes comunicarte en privado con el cuerpo directivo, secretaría o tu director técnico.',
-                        style: AppTypography.bodySmall,
+                        style: context.typography.bodySmall,
                       ),
                     ),
                   ],
@@ -241,23 +245,30 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       stream: filteredQuery.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return ListView.builder(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            itemCount: 5,
+            itemBuilder: (context, index) => const JNSkeletonCard(height: 90),
+          );
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Text(
-                'Error al cargar mensajes: ${snapshot.error}',
-                style: const TextStyle(color: AppColors.error),
-                textAlign: TextAlign.center,
-              ),
-            ),
+          return const JNEmptyState(
+            icon: Icons.error_outline,
+            title: 'Error de carga',
+            message: 'Ocurrió un problema al cargar los mensajes.',
           );
         }
 
         // Sort docs in-memory by lastMessageTime descending
         var docsList = snapshot.data?.docs ?? [];
+        if (docsList.isEmpty) {
+          return const JNEmptyState(
+            icon: Icons.chat_bubble_outline,
+            title: 'Sin mensajes',
+            message: 'Aún no tienes conversaciones. ¡Inicia un chat nuevo!',
+          );
+        }
+
         docsList.sort((a, b) {
           final aData = a.data() as Map<String, dynamic>;
           final bData = b.data() as Map<String, dynamic>;
@@ -344,26 +355,26 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: context.colors.surfaceLight,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.forum_outlined,
                       size: 48,
-                      color: AppColors.textTertiary,
+                      color: context.colors.textTertiary,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'No hay conversaciones activas',
-                    style: AppTypography.titleLarge,
+                    style: context.typography.titleLarge,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     currentUser.isNormalUser
                         ? 'Si necesitas consultar algo privado con el club, puedes iniciar una conversación presionando en Soporte o esperando a que te escriban.'
                         : 'Utiliza el botón de abajo para iniciar una conversación con un usuario.',
-                    style: AppTypography.bodySmall,
+                    style: context.typography.bodySmall,
                     textAlign: TextAlign.center,
                   ),
                   if (currentUser.isNormalUser) ...[
@@ -467,14 +478,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 },
                 border: isUnread
                     ? Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.5),
+                        color: context.colors.primary.withValues(alpha: 0.5),
                         width: 1.2,
                       )
                     : null,
                 padding: const EdgeInsets.all(14),
                 child: Row(
                   children: [
-                    JNAvatar(name: otherName, size: 44),
+                    JNAvatar(name: otherName),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -482,7 +493,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                         children: [
                           Row(
                             children: [
-                              Text(otherName, style: AppTypography.titleMedium),
+                              Text(otherName, style: context.typography.titleMedium),
                               const SizedBox(width: 8),
                               JNBadge(
                                 label: otherRole.toUpperCase(),
@@ -500,7 +511,6 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                 const SizedBox(width: 4),
                                 JNBadge(
                                   label: otherCategory,
-                                  type: JNBadgeType.neutral,
                                   small: true,
                                 ),
                               ],
@@ -509,10 +519,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           const SizedBox(height: 4),
                           Text(
                             lastMsg,
-                            style: AppTypography.bodySmall.copyWith(
+                            style: context.typography.bodySmall.copyWith(
                               color: isUnread
-                                  ? AppColors.textPrimary
-                                  : AppColors.textTertiary,
+                                  ? context.colors.textPrimary
+                                  : context.colors.textTertiary,
                               fontWeight: isUnread
                                   ? FontWeight.w600
                                   : FontWeight.w400,
@@ -529,15 +539,15 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                       children: [
                         Text(
                           _formatTime(lastTime),
-                          style: AppTypography.labelSmall,
+                          style: context.typography.labelSmall,
                         ),
                         if (isUnread) ...[
                           const SizedBox(height: 6),
                           Container(
                             width: 10,
                             height: 10,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
+                            decoration: BoxDecoration(
+                              color: context.colors.primary,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -588,7 +598,7 @@ class _NewChatUserSelector extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Nueva Conversación', style: AppTypography.headlineSmall),
+              Text('Nueva Conversación', style: context.typography.headlineSmall),
               IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () => Navigator.pop(context),
@@ -610,15 +620,15 @@ class _NewChatUserSelector extends StatelessWidget {
                   return Center(
                     child: Text(
                       'Error: ${snapshot.error}',
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: context.colors.error),
                     ),
                   );
                 }
 
-                var docs = snapshot.data?.docs ?? [];
+                final docs = snapshot.data?.docs ?? [];
 
                 // Convert to Maps and filter
-                var users = docs
+                final users = docs
                     .map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       return <String, dynamic>{'id': doc.id, ...data};
@@ -640,7 +650,7 @@ class _NewChatUserSelector extends StatelessWidget {
                   return Center(
                     child: Text(
                       'No hay usuarios disponibles para mensajería.',
-                      style: AppTypography.bodySmall,
+                      style: context.typography.bodySmall,
                     ),
                   );
                 }
@@ -648,7 +658,7 @@ class _NewChatUserSelector extends StatelessWidget {
                 return ListView.separated(
                   itemCount: users.length,
                   separatorBuilder: (context, index) =>
-                      const Divider(height: 1, color: AppColors.divider),
+                      Divider(height: 1, color: context.colors.divider),
                   itemBuilder: (context, index) {
                     final user = users[index];
                     final String name = '${user['name']} ${user['lastName']}';
@@ -658,21 +668,21 @@ class _NewChatUserSelector extends StatelessWidget {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: JNAvatar(name: name, size: 38),
-                      title: Text(name, style: AppTypography.titleMedium),
+                      title: Text(name, style: context.typography.titleMedium),
                       subtitle: Row(
                         children: [
                           Text(
                             role.toUpperCase(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              color: AppColors.accent,
+                              color: context.colors.accent,
                             ),
                           ),
                           if (category.isNotEmpty) ...[
                             const SizedBox(width: 6),
-                            Text('·', style: AppTypography.bodySmall),
+                            Text('·', style: context.typography.bodySmall),
                             const SizedBox(width: 6),
-                            Text(category, style: AppTypography.bodySmall),
+                            Text(category, style: context.typography.bodySmall),
                           ],
                         ],
                       ),

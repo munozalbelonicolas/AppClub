@@ -1,12 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
+
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class SupportFormScreen extends ConsumerStatefulWidget {
   const SupportFormScreen({super.key});
@@ -16,6 +17,14 @@ class SupportFormScreen extends ConsumerStatefulWidget {
 }
 
 class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
+  late final Stream<DocumentSnapshot> _configStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _configStream = FirebaseFirestore.instance.collection('config').doc('support_settings').snapshots();
+  }
+
   final _formKey = GlobalKey<FormState>();
   final _subjectController = TextEditingController();
   final _messageController = TextEditingController();
@@ -72,7 +81,7 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al enviar la consulta: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -84,13 +93,10 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
     final currentUser = ref.watch(currentUserProvider)!;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(title: const Text('Ayuda y Soporte'), elevation: 0),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('config')
-            .doc('support_settings')
-            .snapshots(),
+        stream: _configStream,
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
@@ -128,20 +134,20 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
               padding: const EdgeInsets.all(16),
               gradient: LinearGradient(
                 colors: [
-                  AppColors.primary.withValues(alpha: 0.1),
-                  AppColors.surfaceLight,
+                  context.colors.primary.withValues(alpha: 0.1),
+                  context.colors.surfaceLight,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.2),
+                color: context.colors.primary.withValues(alpha: 0.2),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.mark_email_unread_outlined,
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     size: 28,
                   ),
                   const SizedBox(width: 14),
@@ -151,13 +157,13 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
                       children: [
                         Text(
                           'Soporte Oficial por Correo',
-                          style: AppTypography.titleMedium,
+                          style: context.typography.titleMedium,
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Tu consulta será dirigida a:\n$_activeSupportEmail',
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
+                          style: context.typography.bodySmall.copyWith(
+                            color: context.colors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -172,14 +178,14 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
 
             Text(
               'Completa los detalles de tu consulta',
-              style: AppTypography.labelMedium,
+              style: context.typography.labelMedium,
             ),
             const SizedBox(height: 12),
 
             // Subject field
             TextFormField(
               controller: _subjectController,
-              style: AppTypography.bodyLarge,
+              style: context.typography.bodyLarge,
               decoration: const InputDecoration(
                 labelText: 'Asunto / Título corto',
                 hintText: 'Ej: Consulta sobre ficha médica vencida',
@@ -193,7 +199,7 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
 
             // Category dropdown
             DropdownButtonFormField<String>(
-              dropdownColor: AppColors.surface,
+              dropdownColor: context.colors.surface,
               initialValue: _selectedCategory,
               decoration: const InputDecoration(
                 labelText: 'Categoría de consulta',
@@ -201,7 +207,7 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
               items: _categories.map((cat) {
                 return DropdownMenuItem(
                   value: cat,
-                  child: Text(cat, style: AppTypography.bodyLarge),
+                  child: Text(cat, style: context.typography.bodyLarge),
                 );
               }).toList(),
               onChanged: (val) {
@@ -219,7 +225,7 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
             TextFormField(
               controller: _messageController,
               maxLines: 6,
-              style: AppTypography.bodyLarge,
+              style: context.typography.bodyLarge,
               decoration: const InputDecoration(
                 labelText: 'Mensaje / Detalles de la ayuda requerida',
                 hintText: 'Describe aquí en detalle tu problema o inquietud...',
@@ -253,18 +259,17 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Animated Paper Airplane Icon
           Container(
                 padding: const EdgeInsets.all(30),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.1),
+                  color: context.colors.success.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.send,
-                  color: AppColors.success,
+                  color: context.colors.success,
                   size: 72,
                 ),
               )
@@ -277,8 +282,8 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
 
           Text(
             '¡Consulta Enviada!',
-            style: AppTypography.displaySmall.copyWith(
-              color: AppColors.success,
+            style: context.typography.displaySmall.copyWith(
+              color: context.colors.success,
             ),
             textAlign: TextAlign.center,
           ).animate().fadeIn(delay: 200.ms),
@@ -287,7 +292,7 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
 
           Text(
             'Tu mensaje ha sido registrado exitosamente y enviado a la dirección de correo oficial del club:',
-            style: AppTypography.bodyMedium,
+            style: context.typography.bodyMedium,
             textAlign: TextAlign.center,
           ).animate().fadeIn(delay: 300.ms),
 
@@ -299,14 +304,14 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
+                  color: context.colors.surfaceLight,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(color: context.colors.border, width: 0.5),
                 ),
                 child: Text(
                   _activeSupportEmail,
-                  style: AppTypography.titleMedium.copyWith(
-                    color: AppColors.primary,
+                  style: context.typography.titleMedium.copyWith(
+                    color: context.colors.primary,
                   ),
                 ),
               )
@@ -318,7 +323,7 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
 
           Text(
             'Te responderemos a la brevedad a tu correo electrónico registrado:\n${ref.read(currentUserProvider)?.email ?? ""}',
-            style: AppTypography.bodySmall,
+            style: context.typography.bodySmall,
             textAlign: TextAlign.center,
           ).animate().fadeIn(delay: 500.ms),
 

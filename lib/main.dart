@@ -1,31 +1,28 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/theme/app_theme.dart';
-import 'core/theme/app_colors.dart';
-import 'features/splash/splash_screen.dart';
-import 'features/auth/presentation/screens/login_screen.dart';
-import 'features/auth/presentation/screens/verify_email_screen.dart';
-import 'features/auth/presentation/screens/pending_approval_screen.dart';
-import 'features/auth/presentation/screens/complete_profile_screen.dart';
-import 'features/player/presentation/screens/register_player_screen.dart';
+
 import 'app/app_shell.dart';
 import 'core/providers/session_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'core/providers/theme_provider.dart';
+import 'core/theme/app_theme.dart';
+import 'features/auth/presentation/screens/complete_profile_screen.dart';
+import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/pending_approval_screen.dart';
+import 'features/auth/presentation/screens/verify_email_screen.dart';
+import 'features/player/presentation/screens/register_player_screen.dart';
+import 'features/splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-
-  // Set system UI overlay style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.surface,
-      systemNavigationBarIconBrightness: Brightness.light,
-    ),
+  
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: AndroidProvider.playIntegrity,
+    appleProvider: AppleProvider.deviceCheck,
   );
 
   // Lock orientation to portrait
@@ -37,15 +34,19 @@ void main() async {
   runApp(const ProviderScope(child: JorgeNewberyApp()));
 }
 
-class JorgeNewberyApp extends StatelessWidget {
+class JorgeNewberyApp extends ConsumerWidget {
   const JorgeNewberyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
     return MaterialApp(
       title: 'Jorge Newbery',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       home: const _AppNavigator(),
     );
   }

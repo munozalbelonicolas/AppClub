@@ -1,15 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/services/image_upload_service.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class CreateCoachReportScreen extends ConsumerStatefulWidget {
   const CreateCoachReportScreen({super.key});
@@ -50,7 +51,7 @@ class _CreateCoachReportScreenState extends ConsumerState<CreateCoachReportScree
 
     try {
       final sessionUser = ref.read(currentUserProvider);
-      if (sessionUser == null) throw Exception("Usuario no autenticado");
+      if (sessionUser == null) throw Exception('Usuario no autenticado');
 
       String? imageUrl;
       if (_selectedImage != null) {
@@ -94,7 +95,7 @@ class _CreateCoachReportScreenState extends ConsumerState<CreateCoachReportScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Enviar Informe'),
       ),
@@ -105,14 +106,14 @@ class _CreateCoachReportScreenState extends ConsumerState<CreateCoachReportScree
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'Este informe será enviado de forma privada a la directiva y coordinadores.',
-                    style: AppTypography.bodyMedium,
+                    style: context.typography.bodyMedium,
                   ),
                   const SizedBox(height: 20),
                   TextField(
                     controller: _titleController,
-                    style: AppTypography.bodyLarge,
+                    style: context.typography.bodyLarge,
                     decoration: const InputDecoration(
                       labelText: 'Título del Informe',
                       hintText: 'Ej: Novedad sobre partido / Material faltante',
@@ -121,7 +122,7 @@ class _CreateCoachReportScreenState extends ConsumerState<CreateCoachReportScree
                   const SizedBox(height: 20),
                   TextField(
                     controller: _descriptionController,
-                    style: AppTypography.bodyLarge,
+                    style: context.typography.bodyLarge,
                     maxLines: 6,
                     decoration: const InputDecoration(
                       labelText: 'Descripción detallada',
@@ -135,7 +136,7 @@ class _CreateCoachReportScreenState extends ConsumerState<CreateCoachReportScree
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Archivo Adjunto (Opcional)', style: AppTypography.titleSmall),
+                        Text('Archivo Adjunto (Opcional)', style: context.typography.titleSmall),
                         const SizedBox(height: 12),
                         if (_selectedImage != null) ...[
                           Stack(
@@ -173,7 +174,7 @@ class _CreateCoachReportScreenState extends ConsumerState<CreateCoachReportScree
                   ),
                   const SizedBox(height: 40),
                   JNButton(
-                    text: 'Enviar Informe',
+                    label: 'Enviar Informe',
                     onPressed: _submitReport,
                   ),
                   const SizedBox(height: 40),

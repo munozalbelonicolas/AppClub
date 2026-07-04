@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../../core/theme/app_colors.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_match_card.dart';
-
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/services/firestore_service.dart';
 
 class ResultsScreen extends ConsumerStatefulWidget {
   const ResultsScreen({super.key});
@@ -17,6 +17,7 @@ class ResultsScreen extends ConsumerStatefulWidget {
 class _ResultsScreenState extends ConsumerState<ResultsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String _selectedCategory = 'Primera';
 
   @override
   void initState() {
@@ -33,7 +34,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Resultados'),
         bottom: TabBar(
@@ -45,12 +46,48 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildFixtureTab(),
-          _buildStandingsTab(),
-          _buildScorersTab(),
+          _buildCategorySelector(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildFixtureTab(),
+                _buildStandingsTab(),
+                _buildScorersTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategorySelector() {
+    return Container(
+      color: context.colors.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Icon(Icons.category, color: context.colors.primary, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedCategory,
+                isExpanded: true,
+                icon: Icon(Icons.expand_more, color: context.colors.primary),
+                items: [
+                  'Sub-8', 'Sub-10', 'Sub-12', 'Sub-14', 'Sub-16', 
+                  'Sub-18', 'Sub-20', 'Reserva', 'Primera', 'Femenino'
+                ].map((cat) => DropdownMenuItem(value: cat, child: Text(cat, style: context.typography.titleMedium))).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedCategory = val);
+                },
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -64,35 +101,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
       children: [
-        // Category selector
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.sports_soccer,
-                size: 16,
-                color: AppColors.primary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Sub-12',
-                style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.expand_more, size: 16, color: AppColors.primary),
-            ],
-          ),
-        ).animate().fadeIn(duration: 300.ms),
-
-        const SizedBox(height: 16),
 
         if (matches.isEmpty)
           Center(
@@ -103,13 +111,13 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   Icon(
                     Icons.calendar_today,
                     size: 48,
-                    color: AppColors.textTertiary,
+                    color: context.colors.textTertiary,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'No hay partidos programados',
-                    style: AppTypography.titleMedium.copyWith(
-                      color: AppColors.textSecondary,
+                    style: context.typography.titleMedium.copyWith(
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ],
@@ -129,8 +137,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   padding: EdgeInsets.only(bottom: 8, top: index > 0 ? 8 : 0),
                   child: Text(
                     'Fecha ${match['matchday']}',
-                    style: AppTypography.labelMedium.copyWith(
-                      color: AppColors.textTertiary,
+                    style: context.typography.labelMedium.copyWith(
+                      color: context.colors.textTertiary,
                     ),
                   ),
                 ),
@@ -166,24 +174,24 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
         // Table Header
         JNCard(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          color: AppColors.surfaceVariant,
+          color: context.colors.surfaceVariant,
           child: Row(
             children: [
               SizedBox(
                 width: 28,
                 child: Text(
                   '#',
-                  style: AppTypography.labelSmall,
+                  style: context.typography.labelSmall,
                   textAlign: TextAlign.center,
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(child: Text('EQUIPO', style: AppTypography.labelSmall)),
+              Expanded(child: Text('EQUIPO', style: context.typography.labelSmall)),
               SizedBox(
                 width: 28,
                 child: Text(
                   'PJ',
-                  style: AppTypography.labelSmall,
+                  style: context.typography.labelSmall,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -191,7 +199,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 width: 28,
                 child: Text(
                   'G',
-                  style: AppTypography.labelSmall,
+                  style: context.typography.labelSmall,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -199,7 +207,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 width: 28,
                 child: Text(
                   'E',
-                  style: AppTypography.labelSmall,
+                  style: context.typography.labelSmall,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -207,7 +215,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 width: 28,
                 child: Text(
                   'P',
-                  style: AppTypography.labelSmall,
+                  style: context.typography.labelSmall,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -215,7 +223,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 width: 28,
                 child: Text(
                   'DG',
-                  style: AppTypography.labelSmall,
+                  style: context.typography.labelSmall,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -223,9 +231,9 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 width: 36,
                 child: Text(
                   'PTS',
-                  style: AppTypography.labelSmall.copyWith(
+                  style: context.typography.labelSmall.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: AppColors.accent,
+                    color: context.colors.accent,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -245,13 +253,13 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   Icon(
                     Icons.format_list_numbered,
                     size: 48,
-                    color: AppColors.textTertiary,
+                    color: context.colors.textTertiary,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'Aún no hay posiciones',
-                    style: AppTypography.titleMedium.copyWith(
-                      color: AppColors.textSecondary,
+                    style: context.typography.titleMedium.copyWith(
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ],
@@ -267,11 +275,10 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
           return JNCard(
             margin: const EdgeInsets.only(bottom: 2),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            color: isClub ? AppColors.primary.withValues(alpha: 0.08) : null,
+            color: isClub ? context.colors.primary.withValues(alpha: 0.08) : null,
             border: isClub
                 ? Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    width: 1,
+                    color: context.colors.primary.withValues(alpha: 0.3),
                   )
                 : Border.all(color: Colors.transparent),
             child: Row(
@@ -283,21 +290,21 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     height: 22,
                     decoration: BoxDecoration(
                       color: index < 2
-                          ? AppColors.success.withValues(alpha: 0.15)
+                          ? context.colors.success.withValues(alpha: 0.15)
                           : index > 5
-                          ? AppColors.error.withValues(alpha: 0.15)
+                          ? context.colors.error.withValues(alpha: 0.15)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Center(
                       child: Text(
                         '${team['pos']}',
-                        style: AppTypography.labelMedium.copyWith(
+                        style: context.typography.labelMedium.copyWith(
                           color: index < 2
-                              ? AppColors.success
+                              ? context.colors.success
                               : index > 5
-                              ? AppColors.error
-                              : AppColors.textSecondary,
+                              ? context.colors.error
+                              : context.colors.textSecondary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -308,10 +315,10 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 Expanded(
                   child: Text(
                     team['team'] as String,
-                    style: AppTypography.titleSmall.copyWith(
+                    style: context.typography.titleSmall.copyWith(
                       color: isClub
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
+                          ? context.colors.textPrimary
+                          : context.colors.textSecondary,
                       fontWeight: isClub ? FontWeight.w700 : FontWeight.w400,
                     ),
                     maxLines: 1,
@@ -322,7 +329,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   width: 28,
                   child: Text(
                     '${team['played']}',
-                    style: AppTypography.bodySmall,
+                    style: context.typography.bodySmall,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -330,7 +337,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   width: 28,
                   child: Text(
                     '${team['won']}',
-                    style: AppTypography.bodySmall,
+                    style: context.typography.bodySmall,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -338,7 +345,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   width: 28,
                   child: Text(
                     '${team['drawn']}',
-                    style: AppTypography.bodySmall,
+                    style: context.typography.bodySmall,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -346,7 +353,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   width: 28,
                   child: Text(
                     '${team['lost']}',
-                    style: AppTypography.bodySmall,
+                    style: context.typography.bodySmall,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -354,12 +361,12 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   width: 28,
                   child: Text(
                     '${(team['gd'] as int) > 0 ? '+' : ''}${team['gd']}',
-                    style: AppTypography.bodySmall.copyWith(
+                    style: context.typography.bodySmall.copyWith(
                       color: (team['gd'] as int) > 0
-                          ? AppColors.success
+                          ? context.colors.success
                           : (team['gd'] as int) < 0
-                          ? AppColors.error
-                          : AppColors.textTertiary,
+                          ? context.colors.error
+                          : context.colors.textTertiary,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -368,8 +375,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   width: 36,
                   child: Text(
                     '${team['points']}',
-                    style: AppTypography.titleMedium.copyWith(
-                      color: isClub ? AppColors.accent : AppColors.textPrimary,
+                    style: context.typography.titleMedium.copyWith(
+                      color: isClub ? context.colors.accent : context.colors.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                     textAlign: TextAlign.center,
@@ -385,25 +392,27 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
   // ─── Scorers Tab ──────────────────────────────────
   Widget _buildScorersTab() {
-    final List<Map<String, dynamic>> scorers = [];
+    final scorersAsync = ref.watch(scorersStreamProvider(_selectedCategory));
 
-    if (scorers.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
+    return scorersAsync.when(
+      data: (scorers) {
+        if (scorers.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.sports_soccer,
                 size: 48,
-                color: AppColors.textTertiary,
+                color: context.colors.textTertiary,
               ),
               const SizedBox(height: 16),
               Text(
                 'Aún no hay goleadores',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.textSecondary,
+                style: context.typography.titleMedium.copyWith(
+                  color: context.colors.textSecondary,
                 ),
               ),
             ],
@@ -423,11 +432,10 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
         return JNCard(
               padding: const EdgeInsets.all(14),
-              color: isClub ? AppColors.primary.withValues(alpha: 0.06) : null,
+              color: isClub ? context.colors.primary.withValues(alpha: 0.06) : null,
               border: isClub
                   ? Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.2),
-                      width: 1,
+                      color: context.colors.primary.withValues(alpha: 0.2),
                     )
                   : null,
               child: Row(
@@ -439,25 +447,25 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     decoration: BoxDecoration(
                       color: isTop3
                           ? (index == 0
-                                    ? AppColors.accent
+                                    ? context.colors.accent
                                     : index == 1
-                                    ? AppColors.textSecondary
+                                    ? context.colors.textSecondary
                                     : const Color(0xFFCD7F32))
                                 .withValues(alpha: 0.15)
-                          : AppColors.surfaceVariant,
+                          : context.colors.surfaceVariant,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Center(
                       child: Text(
                         '${index + 1}',
-                        style: AppTypography.titleMedium.copyWith(
+                        style: context.typography.titleMedium.copyWith(
                           color: isTop3
                               ? (index == 0
-                                    ? AppColors.accent
+                                    ? context.colors.accent
                                     : index == 1
-                                    ? AppColors.textSecondary
+                                    ? context.colors.textSecondary
                                     : const Color(0xFFCD7F32))
-                              : AppColors.textTertiary,
+                              : context.colors.textTertiary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -472,10 +480,10 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       children: [
                         Text(
                           scorer['name'] as String,
-                          style: AppTypography.titleMedium.copyWith(
+                          style: context.typography.titleMedium.copyWith(
                             color: isClub
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
+                                ? context.colors.textPrimary
+                                : context.colors.textSecondary,
                             fontWeight: isClub
                                 ? FontWeight.w600
                                 : FontWeight.w400,
@@ -483,7 +491,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         ),
                         Text(
                           scorer['team'] as String,
-                          style: AppTypography.bodySmall,
+                          style: context.typography.bodySmall,
                         ),
                       ],
                     ),
@@ -497,8 +505,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     ),
                     decoration: BoxDecoration(
                       color: isClub
-                          ? AppColors.primary.withValues(alpha: 0.12)
-                          : AppColors.surfaceVariant,
+                          ? context.colors.primary.withValues(alpha: 0.12)
+                          : context.colors.surfaceVariant,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -507,16 +515,16 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                           Icons.sports_soccer,
                           size: 14,
                           color: isClub
-                              ? AppColors.primary
-                              : AppColors.textTertiary,
+                              ? context.colors.primary
+                              : context.colors.textTertiary,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           '${scorer['goals']}',
-                          style: AppTypography.titleLarge.copyWith(
+                          style: context.typography.titleLarge.copyWith(
                             color: isClub
-                                ? AppColors.primary
-                                : AppColors.textPrimary,
+                                ? context.colors.primary
+                                : context.colors.textPrimary,
                           ),
                         ),
                       ],
@@ -529,6 +537,10 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
             .fadeIn(duration: 400.ms)
             .slideX(begin: 0.03);
       },
+    );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err', style: TextStyle(color: context.colors.error))),
     );
   }
 

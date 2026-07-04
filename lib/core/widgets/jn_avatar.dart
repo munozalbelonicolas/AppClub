@@ -1,5 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+
+import '../../core/theme/app_theme_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
@@ -33,19 +35,20 @@ class JNAvatar extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: borderColor ?? AppColors.accent,
+              color: borderColor ?? context.colors.accent,
               width: borderWidth,
             ),
-            color: AppColors.surfaceVariant,
+            color: context.colors.surfaceVariant,
           ),
           child: ClipOval(
             child: imageUrl != null
-                ? Image.network(
-                    imageUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _buildInitials(),
+                    placeholder: (context, url) => const CircularProgressIndicator(),
+                    errorWidget: (context, url, error) => _buildInitials(context),
                   )
-                : _buildInitials(),
+                : _buildInitials(context),
           ),
         ),
         if (number != null)
@@ -55,13 +58,13 @@ class JNAvatar extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: context.colors.primary,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusRound),
-                border: Border.all(color: AppColors.background, width: 1.5),
+                border: Border.all(color: context.colors.background, width: 1.5),
               ),
               child: Text(
                 '#$number',
-                style: AppTypography.badge.copyWith(color: Colors.white),
+                style: context.typography.badge.copyWith(color: Colors.white),
               ),
             ),
           ),
@@ -69,7 +72,7 @@ class JNAvatar extends StatelessWidget {
     );
   }
 
-  Widget _buildInitials() {
+  Widget _buildInitials(BuildContext context) {
     final parts = name.trim().split(' ');
     final initials = parts.length >= 2
         ? '${parts[0][0]}${parts[1][0]}'
@@ -79,7 +82,7 @@ class JNAvatar extends StatelessWidget {
       child: Text(
         initials.toUpperCase(),
         style: TextStyle(
-          color: AppColors.textPrimary,
+          color: context.colors.textPrimary,
           fontSize: size * 0.35,
           fontWeight: FontWeight.w700,
           letterSpacing: 1,

@@ -1,12 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class AdminUserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -27,14 +28,14 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Estado de $userName actualizado a $status'),
-            backgroundColor: AppColors.success,
+            backgroundColor: context.colors.success,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
         );
       }
     }
@@ -50,14 +51,14 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Rol de $userName actualizado a $role'),
-            backgroundColor: AppColors.success,
+            backgroundColor: context.colors.success,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
         );
       }
     }
@@ -70,7 +71,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Usuario "$userName" eliminado con éxito.'),
-            backgroundColor: AppColors.warning,
+            backgroundColor: context.colors.warning,
           ),
         );
         Navigator.pop(context); // Go back after delete
@@ -78,7 +79,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al borrar usuario: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Error al borrar usuario: $e'), backgroundColor: context.colors.error),
         );
       }
     }
@@ -95,7 +96,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            backgroundColor: AppColors.surface,
+            backgroundColor: context.colors.surface,
             title: const Text('Cambiar Rol'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -148,7 +149,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Perfil de Usuario'),
       ),
@@ -185,17 +186,17 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                   children: [
                     JNAvatar(name: '$name $lastName', size: 80),
                     const SizedBox(height: 16),
-                    Text('$name $lastName', style: AppTypography.headlineMedium),
-                    Text(email, style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondary)),
+                    Text('$name $lastName', style: context.typography.headlineMedium),
+                    Text(email, style: context.typography.bodyLarge.copyWith(color: context.colors.textSecondary)),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       children: [
-                        JNBadge(label: role.toUpperCase(), type: JNBadgeType.neutral),
+                        JNBadge(label: role.toUpperCase()),
                         if (category != null) JNBadge(label: category, type: JNBadgeType.accent),
-                        if (isPending) JNBadge(label: 'PENDIENTE', type: JNBadgeType.warning),
-                        if (isDisabled) JNBadge(label: 'BLOQUEADO', type: JNBadgeType.error),
-                        if (status == 'active') JNBadge(label: 'ACTIVO', type: JNBadgeType.success),
+                        if (isPending) const JNBadge(label: 'PENDIENTE', type: JNBadgeType.warning),
+                        if (isDisabled) const JNBadge(label: 'BLOQUEADO', type: JNBadgeType.error),
+                        if (status == 'active') const JNBadge(label: 'ACTIVO', type: JNBadgeType.success),
                       ],
                     ),
                   ],
@@ -204,7 +205,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
               const SizedBox(height: 20),
               
               if (hasPersonalData) ...[
-                Text('Datos Personales', style: AppTypography.titleLarge),
+                Text('Datos Personales', style: context.typography.titleLarge),
                 const SizedBox(height: 12),
                 JNCard(
                   padding: const EdgeInsets.all(16),
@@ -243,7 +244,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                 const SizedBox(height: 20),
               ],
 
-              Text('Datos de Contacto', style: AppTypography.titleLarge),
+              Text('Datos de Contacto', style: context.typography.titleLarge),
               const SizedBox(height: 12),
               JNCard(
                 padding: const EdgeInsets.all(16),
@@ -266,7 +267,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
               ),
               const SizedBox(height: 20),
 
-              Text('Acciones de Administrador', style: AppTypography.titleLarge),
+              Text('Acciones de Administrador', style: context.typography.titleLarge),
               const SizedBox(height: 12),
               JNCard(
                 padding: const EdgeInsets.all(16),
@@ -290,7 +291,6 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                       JNButton(
                         label: 'Bloquear Usuario',
                         onPressed: () => _updateStatus('disabled', '$name $lastName'),
-                        variant: JNButtonVariant.primary,
                       ),
                     const SizedBox(height: 12),
                     JNButton(
@@ -303,7 +303,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                       label: 'Eliminar Cuenta',
                       onPressed: () {
                         if (email == 'munozalbelonicolas@gmail.com') {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No puedes eliminar al administrador principal'), backgroundColor: AppColors.error));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('No puedes eliminar al administrador principal'), backgroundColor: context.colors.error));
                           return;
                         }
                         showDialog(
@@ -318,13 +318,12 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                                   Navigator.pop(context);
                                   _deleteUser('$name $lastName');
                                 },
-                                child: const Text('Eliminar', style: TextStyle(color: AppColors.error)),
+                                child: Text('Eliminar', style: TextStyle(color: context.colors.error)),
                               ),
                             ],
                           ),
                         );
                       },
-                      variant: JNButtonVariant.primary,
                     ),
                   ],
                 ),
@@ -332,7 +331,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
               const SizedBox(height: 20),
 
               if (role == 'padre' || role == 'tutor') ...[
-                Text('Jugadores a cargo', style: AppTypography.titleLarge),
+                Text('Jugadores a cargo', style: context.typography.titleLarge),
                 const SizedBox(height: 12),
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance.collection('users').where('tutorId', isEqualTo: widget.userId).snapshots(),

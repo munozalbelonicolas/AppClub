@@ -1,14 +1,17 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jn_button.dart';
+
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/app_logger.dart';
 import '../../../../core/services/image_upload_service.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
 
 class CreateProductScreen extends ConsumerStatefulWidget {
   final String? productId; // null = create, non-null = edit
@@ -74,7 +77,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading product: $e');
+      AppLogger.error('Error loading product', error: e, tag: 'App');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -87,7 +90,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
         setState(() => _localImage = File(picked.path));
       }
     } catch (e) {
-      debugPrint('Error picking image: $e');
+      AppLogger.error('Error picking image', error: e, tag: 'App');
     }
   }
 
@@ -95,7 +98,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedSizes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Seleccioná al menos un talle'), backgroundColor: AppColors.warning),
+        SnackBar(content: const Text('Seleccioná al menos un talle'), backgroundColor: context.colors.warning),
       );
       return;
     }
@@ -139,7 +142,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_isEditing ? 'Producto actualizado' : 'Producto creado'),
-            backgroundColor: AppColors.success,
+            backgroundColor: context.colors.success,
           ),
         );
         Navigator.pop(context);
@@ -147,7 +150,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
         );
       }
     } finally {
@@ -158,17 +161,17 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Editar Producto' : 'Nuevo Producto', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text(_isEditing ? 'Editar Producto' : 'Nuevo Producto', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -184,9 +187,9 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
                 child: Container(
                   height: 200,
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: context.colors.surfaceLight,
                     borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.colors.border),
                   ),
                   child: _localImage != null
                       ? ClipRRect(
@@ -217,7 +220,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
                   prefixIcon: const Icon(Icons.shopping_bag_outlined, size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
                   filled: true,
-                  fillColor: AppColors.surfaceLight,
+                  fillColor: context.colors.surfaceLight,
                 ),
                 validator: (v) => v == null || v.trim().isEmpty ? 'Ingresá el nombre' : null,
               ),
@@ -236,7 +239,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
                   ),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
                   filled: true,
-                  fillColor: AppColors.surfaceLight,
+                  fillColor: context.colors.surfaceLight,
                 ),
                 validator: (v) => v == null || v.trim().isEmpty ? 'Ingresá la descripción' : null,
               ),
@@ -254,7 +257,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
                         prefixIcon: const Icon(Icons.attach_money, size: 20),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
                         filled: true,
-                        fillColor: AppColors.surfaceLight,
+                        fillColor: context.colors.surfaceLight,
                       ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Precio';
@@ -273,7 +276,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
                         prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
                         filled: true,
-                        fillColor: AppColors.surfaceLight,
+                        fillColor: context.colors.surfaceLight,
                       ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Stock';
@@ -294,9 +297,9 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
                   prefixIcon: const Icon(Icons.category_outlined, size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
                   filled: true,
-                  fillColor: AppColors.surfaceLight,
+                  fillColor: context.colors.surfaceLight,
                 ),
-                dropdownColor: AppColors.surfaceVariant,
+                dropdownColor: context.colors.surfaceVariant,
                 items: _categories
                     .map((c) => DropdownMenuItem(
                           value: c,
@@ -308,7 +311,7 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
               const SizedBox(height: 20),
 
               // Sizes
-              Text('Talles disponibles', style: AppTypography.labelMedium),
+              Text('Talles disponibles', style: context.typography.labelMedium),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -318,14 +321,14 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
                   return FilterChip(
                     label: Text(size),
                     selected: isSelected,
-                    selectedColor: AppColors.primary.withValues(alpha: 0.3),
-                    checkmarkColor: AppColors.primary,
-                    backgroundColor: AppColors.surfaceLight,
+                    selectedColor: context.colors.primary.withValues(alpha: 0.3),
+                    checkmarkColor: context.colors.primary,
+                    backgroundColor: context.colors.surfaceLight,
                     side: BorderSide(
-                      color: isSelected ? AppColors.primary : AppColors.border,
+                      color: isSelected ? context.colors.primary : context.colors.border,
                     ),
                     labelStyle: TextStyle(
-                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                      color: isSelected ? context.colors.primary : context.colors.textSecondary,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                     onSelected: (selected) {
@@ -359,9 +362,9 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.add_photo_alternate_outlined, size: 48, color: AppColors.textTertiary),
+        Icon(Icons.add_photo_alternate_outlined, size: 48, color: context.colors.textTertiary),
         const SizedBox(height: 8),
-        Text('Agregar imagen', style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary)),
+        Text('Agregar imagen', style: context.typography.bodyMedium.copyWith(color: context.colors.textTertiary)),
       ],
     );
   }

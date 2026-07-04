@@ -1,15 +1,17 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+import '../../core/theme/app_theme_colors.dart';
 import '../models/user_session.dart';
 import '../providers/session_provider.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_typography.dart';
 import '../theme/app_spacing.dart';
-
-import 'dart:async';
+import '../theme/app_typography.dart';
+import 'app_logger.dart';
 
 class AuthService {
   final Ref _ref;
@@ -39,8 +41,8 @@ class AuthService {
           emailVerified: firebaseUser.emailVerified,
         );
       }
-    } catch (e) {
-      debugPrint('Email Sign-In failed: $e');
+    } on FirebaseAuthException catch (e) {
+      AppLogger.error('Email Sign-In failed', error: e, tag: 'AuthService');
       rethrow;
     }
     return null;
@@ -73,8 +75,8 @@ class AuthService {
         );
         return session;
       }
-    } catch (e) {
-      debugPrint('Email Registration failed: $e');
+    } on FirebaseAuthException catch (e) {
+      AppLogger.error('Email Registration failed', error: e, tag: 'AuthService');
       rethrow;
     }
     return null;
@@ -133,8 +135,8 @@ class AuthService {
         );
       }
     } catch (e) {
-      debugPrint('Real Google Sign-In failed or not configured: $e');
-      // Fallback to beautiful Demo Dialog
+      AppLogger.warning('Google Sign-In not configured, using demo dialog', tag: 'AuthService');
+      // Fallback to Demo Dialog
       if (!context.mounted) return null;
       return await _showDemoGoogleSignInDialog(context);
     }
@@ -235,7 +237,6 @@ class AuthService {
         status: initialStatus,
         emailVerified: emailVerified,
         category: initialCategory,
-        hasPendingDebt: false,
         phone1: phone1,
         phone2: phone2,
         termsAcceptedAt: isNewRegistration ? DateTime.now() : null,
@@ -304,22 +305,22 @@ class AuthService {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.surface,
+              backgroundColor: context.colors.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                side: BorderSide(color: AppColors.border, width: 0.5),
+                side: BorderSide(color: context.colors.border, width: 0.5),
               ),
               title: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.g_mobiledata_rounded,
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     size: 36,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Google Sign-In (Demo)',
-                    style: AppTypography.titleLarge,
+                    style: context.typography.titleLarge,
                   ),
                 ],
               ),
@@ -332,14 +333,14 @@ class AuthService {
                     children: [
                       Text(
                         'No se detectó configuración SHA-1 o Google Play Services. Mostrando selector demo de cuenta Google.',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
+                        style: context.typography.bodySmall.copyWith(
+                          color: context.colors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 14),
                       TextFormField(
                         controller: emailController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           labelText: 'Email de Google',
                         ),
@@ -359,13 +360,13 @@ class AuthService {
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: nameController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(labelText: 'Nombre'),
                       ),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: lastNameController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           labelText: 'Apellido',
                         ),
@@ -373,8 +374,8 @@ class AuthService {
                       const SizedBox(height: 16),
                       Text(
                         'Predefinidos de prueba:',
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.textTertiary,
+                        style: context.typography.labelSmall.copyWith(
+                          color: context.colors.textTertiary,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -385,11 +386,11 @@ class AuthService {
                             label: const Text(
                               'munozalbelonicolas@gmail.com (Director)',
                             ),
-                            labelStyle: AppTypography.labelSmall.copyWith(
+                            labelStyle: context.typography.labelSmall.copyWith(
                               color: Colors.white,
                               fontSize: 10,
                             ),
-                            backgroundColor: AppColors.primary.withValues(
+                            backgroundColor: context.colors.primary.withValues(
                               alpha: 0.2,
                             ),
                             onPressed: () {
@@ -405,11 +406,11 @@ class AuthService {
                             label: const Text(
                               'dt.prueba@gmail.com (DT Sub-12)',
                             ),
-                            labelStyle: AppTypography.labelSmall.copyWith(
+                            labelStyle: context.typography.labelSmall.copyWith(
                               color: Colors.white,
                               fontSize: 10,
                             ),
-                            backgroundColor: AppColors.surfaceLight,
+                            backgroundColor: context.colors.surfaceLight,
                             onPressed: () {
                               setDialogState(() {
                                 emailController.text = 'dt.prueba@gmail.com';
@@ -422,11 +423,11 @@ class AuthService {
                             label: const Text(
                               'padre.prueba@gmail.com (Padre Sub-12)',
                             ),
-                            labelStyle: AppTypography.labelSmall.copyWith(
+                            labelStyle: context.typography.labelSmall.copyWith(
                               color: Colors.white,
                               fontSize: 10,
                             ),
-                            backgroundColor: AppColors.surfaceLight,
+                            backgroundColor: context.colors.surfaceLight,
                             onPressed: () {
                               setDialogState(() {
                                 emailController.text = 'padre.prueba@gmail.com';
@@ -446,12 +447,12 @@ class AuthService {
                   onPressed: () => Navigator.pop(context),
                   child: Text(
                     'Cancelar',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: context.colors.textSecondary),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: context.colors.primary,
                   ),
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {

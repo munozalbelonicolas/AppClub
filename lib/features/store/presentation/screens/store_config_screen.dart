@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+import 'package:flutter/material.dart';
+
+import '../../../../core/services/app_logger.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jn_card.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class StoreConfigScreen extends StatefulWidget {
   const StoreConfigScreen({super.key});
@@ -55,7 +57,7 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading store config: $e');
+      AppLogger.error('Error loading store config', error: e, tag: 'App');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -76,16 +78,16 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Configuración de tienda guardada'),
-            backgroundColor: AppColors.success,
+          SnackBar(
+            content: const Text('Configuración de tienda guardada'),
+            backgroundColor: context.colors.success,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
         );
       }
     } finally {
@@ -96,17 +98,17 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text('Configuración de Tienda', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text('Configuración de Tienda', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -121,24 +123,24 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Icon(Icons.storefront, color: AppColors.accent, size: 28),
+                    Icon(Icons.storefront, color: context.colors.accent, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Tienda Activa', style: AppTypography.titleSmall),
+                          Text('Tienda Activa', style: context.typography.titleSmall),
                           const SizedBox(height: 2),
                           Text(
                             _isStoreEnabled ? 'Visible para todos los usuarios' : 'Oculta temporalmente',
-                            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                            style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
                           ),
                         ],
                       ),
                     ),
                     Switch(
                       value: _isStoreEnabled,
-                      activeThumbColor: AppColors.success,
+                      activeThumbColor: context.colors.success,
                       onChanged: (v) => setState(() => _isStoreEnabled = v),
                     ),
                   ],
@@ -149,12 +151,12 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
 
               Text(
                 'Datos Bancarios del Club',
-                style: AppTypography.titleMedium.copyWith(color: AppColors.primary),
+                style: context.typography.titleMedium.copyWith(color: context.colors.primary),
               ),
               const SizedBox(height: 4),
               Text(
                 'Estos datos se mostrarán al comprador en el checkout.',
-                style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
+                style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
               ),
               const SizedBox(height: 16),
 
@@ -167,7 +169,7 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
                   prefixIcon: const Icon(Icons.account_balance, size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
                   filled: true,
-                  fillColor: AppColors.surfaceLight,
+                  fillColor: context.colors.surfaceLight,
                 ),
                 keyboardType: TextInputType.number,
                 validator: (v) {
@@ -187,7 +189,7 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
                   prefixIcon: const Icon(Icons.alternate_email, size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
                   filled: true,
-                  fillColor: AppColors.surfaceLight,
+                  fillColor: context.colors.surfaceLight,
                 ),
                 validator: (v) => v == null || v.trim().isEmpty ? 'Ingresá el alias' : null,
               ),
@@ -202,7 +204,7 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
                   prefixIcon: const Icon(Icons.business, size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
                   filled: true,
-                  fillColor: AppColors.surfaceLight,
+                  fillColor: context.colors.surfaceLight,
                 ),
                 validator: (v) => v == null || v.trim().isEmpty ? 'Ingresá el banco' : null,
               ),
@@ -217,7 +219,7 @@ class _StoreConfigScreenState extends State<StoreConfigScreen> {
                   prefixIcon: const Icon(Icons.person_outline, size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
                   filled: true,
-                  fillColor: AppColors.surfaceLight,
+                  fillColor: context.colors.surfaceLight,
                 ),
                 validator: (v) => v == null || v.trim().isEmpty ? 'Ingresá el titular' : null,
               ),

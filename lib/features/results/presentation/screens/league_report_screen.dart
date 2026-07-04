@@ -1,14 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
+
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class LeagueReportScreen extends ConsumerStatefulWidget {
   const LeagueReportScreen({super.key});
@@ -24,7 +25,7 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
     final reportsAsync = ref.watch(leagueReportsStreamProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Informes de Liga'),
         actions: [
@@ -41,7 +42,7 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
             return Center(
               child: Text(
                 'No hay informes de liga.',
-                style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
+                style: context.typography.bodyMedium.copyWith(color: context.colors.textSecondary),
               ),
             );
           }
@@ -56,7 +57,7 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: AppColors.error))),
+        error: (err, _) => Center(child: Text('Error: $err', style: TextStyle(color: context.colors.error))),
       ),
     );
   }
@@ -78,12 +79,12 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
               Expanded(
                 child: Text(
                   report['title'] ?? 'Sin Título',
-                  style: AppTypography.titleMedium,
+                  style: context.typography.titleMedium,
                 ),
               ),
               if (isAdmin)
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                  icon: Icon(Icons.delete_outline, color: context.colors.error),
                   onPressed: () {
                     ref.read(firestoreServiceProvider).deleteLeagueReport(report['id']);
                   },
@@ -91,9 +92,9 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(dateStr, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary)),
+          Text(dateStr, style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary)),
           const SizedBox(height: 12),
-          Text(report['description'] ?? '', style: AppTypography.bodyMedium),
+          Text(report['description'] ?? '', style: context.typography.bodyMedium),
           const SizedBox(height: 16),
           if (report['fileName'] != null)
             InkWell(
@@ -106,26 +107,26 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
+                  color: context.colors.surfaceLight,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(color: context.colors.border, width: 0.5),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.picture_as_pdf, color: AppColors.error),
+                    Icon(Icons.picture_as_pdf, color: context.colors.error),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         report['fileName'],
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.primary,
+                        style: context.typography.bodyMedium.copyWith(
+                          color: context.colors.primary,
                           decoration: TextDecoration.underline,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const Icon(Icons.download, size: 20, color: AppColors.textSecondary),
+                    Icon(Icons.download, size: 20, color: context.colors.textSecondary),
                   ],
                 ),
               ),
@@ -146,8 +147,8 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.surface,
-              title: Text('Nuevo Informe', style: AppTypography.titleLarge),
+              backgroundColor: context.colors.surface,
+              title: Text('Nuevo Informe', style: context.typography.titleLarge),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -155,21 +156,21 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
                     TextField(
                       controller: titleController,
                       decoration: const InputDecoration(labelText: 'Título'),
-                      style: AppTypography.bodyLarge,
+                      style: context.typography.bodyLarge,
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: descController,
                       decoration: const InputDecoration(labelText: 'Descripción'),
                       maxLines: 3,
-                      style: AppTypography.bodyLarge,
+                      style: context.typography.bodyLarge,
                     ),
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
+                        color: context.colors.surfaceLight,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
@@ -183,7 +184,7 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
                                 Expanded(
                                   child: Text(
                                     selectedFile!.name,
-                                    style: AppTypography.bodyMedium,
+                                    style: context.typography.bodyMedium,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -224,10 +225,10 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                  child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary),
                   onPressed: () async {
                     if (titleController.text.isNotEmpty) {
                       // Mock upload for now

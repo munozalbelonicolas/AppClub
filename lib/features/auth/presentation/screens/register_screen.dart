@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/services/auth_service.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   final VoidCallback onRegisterSuccess;
@@ -69,12 +70,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: context.colors.textPrimary),
           onPressed: widget.onBackToLogin,
         ),
       ),
@@ -90,22 +91,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               children: [
                 Text(
                   'Crear Cuenta',
-                  style: AppTypography.headlineLarge.copyWith(
+                  style: context.typography.headlineLarge.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Completá tus datos para registrarte como Tutor',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
+                  style: context.typography.bodyMedium.copyWith(
+                    color: context.colors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 32),
 
                 TextFormField(
                   controller: _nameController,
-                  style: AppTypography.bodyLarge,
+                  style: context.typography.bodyLarge,
                   decoration: const InputDecoration(
                     labelText: 'Nombre',
                     prefixIcon: Icon(Icons.person_outline),
@@ -116,7 +117,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 TextFormField(
                   controller: _lastNameController,
-                  style: AppTypography.bodyLarge,
+                  style: context.typography.bodyLarge,
                   decoration: const InputDecoration(
                     labelText: 'Apellido',
                     prefixIcon: Icon(Icons.person_outline),
@@ -128,7 +129,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  style: AppTypography.bodyLarge,
+                  style: context.typography.bodyLarge,
                   decoration: const InputDecoration(
                     labelText: 'Correo electrónico',
                     prefixIcon: Icon(Icons.email_outlined),
@@ -141,7 +142,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 TextFormField(
                   controller: _phone1Controller,
                   keyboardType: TextInputType.phone,
-                  style: AppTypography.bodyLarge,
+                  style: context.typography.bodyLarge,
                   decoration: const InputDecoration(
                     labelText: 'Teléfono principal',
                     prefixIcon: Icon(Icons.phone_outlined),
@@ -153,7 +154,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 TextFormField(
                   controller: _phone2Controller,
                   keyboardType: TextInputType.phone,
-                  style: AppTypography.bodyLarge,
+                  style: context.typography.bodyLarge,
                   decoration: const InputDecoration(
                     labelText: 'Teléfono secundario (Opcional)',
                     prefixIcon: Icon(Icons.phone_outlined),
@@ -164,7 +165,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
-                  style: AppTypography.bodyLarge,
+                  style: context.typography.bodyLarge,
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
                     prefixIcon: const Icon(Icons.lock_outline),
@@ -194,7 +195,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         value: _termsAccepted,
                         onChanged: (v) =>
                             setState(() => _termsAccepted = v ?? false),
-                        activeColor: AppColors.primary,
+                        activeColor: context.colors.primary,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -204,7 +205,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           showDialog(
                             context: context,
                             builder: (context) => AlertDialog(
-                              backgroundColor: AppColors.surface,
+                              backgroundColor: context.colors.surface,
                               title: const Text('Términos y Condiciones'),
                               content: const SingleChildScrollView(
                                 child: Text(
@@ -225,12 +226,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         child: Text.rich(
                           TextSpan(
                             text: 'He leído y acepto los ',
-                            style: AppTypography.bodySmall,
+                            style: context.typography.bodySmall,
                             children: [
                               TextSpan(
                                 text: 'Términos y Condiciones.',
-                                style: AppTypography.bodySmall.copyWith(
-                                  color: AppColors.primary,
+                                style: context.typography.bodySmall.copyWith(
+                                  color: context.colors.primary,
                                   fontWeight: FontWeight.bold,
                                   decoration: TextDecoration.underline,
                                 ),

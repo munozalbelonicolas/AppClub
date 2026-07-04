@@ -1,7 +1,11 @@
-import 'dart:io';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'dart:io';
+
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
+
+import 'app_logger.dart';
 
 /// Centralized service for uploading images to Cloudinary.
 ///
@@ -25,9 +29,10 @@ class ImageUploadService {
   /// Helper to post the image to Cloudinary API.
   static Future<String> _uploadToCloudinary(File file) async {
     try {
+      final compressedFile = await _compressFile(file);
       final request = http.MultipartRequest('POST', Uri.parse(_apiUrl));
       request.fields['upload_preset'] = _uploadPreset;
-      request.files.add(await http.MultipartFile.fromPath('file', file.path));
+      request.files.add(await http.MultipartFile.fromPath('file', compressedFile.path));
 
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
@@ -36,12 +41,30 @@ class ImageUploadService {
       if (response.statusCode == 200) {
         return jsonMap['secure_url'] as String;
       } else {
-        debugPrint('Cloudinary Error: ${jsonMap['error']['message']}');
+        AppLogger.error('Cloudinary upload failed', error: jsonMap['error']['message'], tag: 'ImageUpload');
         throw Exception('Error subiendo imagen: ${jsonMap['error']['message']}');
       }
     } catch (e) {
-      debugPrint('Exception uploading image: $e');
+      AppLogger.error('Exception uploading image', error: e, tag: 'ImageUpload');
       rethrow;
     }
+  }
+
+  static Future<File> _compressFile(File file) async {
+    final dir = await getTemporaryDirectory();
+    final targetPath = '${dir.absolute.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    var result = await FlutterImageCompress.compressAndGetFile(
+      file.absolute.path,
+      targetPath,
+      quality: 80,
+      minWidth: 800,
+      minHeight: 800,
+    );
+
+    if (result != null) {
+      return File(result.path);
+    }
+    return file;
   }
 }

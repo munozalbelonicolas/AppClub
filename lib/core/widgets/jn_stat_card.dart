@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'jn_card.dart';
@@ -23,7 +23,7 @@ class JNStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = color ?? AppColors.accent;
+    final accentColor = color ?? context.colors.accent;
 
     return JNCard(
       padding: const EdgeInsets.all(AppSpacing.cardPadding),
@@ -42,15 +42,15 @@ class JNStatCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Text(
             value,
-            style: AppTypography.statValue.copyWith(color: accentColor),
+            style: context.typography.statValue.copyWith(color: accentColor),
           ),
           const SizedBox(height: 2),
-          Text(label.toUpperCase(), style: AppTypography.statLabel),
+          Text(label.toUpperCase(), style: context.typography.statLabel),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
             Text(
               subtitle!,
-              style: AppTypography.bodySmall.copyWith(fontSize: 10),
+              style: context.typography.bodySmall.copyWith(fontSize: 10),
             ),
           ],
         ],

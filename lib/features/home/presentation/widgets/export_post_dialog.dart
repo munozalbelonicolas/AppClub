@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
+
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
 
 class ExportPostDialog extends StatefulWidget {
@@ -100,7 +102,7 @@ class _ExportPostDialogState extends State<ExportPostDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al generar imagen: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -116,12 +118,12 @@ class _ExportPostDialogState extends State<ExportPostDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        side: BorderSide(color: AppColors.border, width: 0.5),
+        side: BorderSide(color: context.colors.border, width: 0.5),
       ),
-      title: Text('Exportar para Redes', style: AppTypography.titleLarge),
+      title: Text('Exportar para Redes', style: context.typography.titleLarge),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -129,7 +131,7 @@ class _ExportPostDialogState extends State<ExportPostDialog> {
           children: [
             Text(
               'Selecciona el formato de exportación:',
-              style: AppTypography.bodyMedium,
+              style: context.typography.bodyMedium,
             ),
             const SizedBox(height: 16),
             ..._formats.entries.map((entry) {
@@ -151,12 +153,12 @@ class _ExportPostDialogState extends State<ExportPostDialog> {
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppColors.primary.withValues(alpha: 0.1)
-                          : AppColors.surfaceLight,
+                          ? context.colors.primary.withValues(alpha: 0.1)
+                          : context.colors.surfaceLight,
                       border: Border.all(
                         color: isSelected
-                            ? AppColors.primary
-                            : AppColors.border,
+                            ? context.colors.primary
+                            : context.colors.border,
                         width: isSelected ? 2 : 1,
                       ),
                       borderRadius: BorderRadius.circular(8),
@@ -166,8 +168,8 @@ class _ExportPostDialogState extends State<ExportPostDialog> {
                         Icon(
                           data['icon'],
                           color: isSelected
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
+                              ? context.colors.primary
+                              : context.colors.textSecondary,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -176,23 +178,23 @@ class _ExportPostDialogState extends State<ExportPostDialog> {
                             children: [
                               Text(
                                 data['label'],
-                                style: AppTypography.titleSmall.copyWith(
+                                style: context.typography.titleSmall.copyWith(
                                   color: isSelected
-                                      ? AppColors.primary
-                                      : AppColors.textPrimary,
+                                      ? context.colors.primary
+                                      : context.colors.textPrimary,
                                 ),
                               ),
                               Text(
                                 '${data['width']} x ${data['height']} px',
-                                style: AppTypography.labelSmall.copyWith(
-                                  color: AppColors.textTertiary,
+                                style: context.typography.labelSmall.copyWith(
+                                  color: context.colors.textTertiary,
                                 ),
                               ),
                             ],
                           ),
                         ),
                         if (isSelected)
-                          Icon(Icons.check_circle, color: AppColors.primary),
+                          Icon(Icons.check_circle, color: context.colors.primary),
                       ],
                     ),
                   ),
@@ -213,7 +215,7 @@ class _ExportPostDialogState extends State<ExportPostDialog> {
           onPressed: _isGenerating ? null : () => Navigator.pop(context),
           child: Text(
             'Cancelar',
-            style: TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: context.colors.textSecondary),
           ),
         ),
         JNButton(

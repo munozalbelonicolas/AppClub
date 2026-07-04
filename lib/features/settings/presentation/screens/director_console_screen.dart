@@ -1,13 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
+import '../../../results/presentation/screens/manage_scorers_screen.dart';
 import '../widgets/admin_notifications_dialog.dart';
 import 'admin_user_profile_screen.dart';
 
@@ -28,7 +30,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Usuario "$userName" aprobado con éxito.'),
-            backgroundColor: AppColors.success,
+            backgroundColor: context.colors.success,
           ),
         );
       }
@@ -37,7 +39,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al aprobar usuario: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -55,7 +57,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Usuario "$userName" eliminado con éxito.'),
-            backgroundColor: AppColors.warning,
+            backgroundColor: context.colors.warning,
           ),
         );
       }
@@ -64,7 +66,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al borrar usuario: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -74,7 +76,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Consola del Director'),
         actions: [
@@ -98,8 +100,8 @@ class DirectorConsoleScreen extends ConsumerWidget {
                       top: 12,
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.error,
+                        decoration: BoxDecoration(
+                          color: context.colors.error,
                           shape: BoxShape.circle,
                         ),
                         child: Text(
@@ -128,7 +130,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
             return Center(
               child: Text(
                 'Error al cargar datos: ${snapshot.error}',
-                style: TextStyle(color: AppColors.error),
+                style: TextStyle(color: context.colors.error),
               ),
             );
           }
@@ -147,10 +149,39 @@ class DirectorConsoleScreen extends ConsumerWidget {
 
               SliverToBoxAdapter(
                 child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: JNCard(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ManageScorersScreen()),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.sports_soccer, color: context.colors.primary, size: 28),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Goleadores por Categoría', style: context.typography.titleMedium),
+                              Text('Gestionar tabla de goleadores', style: context.typography.bodySmall),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: context.colors.textTertiary),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                   child: Text(
                     'Usuarios Registrados (${docs.length})',
-                    style: AppTypography.headlineSmall,
+                    style: context.typography.headlineSmall,
                   ),
                 ),
               ),
@@ -163,22 +194,22 @@ class DirectorConsoleScreen extends ConsumerWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.people_outline,
                             size: 64,
-                            color: AppColors.textTertiary,
+                            color: context.colors.textTertiary,
                           ),
                           const SizedBox(height: 16),
                           Text(
                             'No hay usuarios registrados',
-                            style: AppTypography.titleLarge,
+                            style: context.typography.titleLarge,
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Aún no hay usuarios registrados.',
                             textAlign: TextAlign.center,
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: AppColors.textSecondary,
+                            style: context.typography.bodyMedium.copyWith(
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -245,13 +276,13 @@ class DirectorConsoleScreen extends ConsumerWidget {
                                       children: [
                                         Text(
                                           '$name $lastName',
-                                          style: AppTypography.titleMedium,
+                                          style: context.typography.titleMedium,
                                         ),
                                         Text(
                                           email,
-                                          style: AppTypography.bodySmall
+                                          style: context.typography.bodySmall
                                               .copyWith(
-                                                color: AppColors.textTertiary,
+                                                color: context.colors.textTertiary,
                                               ),
                                         ),
                                         const SizedBox(height: 6),
@@ -279,7 +310,6 @@ class DirectorConsoleScreen extends ConsumerWidget {
                                             if (category != null)
                                               JNBadge(
                                                 label: category,
-                                                type: JNBadgeType.neutral,
                                                 small: true,
                                               ),
                                             if (hasDebt)
@@ -316,9 +346,9 @@ class DirectorConsoleScreen extends ConsumerWidget {
                                     children: [
                                       if (isPending)
                                         IconButton(
-                                          icon: const Icon(
+                                          icon: Icon(
                                             Icons.check_circle_outline,
-                                            color: AppColors.success,
+                                            color: context.colors.success,
                                           ),
                                           tooltip: 'Aprobar',
                                           onPressed: () => _approveUser(
@@ -329,9 +359,9 @@ class DirectorConsoleScreen extends ConsumerWidget {
                                         ),
                                       // Delete user button
                                   IconButton(
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.delete_outline,
-                                      color: AppColors.error,
+                                      color: context.colors.error,
                                     ),
                                     onPressed: () {
                                       // Prevent Director from deleting themselves
@@ -340,11 +370,11 @@ class DirectorConsoleScreen extends ConsumerWidget {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
+                                          SnackBar(
+                                            content: const Text(
                                               'El Director no puede ser eliminado.',
                                             ),
-                                            backgroundColor: AppColors.error,
+                                            backgroundColor: context.colors.error,
                                           ),
                                         );
                                         return;
@@ -353,7 +383,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
                                       showDialog(
                                         context: context,
                                         builder: (context) => AlertDialog(
-                                          backgroundColor: AppColors.surface,
+                                          backgroundColor: context.colors.surface,
                                           title: const Text('Eliminar Usuario'),
                                           content: Text(
                                             '¿Estás seguro de que deseas eliminar a "$name $lastName" de la base de datos?',
@@ -366,7 +396,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
                                                 'Cancelar',
                                                 style: TextStyle(
                                                   color:
-                                                      AppColors.textSecondary,
+                                                      context.colors.textSecondary,
                                                 ),
                                               ),
                                             ),
@@ -379,10 +409,10 @@ class DirectorConsoleScreen extends ConsumerWidget {
                                                   '$name $lastName',
                                                 );
                                               },
-                                              child: const Text(
+                                              child: Text(
                                                 'Eliminar',
                                                 style: TextStyle(
-                                                  color: AppColors.error,
+                                                  color: context.colors.error,
                                                 ),
                                               ),
                                             ),
@@ -433,9 +463,9 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor ingresa un correo electrónico válido'),
-          backgroundColor: AppColors.error,
+        SnackBar(
+          content: const Text('Por favor ingresa un correo electrónico válido'),
+          backgroundColor: context.colors.error,
         ),
       );
       return;
@@ -456,9 +486,9 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Correo de soporte actualizado con éxito'),
-            backgroundColor: AppColors.success,
+          SnackBar(
+            content: const Text('Correo de soporte actualizado con éxito'),
+            backgroundColor: context.colors.success,
           ),
         );
       }
@@ -467,7 +497,7 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al guardar: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -500,28 +530,28 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
 
         return JNCard(
           padding: const EdgeInsets.all(16),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+          border: Border.all(color: context.colors.primary.withValues(alpha: 0.15)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.mark_email_read,
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Configuración de Soporte',
-                    style: AppTypography.titleLarge,
+                    style: context.typography.titleLarge,
                   ),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
                 'Define la dirección de correo electrónico a la que llegarán las consultas de ayuda y soporte técnico de los usuarios.',
-                style: AppTypography.bodySmall,
+                style: context.typography.bodySmall,
               ),
               const SizedBox(height: 12),
               Row(
@@ -529,7 +559,7 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
                   Expanded(
                     child: TextField(
                       controller: _emailController,
-                      style: AppTypography.bodyMedium,
+                      style: context.typography.bodyMedium,
                       decoration: const InputDecoration(
                         labelText: 'Email de Soporte',
                         hintText: 'ejemplo@club.com',

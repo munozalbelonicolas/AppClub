@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../../core/theme/app_colors.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/services/firestore_service.dart';
-import '../../../../core/providers/session_provider.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class PaymentsScreen extends ConsumerWidget {
   const PaymentsScreen({super.key});
@@ -23,24 +24,23 @@ class PaymentsScreen extends ConsumerWidget {
     final totalPaid = paid.fold<int>(0, (sum, p) => sum + (p['amount'] as num).toInt());
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(title: const Text('Cuotas y Pagos')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
         children: [
           // ─── Balance Card ─────────────────────────
           JNCard(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.surfaceLight,
-                AppColors.primary,
+                context.colors.surfaceLight,
+                context.colors.primary,
               ],
             ),
             border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.2),
-              width: 1,
+              color: context.colors.primary.withValues(alpha: 0.2),
             ),
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -51,13 +51,13 @@ class PaymentsScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.12),
+                        color: context.colors.accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.account_balance_wallet,
                         size: 24,
-                        color: AppColors.accent,
+                        color: context.colors.accent,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -66,11 +66,11 @@ class PaymentsScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'Estado de cuenta',
-                          style: AppTypography.labelMedium,
+                          style: context.typography.labelMedium,
                         ),
                         Text(
                           '${sessionUser.name} ${sessionUser.lastName}',
-                          style: AppTypography.bodySmall,
+                          style: context.typography.bodySmall,
                         ),
                       ],
                     ),
@@ -80,18 +80,18 @@ class PaymentsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
                 if (pending.isNotEmpty) ...[
-                  Text('Pendiente', style: AppTypography.labelSmall),
+                  Text('Pendiente', style: context.typography.labelSmall),
                   const SizedBox(height: 4),
                   Text(
                     '\$${_formatNumber(pending.first['amount'] as int)}',
-                    style: AppTypography.displayMedium.copyWith(
-                      color: AppColors.warning,
+                    style: context.typography.displayMedium.copyWith(
+                      color: context.colors.warning,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Vence el ${_formatDate(pending.first['dueDate'] as String)}',
-                    style: AppTypography.bodySmall,
+                    style: context.typography.bodySmall,
                   ),
                   const SizedBox(height: 16),
                   JNButton(
@@ -103,8 +103,8 @@ class PaymentsScreen extends ConsumerWidget {
                 ] else ...[
                   Text(
                     '¡Todo al día!',
-                    style: AppTypography.displaySmall.copyWith(
-                      color: AppColors.success,
+                    style: context.typography.displaySmall.copyWith(
+                      color: context.colors.success,
                     ),
                   ),
                 ],
@@ -128,20 +128,20 @@ class PaymentsScreen extends ConsumerWidget {
                           Icon(
                             Icons.check_circle,
                             size: 16,
-                            color: AppColors.success,
+                            color: context.colors.success,
                           ),
                           const SizedBox(width: 6),
-                          Text('Pagadas', style: AppTypography.labelSmall),
+                          Text('Pagadas', style: context.typography.labelSmall),
                         ],
                       ),
                       const SizedBox(height: 6),
                       Text(
                         '${paid.length}',
-                        style: AppTypography.headlineLarge.copyWith(
-                          color: AppColors.success,
+                        style: context.typography.headlineLarge.copyWith(
+                          color: context.colors.success,
                         ),
                       ),
-                      Text('cuotas', style: AppTypography.bodySmall),
+                      Text('cuotas', style: context.typography.bodySmall),
                     ],
                   ),
                 ),
@@ -158,22 +158,22 @@ class PaymentsScreen extends ConsumerWidget {
                           Icon(
                             Icons.attach_money,
                             size: 16,
-                            color: AppColors.accent,
+                            color: context.colors.accent,
                           ),
                           const SizedBox(width: 6),
-                          Text('Total pagado', style: AppTypography.labelSmall),
+                          Text('Total pagado', style: context.typography.labelSmall),
                         ],
                       ),
                       const SizedBox(height: 6),
                       Text(
                         '\$${_formatNumber(totalPaid)}',
-                        style: AppTypography.headlineLarge.copyWith(
-                          color: AppColors.accent,
+                        style: context.typography.headlineLarge.copyWith(
+                          color: context.colors.accent,
                         ),
                       ),
                       Text(
                         'en ${DateTime.now().year}',
-                        style: AppTypography.bodySmall,
+                        style: context.typography.bodySmall,
                       ),
                     ],
                   ),
@@ -185,7 +185,7 @@ class PaymentsScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // ─── Payment History ──────────────────────
-          Text('Historial de pagos', style: AppTypography.headlineSmall),
+          Text('Historial de pagos', style: context.typography.headlineSmall),
           const SizedBox(height: 12),
 
           if (payments.isEmpty)
@@ -197,13 +197,13 @@ class PaymentsScreen extends ConsumerWidget {
                     Icon(
                       Icons.receipt_long,
                       size: 48,
-                      color: AppColors.textTertiary,
+                      color: context.colors.textTertiary,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'No hay cuotas registradas',
-                      style: AppTypography.titleMedium.copyWith(
-                        color: AppColors.textSecondary,
+                      style: context.typography.titleMedium.copyWith(
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -228,8 +228,8 @@ class PaymentsScreen extends ConsumerWidget {
                               height: 44,
                               decoration: BoxDecoration(
                                 color: isPaid
-                                    ? AppColors.success.withValues(alpha: 0.12)
-                                    : AppColors.warning.withValues(alpha: 0.12),
+                                    ? context.colors.success.withValues(alpha: 0.12)
+                                    : context.colors.warning.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
@@ -237,8 +237,8 @@ class PaymentsScreen extends ConsumerWidget {
                                     ? Icons.check_circle_outline
                                     : Icons.schedule,
                                 color: isPaid
-                                    ? AppColors.success
-                                    : AppColors.warning,
+                                    ? context.colors.success
+                                    : context.colors.warning,
                                 size: 22,
                               ),
                             ),
@@ -249,13 +249,13 @@ class PaymentsScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     payment['month'] as String,
-                                    style: AppTypography.titleMedium,
+                                    style: context.typography.titleMedium,
                                   ),
                                   Text(
                                     isPaid
                                         ? 'Pagado el ${_formatDate(payment['paidDate'] as String)}'
                                         : 'Vence el ${_formatDate(payment['dueDate'] as String)}',
-                                    style: AppTypography.bodySmall,
+                                    style: context.typography.bodySmall,
                                   ),
                                 ],
                               ),
@@ -265,10 +265,10 @@ class PaymentsScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   '\$${_formatNumber(payment['amount'] as int)}',
-                                  style: AppTypography.titleLarge.copyWith(
+                                  style: context.typography.titleLarge.copyWith(
                                     color: isPaid
-                                        ? AppColors.textPrimary
-                                        : AppColors.warning,
+                                        ? context.colors.textPrimary
+                                        : context.colors.warning,
                                   ),
                                 ),
                                 const SizedBox(height: 2),

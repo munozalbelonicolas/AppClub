@@ -1,16 +1,17 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
+import 'package:flutter/material.dart';
+
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../screens/admin_user_profile_screen.dart';
 import '../../../store/presentation/screens/admin_order_detail_screen.dart';
+import '../screens/admin_user_profile_screen.dart';
 
 void showAdminNotificationsDialog(BuildContext context) {
   showDialog(
     context: context,
     builder: (context) {
       return AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.colors.surface,
         title: const Text('Notificaciones'),
         content: SizedBox(
           width: double.maxFinite,
@@ -41,11 +42,11 @@ void showAdminNotificationsDialog(BuildContext context) {
                     return ListTile(
                       leading: Icon(
                         Icons.group_add,
-                        color: isRead ? AppColors.textTertiary : AppColors.primary,
+                        color: isRead ? context.colors.textTertiary : context.colors.primary,
                       ),
                       title: Text(
                         'Solicitud de Co-Tutor',
-                        style: AppTypography.bodyMedium.copyWith(
+                        style: context.typography.bodyMedium.copyWith(
                           fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
                         ),
                       ),
@@ -57,7 +58,7 @@ void showAdminNotificationsDialog(BuildContext context) {
                           context: context,
                           builder: (context) {
                             return AlertDialog(
-                              backgroundColor: AppColors.surface,
+                              backgroundColor: context.colors.surface,
                               title: const Text('Aprobar Co-Tutor'),
                               content: Text(
                                 '¿Permitir que ${data['tutorName']} sea co-tutor de ${data['playerName']}?',
@@ -71,10 +72,10 @@ void showAdminNotificationsDialog(BuildContext context) {
                                         .update({'status': 'rejected'});
                                     Navigator.pop(context);
                                   },
-                                  child: const Text('Rechazar', style: TextStyle(color: AppColors.error)),
+                                  child: Text('Rechazar', style: TextStyle(color: context.colors.error)),
                                 ),
                                 ElevatedButton(
-                                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+                                  style: ElevatedButton.styleFrom(backgroundColor: context.colors.success),
                                   onPressed: () {
                                     FirebaseFirestore.instance
                                         .collection('player_tutor_links')
@@ -103,11 +104,11 @@ void showAdminNotificationsDialog(BuildContext context) {
                     return ListTile(
                       leading: Icon(
                         icon,
-                        color: isRead ? AppColors.textTertiary : AppColors.accent,
+                        color: isRead ? context.colors.textTertiary : context.colors.accent,
                       ),
                       title: Text(
                         title,
-                        style: AppTypography.bodyMedium.copyWith(
+                        style: context.typography.bodyMedium.copyWith(
                           fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
                         ),
                       ),
@@ -131,11 +132,11 @@ void showAdminNotificationsDialog(BuildContext context) {
                   return ListTile(
                     leading: Icon(
                       Icons.person_add,
-                      color: isRead ? AppColors.textTertiary : AppColors.primary,
+                      color: isRead ? context.colors.textTertiary : context.colors.primary,
                     ),
                     title: Text(
                       'Nuevo usuario pendiente',
-                      style: AppTypography.bodyMedium.copyWith(
+                      style: context.typography.bodyMedium.copyWith(
                         fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
                       ),
                     ),

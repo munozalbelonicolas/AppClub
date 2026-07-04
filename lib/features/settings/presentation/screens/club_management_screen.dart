@@ -1,14 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
+
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/services/image_upload_service.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class ClubManagementScreen extends ConsumerStatefulWidget {
   const ClubManagementScreen({super.key});
@@ -29,10 +31,10 @@ class _ClubManagementScreenState extends ConsumerState<ClubManagementScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: context.colors.surface,
           title: Text(
             club == null ? 'Nuevo Club' : 'Editar Club',
-            style: AppTypography.titleLarge,
+            style: context.typography.titleLarge,
           ),
           content: Form(
             key: formKey,
@@ -73,7 +75,7 @@ class _ClubManagementScreenState extends ConsumerState<ClubManagementScreen> {
                             )
                           else
                             IconButton(
-                              icon: const Icon(Icons.upload_file, color: AppColors.primary),
+                              icon: Icon(Icons.upload_file, color: context.colors.primary),
                               onPressed: () async {
                                 final picker = ImagePicker();
                                 final picked = await picker.pickImage(source: ImageSource.gallery);
@@ -85,7 +87,7 @@ class _ClubManagementScreenState extends ConsumerState<ClubManagementScreen> {
                                   } catch (e) {
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+                                        SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
                                       );
                                     }
                                   } finally {
@@ -105,7 +107,7 @@ class _ClubManagementScreenState extends ConsumerState<ClubManagementScreen> {
                       return SwitchListTile(
                         title: const Text('¿Es el Club Local?'),
                         value: isLocal,
-                        activeThumbColor: AppColors.primary,
+                        activeThumbColor: context.colors.primary,
                         onChanged: (val) {
                           isLocalNotifier.value = val;
                         },
@@ -152,7 +154,7 @@ class _ClubManagementScreenState extends ConsumerState<ClubManagementScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.colors.surface,
         title: const Text('Eliminar Club'),
         content: const Text('¿Estás seguro de que deseas eliminar este club?'),
         actions: [
@@ -162,7 +164,7 @@ class _ClubManagementScreenState extends ConsumerState<ClubManagementScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            style: TextButton.styleFrom(foregroundColor: context.colors.error),
             child: const Text('Eliminar'),
           ),
         ],
@@ -179,13 +181,13 @@ class _ClubManagementScreenState extends ConsumerState<ClubManagementScreen> {
     final clubsAsync = ref.watch(clubsStreamProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Gestión de Clubes'),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddClubDialog(context),
-        backgroundColor: AppColors.primary,
+        backgroundColor: context.colors.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: clubsAsync.when(
@@ -194,47 +196,47 @@ class _ClubManagementScreenState extends ConsumerState<ClubManagementScreen> {
             return Center(
               child: Text(
                 'No hay clubes registrados',
-                style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondary),
+                style: context.typography.bodyLarge.copyWith(color: context.colors.textSecondary),
               ),
             );
           }
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             itemCount: clubs.length,
-            separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.border),
+            separatorBuilder: (context, index) => Divider(height: 1, color: context.colors.border),
             itemBuilder: (context, index) {
               final club = clubs[index];
               return JNCard(
                 padding: const EdgeInsets.all(12),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: AppColors.surfaceLight,
+                    backgroundColor: context.colors.surfaceLight,
                     backgroundImage: (club['logoUrl'] != null && club['logoUrl'].toString().isNotEmpty)
                         ? NetworkImage(club['logoUrl'])
                         : null,
                     child: (club['logoUrl'] == null || club['logoUrl'].toString().isEmpty)
-                        ? const Icon(Icons.shield, color: AppColors.textTertiary)
+                        ? Icon(Icons.shield, color: context.colors.textTertiary)
                         : null,
                   ),
                   title: Text(
                     club['name'] ?? 'Sin nombre',
-                    style: AppTypography.titleMedium,
+                    style: context.typography.titleMedium,
                   ),
                   subtitle: club['isLocal'] == true
                       ? Text(
                           'Club Local',
-                          style: AppTypography.labelSmall.copyWith(color: AppColors.primary),
+                          style: context.typography.labelSmall.copyWith(color: context.colors.primary),
                         )
                       : null,
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: AppColors.textSecondary),
+                        icon: Icon(Icons.edit_outlined, color: context.colors.textSecondary),
                         onPressed: () => _showAddClubDialog(context, club),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                        icon: Icon(Icons.delete_outline, color: context.colors.error),
                         onPressed: () => _deleteClub(club['id']),
                       ),
                     ],
@@ -246,7 +248,7 @@ class _ClubManagementScreenState extends ConsumerState<ClubManagementScreen> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
-          child: Text('Error: $err', style: const TextStyle(color: AppColors.error)),
+          child: Text('Error: $err', style: TextStyle(color: context.colors.error)),
         ),
       ),
     );

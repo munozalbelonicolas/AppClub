@@ -1,9 +1,13 @@
 import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
+
 import '../../data/models/product.dart';
 
 class ProductCard extends StatelessWidget {
@@ -33,7 +37,7 @@ class ProductCard extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
                 child: AspectRatio(
                   aspectRatio: 1,
-                  child: _buildImage(),
+                  child: _buildImage(context),
                 ),
               ),
               // Category badge
@@ -43,12 +47,12 @@ class ProductCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.surface.withValues(alpha: 0.85),
+                    color: context.colors.surface.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     _categoryLabel(product.category),
-                    style: AppTypography.badge.copyWith(color: AppColors.accent, fontSize: 10),
+                    style: context.typography.badge.copyWith(color: context.colors.accent, fontSize: 10),
                   ),
                 ),
               ),
@@ -63,7 +67,7 @@ class ProductCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.error,
+                          color: context.colors.error,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
@@ -84,15 +88,15 @@ class ProductCard extends StatelessWidget {
               children: [
                 Text(
                   product.name,
-                  style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                  style: context.typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   '\$${product.price.toStringAsFixed(product.price.truncateToDouble() == product.price ? 0 : 2)}',
-                  style: AppTypography.bodyLarge.copyWith(
-                    color: AppColors.accent,
+                  style: context.typography.bodyLarge.copyWith(
+                    color: context.colors.accent,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -104,25 +108,26 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImage() {
+  Widget _buildImage(BuildContext context) {
     if (product.imageUrl == null || product.imageUrl!.isEmpty) {
       return Container(
-        color: AppColors.surfaceLight,
-        child: const Center(
-          child: Icon(Icons.shopping_bag_outlined, size: 48, color: AppColors.textTertiary),
+        color: context.colors.surfaceLight,
+        child: Center(
+          child: Icon(Icons.shopping_bag_outlined, size: 48, color: context.colors.textTertiary),
         ),
       );
     }
     
     // Check if it's a local file path or a network URL
     if (product.imageUrl!.startsWith('http')) {
-      return Image.network(
-        product.imageUrl!,
+      return CachedNetworkImage(
+        imageUrl: product.imageUrl!,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          color: AppColors.surfaceLight,
-          child: const Center(
-            child: Icon(Icons.broken_image, size: 48, color: AppColors.textTertiary),
+        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+        errorWidget: (context, url, error) => Container(
+          color: context.colors.surfaceLight,
+          child: Center(
+            child: Icon(Icons.broken_image, size: 48, color: context.colors.textTertiary),
           ),
         ),
       );
@@ -131,9 +136,9 @@ class ProductCard extends StatelessWidget {
         File(product.imageUrl!),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => Container(
-          color: AppColors.surfaceLight,
-          child: const Center(
-            child: Icon(Icons.broken_image, size: 48, color: AppColors.textTertiary),
+          color: context.colors.surfaceLight,
+          child: Center(
+            child: Icon(Icons.broken_image, size: 48, color: context.colors.textTertiary),
           ),
         ),
       );

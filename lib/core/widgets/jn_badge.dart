@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
@@ -52,37 +52,37 @@ class JNBadge extends StatelessWidget {
     icon: Icons.access_time,
   );
 
-  Color get _backgroundColor {
+  Color _backgroundColor(BuildContext context) {
     switch (type) {
       case JNBadgeType.success:
-        return AppColors.success.withValues(alpha: 0.15);
+        return context.colors.success.withValues(alpha: 0.15);
       case JNBadgeType.warning:
-        return AppColors.warning.withValues(alpha: 0.15);
+        return context.colors.warning.withValues(alpha: 0.15);
       case JNBadgeType.error:
-        return AppColors.error.withValues(alpha: 0.15);
+        return context.colors.error.withValues(alpha: 0.15);
       case JNBadgeType.info:
-        return AppColors.info.withValues(alpha: 0.15);
+        return context.colors.info.withValues(alpha: 0.15);
       case JNBadgeType.accent:
-        return AppColors.accent.withValues(alpha: 0.15);
+        return context.colors.accent.withValues(alpha: 0.15);
       case JNBadgeType.neutral:
-        return AppColors.surfaceVariant;
+        return context.colors.surfaceVariant;
     }
   }
 
-  Color get _textColor {
+  Color _textColor(BuildContext context) {
     switch (type) {
       case JNBadgeType.success:
-        return AppColors.success;
+        return context.colors.success;
       case JNBadgeType.warning:
-        return AppColors.warning;
+        return context.colors.warning;
       case JNBadgeType.error:
-        return AppColors.error;
+        return context.colors.error;
       case JNBadgeType.info:
-        return AppColors.info;
+        return context.colors.info;
       case JNBadgeType.accent:
-        return AppColors.accent;
+        return context.colors.accent;
       case JNBadgeType.neutral:
-        return AppColors.textSecondary;
+        return context.colors.textSecondary;
     }
   }
 
@@ -94,21 +94,21 @@ class JNBadge extends StatelessWidget {
         vertical: small ? 2 : 4,
       ),
       decoration: BoxDecoration(
-        color: _backgroundColor,
+        color: _backgroundColor(context),
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: small ? 10 : 12, color: _textColor),
-            SizedBox(width: small ? 3 : 4),
+            Icon(icon, size: small ? 10 : 12, color: _textColor(context)),
+            SizedBox(width: small ? 4 : 6),
           ],
           Text(
-            label,
-            style: AppTypography.badge.copyWith(
-              color: _textColor,
-              fontSize: small ? 8 : 10,
+            label.toUpperCase(),
+            style: context.typography.badge.copyWith(
+              color: _textColor(context),
+              fontSize: small ? 9 : 10,
             ),
           ),
         ],

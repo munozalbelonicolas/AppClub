@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_button.dart';
 
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -43,7 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Credenciales incorrectas o error de red.')),
+          const SnackBar(content: Text('Credenciales incorrectas o error de red.')),
         );
       }
     } finally {
@@ -56,7 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
@@ -76,7 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
+                            color: context.colors.primary.withValues(alpha: 0.3),
                             blurRadius: 30,
                             spreadRadius: 1,
                           ),
@@ -103,7 +103,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Center(
                 child: Text(
                   'JORGE NEWBERY',
-                  style: AppTypography.headlineLarge.copyWith(
+                  style: context.typography.headlineLarge.copyWith(
                     letterSpacing: 3,
                     fontWeight: FontWeight.w800,
                   ),
@@ -115,7 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Center(
                 child: Text(
                   'Iniciá sesión para continuar',
-                  style: AppTypography.bodyMedium,
+                  style: context.typography.bodyMedium,
                 ),
               ).animate(delay: 300.ms).fadeIn(duration: 400.ms),
 
@@ -127,7 +127,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: AppTypography.bodyLarge,
+                    style: context.typography.bodyLarge,
                     decoration: const InputDecoration(
                       hintText: 'Email',
                       prefixIcon: Icon(Icons.email_outlined, size: 20),
@@ -143,7 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: AppTypography.bodyLarge,
+                    style: context.typography.bodyLarge,
                     decoration: InputDecoration(
                       hintText: 'Contraseña',
                       prefixIcon: const Icon(Icons.lock_outline, size: 20),
@@ -153,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
                           size: 20,
-                          color: AppColors.textTertiary,
+                          color: context.colors.textTertiary,
                         ),
                         onPressed: () => setState(
                           () => _obscurePassword = !_obscurePassword,
@@ -174,8 +174,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onPressed: () {},
                   child: Text(
                     '¿Olvidaste tu contraseña?',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.primary,
+                    style: context.typography.bodySmall.copyWith(
+                      color: context.colors.primary,
                     ),
                   ),
                 ),
@@ -200,12 +200,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // Divider
               Row(
                 children: [
-                  Expanded(child: Divider(color: AppColors.border)),
+                  Expanded(child: Divider(color: context.colors.border)),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('o', style: AppTypography.bodySmall),
+                    child: Text('o', style: context.typography.bodySmall),
                   ),
-                  Expanded(child: Divider(color: AppColors.border)),
+                  Expanded(child: Divider(color: context.colors.border)),
                 ],
               ),
 
@@ -235,7 +235,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('¿No tenés cuenta? ', style: AppTypography.bodyMedium),
+                    Text('¿No tenés cuenta? ', style: context.typography.bodyMedium),
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -253,8 +253,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       },
                       child: Text(
                         'Registrate',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.primary,
+                        style: context.typography.bodyMedium.copyWith(
+                          color: context.colors.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

@@ -1,1 +1,54 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  errors:
+    unused_import: error
+    unused_local_variable: warning
+    dead_code: warning
+
+linter:
+  rules:
+    # ─── Error prevention ────────────────────────
+    - avoid_print
+    - avoid_empty_else
+    - cancel_subscriptions
+    - close_sinks
+    - no_duplicate_case_values
+    - throw_in_finally
+    - unnecessary_statements
+    
+    # ─── Style & maintainability ─────────────────
+    - always_declare_return_types
+    - annotate_overrides
+    - avoid_init_to_null
+    - avoid_redundant_argument_values
+    - avoid_return_types_on_setters
+    - avoid_unnecessary_containers
+    - empty_catches
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - prefer_final_fields
+    - prefer_final_locals
+    - prefer_interpolation_to_compose_strings
+    - prefer_is_empty
+    - prefer_is_not_empty
+    - prefer_single_quotes
+    - unnecessary_brace_in_string_interps
+    - unnecessary_const
+    - unnecessary_new
+    - unnecessary_null_in_if_null_operators
+    - unnecessary_this
+    - use_key_in_widget_constructors
+    
+    # ─── Imports ─────────────────────────────────
+    - directives_ordering
+    - sort_child_properties_last
+
+    # ─── Naming ──────────────────────────────────
+    - camel_case_types
+    - constant_identifier_names
+    - file_names
+    - non_constant_identifier_names

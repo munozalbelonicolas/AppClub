@@ -1,25 +1,25 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_match_card.dart';
-import '../../../../core/widgets/jn_badge.dart';
-import '../../../../core/widgets/jn_avatar.dart';
-import '../../../../core/widgets/jn_section_header.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/providers/session_provider.dart';
-import '../../../../core/services/firestore_service.dart';
-import '../widgets/sponsor_carousel.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
-import '../../../inbox/presentation/screens/inbox_screen.dart';
-import '../widgets/export_post_dialog.dart';
-import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
 import '../../../../core/services/birthday_service.dart';
+import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_avatar.dart';
+import '../../../../core/widgets/jn_badge.dart';
+import '../../../../core/widgets/jn_card.dart';
+import '../../../../core/widgets/jn_match_card.dart';
+import '../../../../core/widgets/jn_section_header.dart';
+import '../../../inbox/presentation/screens/inbox_screen.dart';
+import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
+import '../widgets/export_post_dialog.dart';
+import '../widgets/sponsor_carousel.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   final Function(int) onNavigate;
@@ -155,12 +155,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.surface,
+              backgroundColor: context.colors.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                side: BorderSide(color: AppColors.border, width: 0.5),
+                side: BorderSide(color: context.colors.border, width: 0.5),
               ),
-              title: Text('Nueva Publicación', style: AppTypography.titleLarge),
+              title: Text('Nueva Publicación', style: context.typography.titleLarge),
               content: Form(
                 key: formKey,
                 child: SingleChildScrollView(
@@ -170,7 +170,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     children: [
                       TextFormField(
                         controller: titleController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           hintText: 'Título de la novedad',
                           labelText: 'Título',
@@ -184,7 +184,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       TextFormField(
                         controller: bodyController,
                         maxLines: 3,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           hintText: 'Escribe aquí la novedad...',
                           labelText: 'Contenido',
@@ -197,7 +197,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: imageUrlController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           hintText: 'URL de imagen opcional (HTTPS)',
                           labelText: 'Imagen URL (Opcional)',
@@ -207,8 +207,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       // Presets image selection
                       Text(
                         'Imágenes rápidas:',
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.textTertiary,
+                        style: context.typography.labelSmall.copyWith(
+                          color: context.colors.textTertiary,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -217,10 +217,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         children: imagePresets.map((preset) {
                           return ActionChip(
                             label: Text(preset['label']!),
-                            labelStyle: AppTypography.labelSmall.copyWith(
+                            labelStyle: context.typography.labelSmall.copyWith(
                               color: Colors.white,
                             ),
-                            backgroundColor: AppColors.surfaceLight,
+                            backgroundColor: context.colors.surfaceLight,
                             onPressed: () {
                               setDialogState(() {
                                 imageUrlController.text = preset['url']!;
@@ -234,14 +234,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       if (isDT) ...[
                         Text(
                           'Categoría: ${sessionUser.category}',
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.primary,
+                          style: context.typography.bodyMedium.copyWith(
+                            color: context.colors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ] else ...[
                         DropdownButtonFormField<String>(
-                          dropdownColor: AppColors.surface,
+                          dropdownColor: context.colors.surface,
                           initialValue: selectedCategory,
                           decoration: const InputDecoration(
                             labelText: 'Visibilidad/Categoría',
@@ -251,7 +251,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               value: cat,
                               child: Text(
                                 cat == 'all' ? 'Global (Todos)' : cat,
-                                style: AppTypography.bodyLarge,
+                                style: context.typography.bodyLarge,
                               ),
                             );
                           }).toList(),
@@ -268,7 +268,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       SwitchListTile(
                         title: const Text('¿Es publicación de un Partido?'),
                         value: isMatch,
-                        activeThumbColor: AppColors.primary,
+                        activeThumbColor: context.colors.primary,
                         contentPadding: EdgeInsets.zero,
                         onChanged: (val) {
                           setDialogState(() {
@@ -279,13 +279,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       if (isMatch) ...[
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          dropdownColor: AppColors.surface,
+                          dropdownColor: context.colors.surface,
                           initialValue: selectedOpponentId,
                           decoration: const InputDecoration(labelText: 'Club Rival'),
                           items: clubs.where((c) => c['isLocal'] != true).map((club) {
                             return DropdownMenuItem<String>(
                               value: club['id'],
-                              child: Text(club['name'], style: AppTypography.bodyLarge),
+                              child: Text(club['name'], style: context.typography.bodyLarge),
                             );
                           }).toList(),
                           validator: (val) => isMatch && val == null ? 'Selecciona un rival' : null,
@@ -305,12 +305,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onPressed: () => Navigator.pop(context),
                   child: Text(
                     'Cancelar',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: context.colors.textSecondary),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: context.colors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
@@ -337,9 +337,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       if (context.mounted) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Novedad publicada con éxito!'),
-                            backgroundColor: AppColors.success,
+                          SnackBar(
+                            content: const Text('Novedad publicada con éxito!'),
+                            backgroundColor: context.colors.success,
                           ),
                         );
                       }
@@ -365,12 +365,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // In production, these will come from streams or futures.
     // For now, we set them to empty to ensure the app doesn't crash without MockData.
-    final Map<String, dynamic>? player = null; // To be fetched from Firestore
-    final Map<String, dynamic>? nextMatch =
+    const Map<String, dynamic>? player = null; // To be fetched from Firestore
+    const Map<String, dynamic>? nextMatch =
         null; // To be fetched from Firestore
-    final Map<String, dynamic>? pendingPayment =
+    const Map<String, dynamic>? pendingPayment =
         null; // To be fetched from Firestore
-    final int unreadAnnouncements = 0; // To be fetched from Firestore
+    const int unreadAnnouncements = 0; // To be fetched from Firestore
 
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin
@@ -378,7 +378,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         : ref.watch(userNovedadesStreamProvider(sessionUser.category));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -394,14 +394,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         children: [
                           Text(
                             'Hola, ${sessionUser.name} 👋',
-                            style: AppTypography.headlineLarge,
+                            style: context.typography.headlineLarge,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             hasPlayer
                                 ? '${sessionUser.role == 'jugador' ? sessionUser.name : 'Tutor'} · ${sessionUser.category ?? 'Sin Categoría'}'
                                 : '${sessionUser.role.toUpperCase()}${sessionUser.category != null ? " · ${sessionUser.category}" : ""}',
-                            style: AppTypography.bodyMedium,
+                            style: context.typography.bodyMedium,
                           ),
                         ],
                       ),
@@ -434,8 +434,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 right: 4,
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.primary,
+                                  decoration: BoxDecoration(
+                                    color: context.colors.primary,
                                     shape: BoxShape.circle,
                                   ),
                                   constraints: const BoxConstraints(
@@ -480,8 +480,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   top: 8,
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.error,
+                                    decoration: BoxDecoration(
+                                      color: context.colors.error,
                                       shape: BoxShape.circle,
                                     ),
                                     child: Text(
@@ -504,7 +504,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           widget.onNavigate(5), // settings (now index 5)
                       child: JNAvatar(
                         name: '${sessionUser.name} ${sessionUser.lastName}',
-                        size: 44,
                       ),
                     ),
                   ],
@@ -557,23 +556,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _QuickAction(
                       icon: Icons.how_to_reg,
                       label: 'Asistencia',
-                      color: AppColors.success,
-                      badge: null,
+                      color: context.colors.success,
                       onTap: () => widget.onNavigate(1),
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
                       icon: Icons.sports_soccer,
                       label: 'Formación',
-                      color: AppColors.accent,
-                      badge: null,
+                      color: context.colors.accent,
                       onTap: () => widget.onNavigate(2),
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
                       icon: Icons.payment,
                       label: 'Cuotas',
-                      color: AppColors.info,
+                      color: context.colors.info,
                       badge: '1',
                       onTap: () => widget.onNavigate(3),
                     ),
@@ -581,10 +578,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _QuickAction(
                       icon: Icons.campaign,
                       label: 'Noticias',
-                      color: AppColors.primary,
-                      badge: unreadAnnouncements > 0
-                          ? '$unreadAnnouncements'
-                          : null,
+                      color: context.colors.primary,
                       onTap: () => widget.onNavigate(3),
                     ),
                   ],
@@ -609,13 +603,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: AppColors.warning.withValues(alpha: 0.12),
+                            color: context.colors.warning.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.receipt_long,
                             size: 22,
-                            color: AppColors.warning,
+                            color: context.colors.warning,
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -625,11 +619,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             children: [
                               Text(
                                 'Cuota ${pendingPayment['month']}',
-                                style: AppTypography.titleMedium,
+                                style: context.typography.titleMedium,
                               ),
                               Text(
                                 'Vence el ${_formatDate(pendingPayment['dueDate'] as String)}',
-                                style: AppTypography.bodySmall,
+                                style: context.typography.bodySmall,
                               ),
                             ],
                           ),
@@ -639,8 +633,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             Text(
                               '\$${_formatNumber(pendingPayment['amount'] as int)}',
-                              style: AppTypography.titleLarge.copyWith(
-                                color: AppColors.warning,
+                              style: context.typography.titleLarge.copyWith(
+                                color: context.colors.warning,
                               ),
                             ),
                             JNBadge.pending(),
@@ -676,28 +670,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         value: '${player['goals']}',
                         label: 'Goles',
                         icon: Icons.sports_soccer,
-                        color: AppColors.primary,
+                        color: context.colors.primary,
                       ),
                       const SizedBox(width: 10),
                       _MiniStatCard(
                         value: '${player['assists']}',
                         label: 'Asistencias',
                         icon: Icons.handshake,
-                        color: AppColors.accent,
+                        color: context.colors.accent,
                       ),
                       const SizedBox(width: 10),
                       _MiniStatCard(
                         value: '${player['matches']}',
                         label: 'Partidos',
                         icon: Icons.stadium,
-                        color: AppColors.info,
+                        color: context.colors.info,
                       ),
                       const SizedBox(width: 10),
                       _MiniStatCard(
                         value: '${player['attendance']}%',
                         label: 'Asistencia',
                         icon: Icons.check_circle,
-                        color: AppColors.success,
+                        color: context.colors.success,
                       ),
                     ],
                   ),
@@ -718,13 +712,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     Text(
                       'Novedades del Club',
-                      style: AppTypography.headlineMedium,
+                      style: context.typography.headlineMedium,
                     ),
                     if (!isNormalUser)
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.add_box_outlined,
-                          color: AppColors.primary,
+                          color: context.colors.primary,
                           size: 28,
                         ),
                         onPressed: () =>
@@ -746,22 +740,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         padding: const EdgeInsets.all(20),
                         child: Column(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.feed_outlined,
                               size: 48,
-                              color: AppColors.textTertiary,
+                              color: context.colors.textTertiary,
                             ),
                             const SizedBox(height: 12),
                             Text(
                               'No hay novedades disponibles',
-                              style: AppTypography.titleMedium,
+                              style: context.typography.titleMedium,
                             ),
                             const SizedBox(height: 6),
                             Text(
                               sessionUser.role == 'dt'
                                   ? 'Comienza publicando una novedad para la categoría ${sessionUser.category}.'
                                   : 'Los entrenadores o directivos subirán novedades pronto.',
-                              style: AppTypography.bodySmall,
+                              style: context.typography.bodySmall,
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -819,12 +813,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     children: [
                                       Text(
                                         post['authorName'] ?? 'Autor',
-                                        style: AppTypography.titleSmall,
+                                        style: context.typography.titleSmall,
                                       ),
                                       Text(
                                         '${(post['authorRole'] ?? '').toUpperCase()} · ${post['category'] == 'all' ? 'Global' : post['category']}',
-                                        style: AppTypography.bodySmall.copyWith(
-                                          color: AppColors.textTertiary,
+                                        style: context.typography.bodySmall.copyWith(
+                                          color: context.colors.textTertiary,
                                         ),
                                       ),
                                     ],
@@ -832,9 +826,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                                 if (!sessionUser.isNormalUser)
                                   IconButton(
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.share,
-                                      color: AppColors.primary,
+                                      color: context.colors.primary,
                                       size: 20,
                                     ),
                                     onPressed: () {
@@ -847,9 +841,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 if (canDeletePost)
                                   IconButton(
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.delete_outline,
-                                      color: AppColors.error,
+                                      color: context.colors.error,
                                       size: 20,
                                     ),
                                     onPressed: () =>
@@ -872,8 +866,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                   gradient: LinearGradient(
                                     colors: [
-                                      AppColors.primary,
-                                      AppColors.accent,
+                                      context.colors.primary,
+                                      context.colors.accent,
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -888,7 +882,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     const SizedBox(height: 16),
                                     Text(
                                       post['title'] ?? '¡Feliz Cumpleaños!',
-                                      style: AppTypography.headlineMedium
+                                      style: context.typography.headlineMedium
                                           .copyWith(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
@@ -898,7 +892,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     const SizedBox(height: 12),
                                     Text(
                                       post['body'] ?? '',
-                                      style: AppTypography.bodyLarge.copyWith(
+                                      style: context.typography.bodyLarge.copyWith(
                                         color: Colors.white.withValues(
                                           alpha: 0.9,
                                         ),
@@ -906,21 +900,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 24),
-                                    Row(
+                                    const Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: [
-                                        const Text(
+                                        Text(
                                           '🎂',
                                           style: TextStyle(fontSize: 24),
                                         ),
-                                        const SizedBox(width: 8),
-                                        const Text(
+                                        SizedBox(width: 8),
+                                        Text(
                                           '🎈',
                                           style: TextStyle(fontSize: 24),
                                         ),
-                                        const SizedBox(width: 8),
-                                        const Text(
+                                        SizedBox(width: 8),
+                                        Text(
                                           '🎁',
                                           style: TextStyle(fontSize: 24),
                                         ),
@@ -932,12 +926,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ] else ...[
                               Text(
                                 post['title'] ?? '',
-                                style: AppTypography.titleMedium,
+                                style: context.typography.titleMedium,
                               ),
                               const SizedBox(height: 6),
                               Text(
                                 post['body'] ?? '',
-                                style: AppTypography.bodyMedium,
+                                style: context.typography.bodyMedium,
                               ),
                               if (post['imageUrl'] != null) ...[
                                 const SizedBox(height: 12),
@@ -952,10 +946,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     height: 160,
                                     placeholder: (context, url) =>
                                         Shimmer.fromColors(
-                                          baseColor: AppColors.surfaceLight,
-                                          highlightColor: AppColors.surface,
+                                          baseColor: context.colors.surfaceLight,
+                                          highlightColor: context.colors.surface,
                                           child: Container(
-                                            color: AppColors.surfaceLight,
+                                            color: context.colors.surfaceLight,
                                             height: 160,
                                           ),
                                         ),
@@ -965,7 +959,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               ],
                             ],
-                            const Divider(height: 24, color: AppColors.divider),
+                            Divider(height: 24, color: context.colors.divider),
 
                             // Post Footer / Comment Button
                             GestureDetector(
@@ -980,18 +974,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         Icons.chat_bubble_outline,
                                         size: 18,
                                         color: isExpanded
-                                            ? AppColors.primary
-                                            : AppColors.textSecondary,
+                                            ? context.colors.primary
+                                            : context.colors.textSecondary,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
                                         comments.isEmpty
                                             ? 'Comentar'
                                             : '${comments.length} ${comments.length == 1 ? 'comentario' : 'comentarios'}',
-                                        style: AppTypography.bodySmall.copyWith(
+                                        style: context.typography.bodySmall.copyWith(
                                           color: isExpanded
-                                              ? AppColors.primary
-                                              : AppColors.textSecondary,
+                                              ? context.colors.primary
+                                              : context.colors.textSecondary,
                                           fontWeight: isExpanded
                                               ? FontWeight.bold
                                               : FontWeight.normal,
@@ -1004,7 +998,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ? Icons.keyboard_arrow_up
                                         : Icons.keyboard_arrow_down,
                                     size: 18,
-                                    color: AppColors.textTertiary,
+                                    color: context.colors.textTertiary,
                                   ),
                                 ],
                               ),
@@ -1020,7 +1014,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     Expanded(
                                       child: TextField(
                                         controller: _commentControllers[postId],
-                                        style: AppTypography.bodyMedium,
+                                        style: context.typography.bodyMedium,
                                         decoration: const InputDecoration(
                                           hintText: 'Escribe un comentario...',
                                           contentPadding: EdgeInsets.symmetric(
@@ -1032,9 +1026,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ),
                                     const SizedBox(width: 8),
                                     IconButton(
-                                      icon: const Icon(
+                                      icon: Icon(
                                         Icons.send,
-                                        color: AppColors.primary,
+                                        color: context.colors.primary,
                                         size: 20,
                                       ),
                                       onPressed: () =>
@@ -1047,8 +1041,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                                   child: Text(
                                     'Los jugadores no pueden realizar comentarios.',
-                                    style: AppTypography.bodySmall.copyWith(
-                                      color: AppColors.textTertiary,
+                                    style: context.typography.bodySmall.copyWith(
+                                      color: context.colors.textTertiary,
                                       fontStyle: FontStyle.italic,
                                     ),
                                   ),
@@ -1083,7 +1077,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             child: Container(
                                               padding: const EdgeInsets.all(10),
                                               decoration: BoxDecoration(
-                                                color: AppColors.surfaceLight,
+                                                color: context.colors.surfaceLight,
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                               ),
@@ -1098,10 +1092,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                     children: [
                                                       Text(
                                                         '${comment['userName']} (${(comment['userRole'] ?? '').toUpperCase()})',
-                                                        style: AppTypography
+                                                        style: context.typography
                                                             .labelSmall
                                                             .copyWith(
-                                                              color: AppColors
+                                                              color: context.colors
                                                                   .accent,
                                                               fontWeight:
                                                                   FontWeight
@@ -1116,11 +1110,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                                 postId,
                                                                 comment,
                                                               ),
-                                                          child: const Icon(
+                                                          child: Icon(
                                                             Icons
                                                                 .delete_outline,
                                                             color:
-                                                                AppColors.error,
+                                                                context.colors.error,
                                                             size: 14,
                                                           ),
                                                         ),
@@ -1130,7 +1124,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                   Text(
                                                     comment['text'] ?? '',
                                                     style:
-                                                        AppTypography.bodySmall,
+                                                        context.typography.bodySmall,
                                                   ),
                                                 ],
                                               ),
@@ -1164,7 +1158,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     padding: const EdgeInsets.all(24.0),
                     child: Text(
                       'Error al cargar novedades: $err',
-                      style: TextStyle(color: AppColors.error),
+                      style: TextStyle(color: context.colors.error),
                     ),
                   ),
                 ),
@@ -1182,7 +1176,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.colors.surface,
         title: const Text('Eliminar Novedad'),
         content: const Text(
           '¿Estás seguro de que quieres eliminar esta publicación?',
@@ -1192,7 +1186,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancelar',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: context.colors.textSecondary),
             ),
           ),
           TextButton(
@@ -1201,16 +1195,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               if (context.mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Publicación eliminada'),
-                    backgroundColor: AppColors.warning,
+                  SnackBar(
+                    content: const Text('Publicación eliminada'),
+                    backgroundColor: context.colors.warning,
                   ),
                 );
               }
             },
-            child: const Text(
+            child: Text(
               'Eliminar',
-              style: TextStyle(color: AppColors.error),
+              style: TextStyle(color: context.colors.error),
             ),
           ),
         ],
@@ -1226,7 +1220,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.colors.surface,
         title: const Text('Eliminar Comentario'),
         content: const Text(
           '¿Estás seguro de que deseas eliminar este comentario?',
@@ -1236,7 +1230,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancelar',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: context.colors.textSecondary),
             ),
           ),
           TextButton(
@@ -1247,16 +1241,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               if (context.mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Comentario eliminado'),
-                    backgroundColor: AppColors.warning,
+                  SnackBar(
+                    content: const Text('Comentario eliminado'),
+                    backgroundColor: context.colors.warning,
                   ),
                 );
               }
             },
-            child: const Text(
+            child: Text(
               'Eliminar',
-              style: TextStyle(color: AppColors.error),
+              style: TextStyle(color: context.colors.error),
             ),
           ),
         ],
@@ -1357,8 +1351,8 @@ class _QuickAction extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     label,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.textSecondary,
+                    style: context.typography.labelSmall.copyWith(
+                      color: context.colors.textSecondary,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -1372,8 +1366,8 @@ class _QuickAction extends StatelessWidget {
                   right: -4,
                   child: Container(
                     padding: const EdgeInsets.all(5),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
+                    decoration: BoxDecoration(
+                      color: context.colors.primary,
                       shape: BoxShape.circle,
                     ),
                     child: Text(
@@ -1430,9 +1424,9 @@ class _MiniStatCard extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: AppTypography.headlineMedium.copyWith(color: color),
+                style: context.typography.headlineMedium.copyWith(color: color),
               ),
-              Text(label.toUpperCase(), style: AppTypography.statLabel),
+              Text(label.toUpperCase(), style: context.typography.statLabel),
             ],
           ),
         ],

@@ -1,14 +1,17 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
+
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/app_logger.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 import 'order_detail_screen.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -51,7 +54,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         setState(() => _bankConfig = doc.data());
       }
     } catch (e) {
-      debugPrint('Error loading bank config: $e');
+      AppLogger.error('Error loading bank config', error: e, tag: 'App');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -101,9 +104,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Pedido confirmado! Ahora subí tu comprobante.'),
-            backgroundColor: AppColors.success,
+          SnackBar(
+            content: const Text('¡Pedido confirmado! Ahora subí tu comprobante.'),
+            backgroundColor: context.colors.success,
           ),
         );
         // Navigate to order detail to upload receipt
@@ -117,7 +120,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
         );
       }
     } finally {
@@ -131,7 +134,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       SnackBar(
         content: Text('$label copiado al portapapeles'),
         duration: const Duration(seconds: 1),
-        backgroundColor: AppColors.info,
+        backgroundColor: context.colors.info,
       ),
     );
   }
@@ -141,10 +144,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final totalPrice = widget.unitPrice * widget.quantity;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text('Checkout', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text('Checkout', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
       ),
       body: _isLoading
@@ -155,7 +158,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Order Summary
-                  Text('Resumen del Pedido', style: AppTypography.titleMedium.copyWith(color: AppColors.primary)),
+                  Text('Resumen del Pedido', style: context.typography.titleMedium.copyWith(color: context.colors.primary)),
                   const SizedBox(height: 12),
                   JNCard(
                     padding: const EdgeInsets.all(16),
@@ -171,18 +174,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(widget.productName, style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                              Text(widget.productName, style: context.typography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 4),
                               Text(
                                 'Talle: ${widget.selectedSize} • Cantidad: ${widget.quantity}',
-                                style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                                style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
                               ),
                             ],
                           ),
                         ),
                         Text(
                           '\$${totalPrice.toStringAsFixed(0)}',
-                          style: AppTypography.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                          style: context.typography.titleMedium.copyWith(color: context.colors.accent, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -198,24 +201,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Precio unitario', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
-                              Text('\$${widget.unitPrice.toStringAsFixed(0)}', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                              Text('Precio unitario', style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary)),
+                              Text('\$${widget.unitPrice.toStringAsFixed(0)}', style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary)),
                             ],
                           ),
                           const SizedBox(height: 4),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Cantidad', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
-                              Text('x${widget.quantity}', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                              Text('Cantidad', style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary)),
+                              Text('x${widget.quantity}', style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary)),
                             ],
                           ),
                           const Divider(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Total', style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
-                              Text('\$${totalPrice.toStringAsFixed(0)}', style: AppTypography.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold)),
+                              Text('Total', style: context.typography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                              Text('\$${totalPrice.toStringAsFixed(0)}', style: context.typography.titleMedium.copyWith(color: context.colors.accent, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ],
@@ -225,11 +228,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   const SizedBox(height: 24),
 
                   // Bank Details
-                  Text('Datos para Transferencia', style: AppTypography.titleMedium.copyWith(color: AppColors.primary)),
+                  Text('Datos para Transferencia', style: context.typography.titleMedium.copyWith(color: context.colors.primary)),
                   const SizedBox(height: 4),
                   Text(
                     'Realizá la transferencia al siguiente CBU y luego subí el comprobante.',
-                    style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
+                    style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
                   ),
                   const SizedBox(height: 12),
 
@@ -243,7 +246,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                         'Los datos bancarios aún no fueron configurados. Contactá al club.',
-                        style: AppTypography.bodyMedium.copyWith(color: AppColors.warning),
+                        style: context.typography.bodyMedium.copyWith(color: context.colors.warning),
                       ),
                     ),
 
@@ -251,18 +254,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
                   // Instructions
                   JNCard(
-                    color: AppColors.info.withValues(alpha: 0.08),
-                    border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                    color: context.colors.info.withValues(alpha: 0.08),
+                    border: Border.all(color: context.colors.info.withValues(alpha: 0.3)),
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.info_outline, color: AppColors.info, size: 20),
+                        Icon(Icons.info_outline, color: context.colors.info, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Una vez realizada la transferencia, volvé a la app y subí el comprobante desde "Mis Compras" para que el club pueda verificar tu pago.',
-                            style: AppTypography.bodySmall.copyWith(color: AppColors.info),
+                            style: context.typography.bodySmall.copyWith(color: context.colors.info),
                           ),
                         ),
                       ],
@@ -290,15 +293,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         children: [
           SizedBox(
             width: 60,
-            child: Text(label, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary)),
+            child: Text(label, style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary)),
           ),
           Expanded(
-            child: Text(value, style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w500)),
+            child: Text(value, style: context.typography.bodyMedium.copyWith(fontWeight: FontWeight.w500)),
           ),
           if (copyable)
             GestureDetector(
               onTap: () => _copyToClipboard(value, label),
-              child: const Icon(Icons.copy, size: 18, color: AppColors.accent),
+              child: Icon(Icons.copy, size: 18, color: context.colors.accent),
             ),
         ],
       ),
@@ -311,10 +314,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: context.colors.surfaceLight,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(Icons.shopping_bag, color: AppColors.accent),
+      child: Icon(Icons.shopping_bag, color: context.colors.accent),
     );
 
     final url = widget.productImageUrl;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../theme/app_colors.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../theme/app_spacing.dart';
 
 /// Skeleton loading placeholder with shimmer effect
@@ -34,13 +34,13 @@ class JNShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: AppColors.surfaceLight,
-      highlightColor: AppColors.surfaceVariant,
+      baseColor: context.colors.surfaceLight,
+      highlightColor: context.colors.surfaceVariant,
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
+          color: context.colors.surfaceLight,
           borderRadius: BorderRadius.circular(borderRadius),
         ),
       ),

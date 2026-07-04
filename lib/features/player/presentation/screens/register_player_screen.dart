@@ -1,13 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/app_logger.dart';
+import '../../../../core/services/player_service.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/services/player_service.dart';
-import '../../../../core/providers/session_provider.dart';
 
 class RegisterPlayerScreen extends ConsumerStatefulWidget {
   final VoidCallback? onSuccess;
@@ -49,7 +52,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error picking avatar: $e');
+      AppLogger.error('Error picking avatar', error: e, tag: 'App');
     }
   }
 
@@ -62,7 +65,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
     setState(() => _isLoading = true);
     try {
       final tutorSession = ref.read(currentUserProvider);
-      if (tutorSession == null) throw Exception("Sesión no encontrada");
+      if (tutorSession == null) throw Exception('Sesión no encontrada');
 
       final fullNameStr = _fullNameController.text.trim();
       final parts = fullNameStr.split(' ');
@@ -90,9 +93,9 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Jugador registrado con éxito'),
-              backgroundColor: AppColors.success,
+            SnackBar(
+              content: const Text('Jugador registrado con éxito'),
+              backgroundColor: context.colors.success,
             ),
           );
           if (widget.onSuccess != null) {
@@ -107,7 +110,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
           context: context,
           builder: (context) {
             return AlertDialog(
-              backgroundColor: AppColors.surface,
+              backgroundColor: context.colors.surface,
               title: const Text('Jugador ya registrado'),
               content: Text(
                 'El jugador ${e.playerName} ya se encuentra registrado en el club. ¿Deseas enviar una solicitud para ser co-tutor?',
@@ -119,7 +122,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: context.colors.primary,
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
@@ -136,9 +139,9 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                           );
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Solicitud enviada con éxito.'),
-                          backgroundColor: AppColors.success,
+                        SnackBar(
+                          content: const Text('Solicitud enviada con éxito.'),
+                          backgroundColor: context.colors.success,
                         ),
                       );
                       if (widget.onSuccess != null) {
@@ -149,7 +152,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                     } catch (err) {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $err'), backgroundColor: AppColors.error),
+                        SnackBar(content: Text('Error: $err'), backgroundColor: context.colors.error),
                       );
                     } finally {
                       if (mounted) setState(() => _isLoading = false);
@@ -166,7 +169,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error));
+        ).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -176,10 +179,10 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text('Registrar Jugador', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text('Registrar Jugador', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
       ),
       body: SafeArea(
@@ -192,8 +195,8 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
               children: [
                 Text(
                   'Datos del jugador',
-                  style: AppTypography.titleMedium.copyWith(
-                    color: AppColors.primary,
+                  style: context.typography.titleMedium.copyWith(
+                    color: context.colors.primary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -206,15 +209,15 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                         onTap: _pickAvatar,
                         child: CircleAvatar(
                           radius: 54,
-                          backgroundColor: AppColors.surfaceLight,
+                          backgroundColor: context.colors.surfaceLight,
                           backgroundImage: _avatarPath != null
                               ? FileImage(File(_avatarPath!)) as ImageProvider
                               : null,
                           child: _avatarPath == null
-                              ? const Icon(
+                              ? Icon(
                                   Icons.person,
                                   size: 48,
-                                  color: AppColors.textTertiary,
+                                  color: context.colors.textTertiary,
                                 )
                               : null,
                         ),
@@ -226,8 +229,8 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                           onTap: _pickAvatar,
                           child: Container(
                             padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
+                            decoration: BoxDecoration(
+                              color: context.colors.primary,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -245,8 +248,8 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                 Center(
                   child: Text(
                     'Tomar foto de perfil (Solo Cámara)',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.textTertiary,
+                    style: context.typography.labelSmall.copyWith(
+                      color: context.colors.textTertiary,
                     ),
                   ),
                 ),
@@ -255,7 +258,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                 TextFormField(
                   controller: _dniController,
                   keyboardType: TextInputType.number,
-                  style: AppTypography.bodyLarge,
+                  style: context.typography.bodyLarge,
                   decoration: const InputDecoration(
                     labelText: 'DNI (Sin puntos)',
                   ),
@@ -265,7 +268,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
 
                 TextFormField(
                   controller: _fullNameController,
-                  style: AppTypography.bodyLarge,
+                  style: context.typography.bodyLarge,
                   decoration: const InputDecoration(labelText: 'Nombre completo'),
                   validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
                 ),
@@ -299,7 +302,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                             _birthDate != null
                                 ? '${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}'
                                 : 'Seleccionar fecha',
-                            style: AppTypography.bodyLarge,
+                            style: context.typography.bodyLarge,
                           ),
                         ),
                       ),
@@ -308,7 +311,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _categoryController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           labelText: 'Categoría (ej: Sub-12)',
                         ),
@@ -325,7 +328,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _weightController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           labelText: 'Peso (ej: 60kg)',
                         ),
@@ -335,7 +338,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _heightController,
-                        style: AppTypography.bodyLarge,
+                        style: context.typography.bodyLarge,
                         decoration: const InputDecoration(
                           labelText: 'Altura (ej: 1.70m)',
                         ),
@@ -354,15 +357,15 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                         children: [
                           Text(
                             'Habilitar inicio de sesión',
-                            style: AppTypography.titleMedium.copyWith(
-                              color: AppColors.primary,
+                            style: context.typography.titleMedium.copyWith(
+                              color: context.colors.primary,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Permite al jugador loguearse con correo y contraseña.',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textSecondary,
+                            style: context.typography.bodySmall.copyWith(
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -371,7 +374,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                     Switch(
                       value: _enableLogin,
                       onChanged: (v) => setState(() => _enableLogin = v),
-                      activeThumbColor: AppColors.primary,
+                      activeThumbColor: context.colors.primary,
                     ),
                   ],
                 ),
@@ -380,7 +383,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: AppTypography.bodyLarge,
+                    style: context.typography.bodyLarge,
                     decoration: const InputDecoration(
                       labelText: 'Correo electrónico',
                     ),
@@ -392,7 +395,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: AppTypography.bodyLarge,
+                    style: context.typography.bodyLarge,
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
                       suffixIcon: IconButton(

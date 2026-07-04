@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
+import 'package:flutter/material.dart';
+
+import '../../../../core/services/app_logger.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
 
@@ -46,7 +48,7 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading config: $e');
+      AppLogger.error('Error loading config', error: e, tag: 'App');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -82,17 +84,17 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text('Sistema de Cumpleaños', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text('Sistema de Cumpleaños', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -103,7 +105,7 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: context.colors.surfaceLight,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
               ),
               child: Column(
@@ -111,30 +113,30 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
                   SwitchListTile(
                     title: Text(
                       'Publicaciones Automáticas',
-                      style: AppTypography.titleSmall,
+                      style: context.typography.titleSmall,
                     ),
                     subtitle: Text(
                       'Publicar novedad en el Feed el día del cumpleaños',
-                      style: AppTypography.bodySmall,
+                      style: context.typography.bodySmall,
                     ),
                     value: _enablePosts,
-                    activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
-                    activeThumbColor: AppColors.primary,
+                    activeTrackColor: context.colors.primary.withValues(alpha: 0.5),
+                    activeThumbColor: context.colors.primary,
                     onChanged: (val) => setState(() => _enablePosts = val),
                   ),
-                  const Divider(color: AppColors.border),
+                  Divider(color: context.colors.border),
                   SwitchListTile(
                     title: Text(
                       'Notificaciones Automáticas',
-                      style: AppTypography.titleSmall,
+                      style: context.typography.titleSmall,
                     ),
                     subtitle: Text(
                       'Avisar a Profesores y Directivos',
-                      style: AppTypography.bodySmall,
+                      style: context.typography.bodySmall,
                     ),
                     value: _enableNotifications,
-                    activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
-                    activeThumbColor: AppColors.primary,
+                    activeTrackColor: context.colors.primary.withValues(alpha: 0.5),
+                    activeThumbColor: context.colors.primary,
                     onChanged: (val) =>
                         setState(() => _enableNotifications = val),
                   ),
@@ -146,25 +148,24 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
               const SizedBox(height: 24),
               Text(
                 'Días previos de aviso',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.primary,
+                style: context.typography.titleMedium.copyWith(
+                  color: context.colors.primary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 '¿Cuántos días antes enviar el recordatorio al cuerpo técnico?',
-                style: AppTypography.bodySmall,
+                style: context.typography.bodySmall,
               ),
               const SizedBox(height: 12),
               Slider(
                 value: _daysPriorToNotify.toDouble(),
-                min: 0,
                 max: 7,
                 divisions: 7,
                 label: _daysPriorToNotify == 0
                     ? 'Mismo día'
                     : '$_daysPriorToNotify días antes',
-                activeColor: AppColors.primary,
+                activeColor: context.colors.primary,
                 onChanged: (val) =>
                     setState(() => _daysPriorToNotify = val.toInt()),
               ),
@@ -173,7 +174,7 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
                   _daysPriorToNotify == 0
                       ? 'Se avisará el mismo día.'
                       : 'Se avisará $_daysPriorToNotify días antes y el mismo día.',
-                  style: AppTypography.labelMedium,
+                  style: context.typography.labelMedium,
                 ),
               ),
             ],
@@ -182,44 +183,44 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
               const SizedBox(height: 32),
               Text(
                 'Plantilla de Publicación',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.primary,
+                style: context.typography.titleMedium.copyWith(
+                  color: context.colors.primary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'El texto que se mostrará en Novedades. Usa {nombre} para insertar automáticamente el nombre del jugador.',
-                style: AppTypography.bodySmall,
+                style: context.typography.bodySmall,
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _templateController,
                 maxLines: 5,
-                style: AppTypography.bodyMedium,
+                style: context.typography.bodyMedium,
                 decoration: InputDecoration(
                   hintText: '¡Feliz cumple {nombre}!',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   ),
                   filled: true,
-                  fillColor: AppColors.surface,
+                  fillColor: context.colors.surface,
                 ),
               ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: context.colors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  border: Border.all(color: AppColors.primary),
+                  border: Border.all(color: context.colors.primary),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Vista Previa',
-                      style: AppTypography.labelLarge.copyWith(
-                        color: AppColors.primary,
+                      style: context.typography.labelLarge.copyWith(
+                        color: context.colors.primary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -228,7 +229,7 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
                         '{nombre}',
                         'Juan Pérez',
                       ),
-                      style: AppTypography.bodyMedium,
+                      style: context.typography.bodyMedium,
                     ),
                   ],
                 ),

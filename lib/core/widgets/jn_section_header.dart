@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../theme/app_typography.dart';
 
 /// Section header with title and optional "See All" action
@@ -24,14 +24,14 @@ class JNSectionHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: AppTypography.headlineSmall),
+          Text(title, style: context.typography.headlineSmall),
           if (actionLabel != null)
             GestureDetector(
               onTap: onAction,
               child: Text(
                 actionLabel!,
-                style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.primary,
+                style: context.typography.labelMedium.copyWith(
+                  color: context.colors.primary,
                   fontWeight: FontWeight.w600,
                 ),
               ),

@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_avatar.dart';
-import '../../../../core/widgets/jn_badge.dart';
-import '../../../../core/widgets/jn_stat_card.dart';
-import '../../../../core/widgets/jn_section_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_avatar.dart';
+import '../../../../core/widgets/jn_badge.dart';
+import '../../../../core/widgets/jn_card.dart';
+import '../../../../core/widgets/jn_section_header.dart';
+import '../../../../core/widgets/jn_stat_card.dart';
+import '../../../results/presentation/screens/manage_scorers_screen.dart';
 import 'create_coach_report_screen.dart';
+import 'formation_screen.dart';
 
 class CoachDashboardScreen extends ConsumerWidget {
   const CoachDashboardScreen({super.key});
@@ -26,7 +29,7 @@ class CoachDashboardScreen extends ConsumerWidget {
     final Map<String, dynamic>? nextMatch = matchesAsync.valueOrNull?.firstOrNull;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Panel DT'),
         actions: [
@@ -47,7 +50,7 @@ class CoachDashboardScreen extends ConsumerWidget {
                 JNAvatar(
                   name: '${sessionUser.name} ${sessionUser.lastName}',
                   size: 50,
-                  borderColor: AppColors.accent,
+                  borderColor: context.colors.accent,
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -56,11 +59,11 @@ class CoachDashboardScreen extends ConsumerWidget {
                     children: [
                       Text(
                         'DT ${sessionUser.name} ${sessionUser.lastName}',
-                        style: AppTypography.titleLarge,
+                        style: context.typography.titleLarge,
                       ),
                       Text(
                         '${sessionUser.category ?? 'Sin categoría'} · Temporada ${DateTime.now().year}',
-                        style: AppTypography.bodySmall,
+                        style: context.typography.bodySmall,
                       ),
                     ],
                   ),
@@ -85,25 +88,25 @@ class CoachDashboardScreen extends ConsumerWidget {
                 value: '${players.length}',
                 label: 'Jugadores',
                 icon: Icons.groups,
-                color: AppColors.info,
+                color: context.colors.info,
               ),
               JNStatCard(
                 value: '13',
                 label: 'Puntos',
                 icon: Icons.emoji_events,
-                color: AppColors.accent,
+                color: context.colors.accent,
               ),
               JNStatCard(
                 value: '1°',
                 label: 'Posición',
                 icon: Icons.leaderboard,
-                color: AppColors.success,
+                color: context.colors.success,
               ),
               JNStatCard(
                 value: '5',
                 label: 'Partidos',
                 icon: Icons.sports_soccer,
-                color: AppColors.primary,
+                color: context.colors.primary,
               ),
             ],
           ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
@@ -112,12 +115,12 @@ class CoachDashboardScreen extends ConsumerWidget {
 
           // ─── Next Match Actions ───────────────────
           if (nextMatch != null) ...[
-            JNSectionHeader(title: 'Próximo partido', padding: EdgeInsets.zero),
+            const JNSectionHeader(title: 'Próximo partido', padding: EdgeInsets.zero),
             const SizedBox(height: 12),
             JNCard(
               padding: const EdgeInsets.all(16),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.2),
+                color: context.colors.primary.withValues(alpha: 0.2),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,19 +130,19 @@ class CoachDashboardScreen extends ConsumerWidget {
                       Icon(
                         Icons.sports_soccer,
                         size: 18,
-                        color: AppColors.primary,
+                        color: context.colors.primary,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
-                        style: AppTypography.titleMedium,
+                        style: context.typography.titleMedium,
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '${nextMatch['date']} · ${nextMatch['time']} · ${nextMatch['venue']}',
-                    style: AppTypography.bodySmall,
+                    style: context.typography.bodySmall,
                   ),
                   const SizedBox(height: 14),
                   Row(
@@ -148,7 +151,7 @@ class CoachDashboardScreen extends ConsumerWidget {
                         child: _ActionButton(
                           icon: Icons.list_alt,
                           label: 'Convocatoria',
-                          color: AppColors.primary,
+                          color: context.colors.primary,
                           onTap: () {},
                         ),
                       ),
@@ -157,8 +160,15 @@ class CoachDashboardScreen extends ConsumerWidget {
                         child: _ActionButton(
                           icon: Icons.format_list_numbered,
                           label: 'Formación',
-                          color: AppColors.accent,
-                          onTap: () {},
+                          color: context.colors.accent,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FormationScreen(matchId: nextMatch['id']),
+                              ),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -166,7 +176,7 @@ class CoachDashboardScreen extends ConsumerWidget {
                         child: _ActionButton(
                           icon: Icons.note_add,
                           label: 'Notas',
-                          color: AppColors.info,
+                          color: context.colors.info,
                           onTap: () {},
                         ),
                       ),
@@ -193,12 +203,12 @@ class CoachDashboardScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(32.0),
                 child: Column(
                   children: [
-                    Icon(Icons.groups, size: 48, color: AppColors.textTertiary),
+                    Icon(Icons.groups, size: 48, color: context.colors.textTertiary),
                     const SizedBox(height: 16),
                     Text(
                       'No hay jugadores registrados en esta categoría',
-                      style: AppTypography.titleMedium.copyWith(
-                        color: AppColors.textSecondary,
+                      style: context.typography.titleMedium.copyWith(
+                        color: context.colors.textSecondary,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -232,20 +242,20 @@ class CoachDashboardScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     '${player['name']} ${player['lastName']}',
-                                    style: AppTypography.titleSmall,
+                                    style: context.typography.titleSmall,
                                   ),
                                   Row(
                                     children: [
                                       Text(
                                         player['position'] as String,
-                                        style: AppTypography.bodySmall,
+                                        style: context.typography.bodySmall,
                                       ),
                                       const SizedBox(width: 8),
-                                      Text('·', style: AppTypography.bodySmall),
+                                      Text('·', style: context.typography.bodySmall),
                                       const SizedBox(width: 8),
                                       Text(
                                         '${player['age']} años',
-                                        style: AppTypography.bodySmall,
+                                        style: context.typography.bodySmall,
                                       ),
                                     ],
                                   ),
@@ -261,13 +271,13 @@ class CoachDashboardScreen extends ConsumerWidget {
                                     Icon(
                                       Icons.sports_soccer,
                                       size: 12,
-                                      color: AppColors.primary,
+                                      color: context.colors.primary,
                                     ),
                                     const SizedBox(width: 3),
                                     Text(
                                       '${player['goals']}',
-                                      style: AppTypography.labelMedium.copyWith(
-                                        color: AppColors.primary,
+                                      style: context.typography.labelMedium.copyWith(
+                                        color: context.colors.primary,
                                       ),
                                     ),
                                   ],
@@ -275,10 +285,10 @@ class CoachDashboardScreen extends ConsumerWidget {
                                 const SizedBox(height: 2),
                                 Text(
                                   '${player['attendance']}%',
-                                  style: AppTypography.bodySmall.copyWith(
+                                  style: context.typography.bodySmall.copyWith(
                                     color: (player['attendance'] as int) >= 90
-                                        ? AppColors.success
-                                        : AppColors.warning,
+                                        ? context.colors.success
+                                        : context.colors.warning,
                                   ),
                                 ),
                               ],
@@ -295,7 +305,7 @@ class CoachDashboardScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // ─── Comunicación Institucional ─────────────
-          JNSectionHeader(
+          const JNSectionHeader(
             title: 'Comunicación Institucional',
             padding: EdgeInsets.zero,
           ),
@@ -307,7 +317,7 @@ class CoachDashboardScreen extends ConsumerWidget {
               children: [
                 Text(
                   'Envía informes o novedades importantes directamente a la directiva del club.',
-                  style: AppTypography.bodySmall,
+                  style: context.typography.bodySmall,
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -324,7 +334,7 @@ class CoachDashboardScreen extends ConsumerWidget {
                     icon: const Icon(Icons.send),
                     label: const Text('Enviar Informe a Directiva'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: context.colors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -333,6 +343,42 @@ class CoachDashboardScreen extends ConsumerWidget {
               ],
             ),
           ).animate(delay: 500.ms).fadeIn(duration: 400.ms),
+
+          const SizedBox(height: 24),
+
+          // ─── Gestión de Goleadores ─────────────
+          const JNSectionHeader(
+            title: 'Gestión Deportiva',
+            padding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 12),
+          JNCard(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ManageScorersScreen(),
+                ),
+              );
+            },
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.sports_soccer, color: context.colors.accent, size: 28),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Goleadores por Categoría', style: context.typography.titleMedium),
+                      Text('Gestionar la tabla de goleadores de la liga.', style: context.typography.bodySmall),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: context.colors.textTertiary),
+              ],
+            ),
+          ).animate(delay: 550.ms).fadeIn(duration: 400.ms),
         ],
       ),
     );
@@ -366,7 +412,7 @@ class _ActionButton extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: color),
             const SizedBox(height: 4),
-            Text(label, style: AppTypography.labelSmall.copyWith(color: color)),
+            Text(label, style: context.typography.labelSmall.copyWith(color: color)),
           ],
         ),
       ),

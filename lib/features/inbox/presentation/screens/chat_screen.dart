@@ -1,10 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
-import '../../../../core/providers/session_provider.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
@@ -82,7 +83,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al enviar mensaje: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -94,7 +95,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final currentUser = ref.watch(currentUserProvider)!;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(
@@ -107,14 +108,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 children: [
                   Text(
                     widget.otherUserName,
-                    style: AppTypography.titleLarge,
+                    style: context.typography.titleLarge,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     widget.otherUserRole.toUpperCase(),
                     style: TextStyle(
                       fontSize: 10,
-                      color: AppColors.primary.withValues(alpha: 0.8),
+                      color: context.colors.primary.withValues(alpha: 0.8),
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
                     ),
@@ -145,7 +146,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   return Center(
                     child: Text(
                       'Error al cargar mensajes: ${snapshot.error}',
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: context.colors.error),
                     ),
                   );
                 }
@@ -159,22 +160,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.forum_outlined,
                             size: 40,
-                            color: AppColors.textTertiary,
+                            color: context.colors.textTertiary,
                           ),
                           const SizedBox(height: 12),
                           Text(
                             'Comienzo de la conversación',
-                            style: AppTypography.titleMedium.copyWith(
-                              color: AppColors.textTertiary,
+                            style: context.typography.titleMedium.copyWith(
+                              color: context.colors.textTertiary,
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'Envía un mensaje privado para contactar.',
-                            style: AppTypography.bodySmall,
+                            style: context.typography.bodySmall,
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -216,7 +217,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildChatBubble(String text, DateTime time, bool isMe) {
-    final bubbleColor = isMe ? AppColors.primary : AppColors.surfaceLight;
+    final bubbleColor = isMe ? context.colors.primary : context.colors.surfaceLight;
     final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final bubbleBorder = isMe
         ? const BorderRadius.only(
@@ -254,8 +255,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           child: Text(
             text,
-            style: AppTypography.bodyMedium.copyWith(
-              color: isMe ? Colors.white : AppColors.textPrimary,
+            style: context.typography.bodyMedium.copyWith(
+              color: isMe ? Colors.white : context.colors.textPrimary,
             ),
           ),
         ),
@@ -263,7 +264,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           child: Text(
             _formatTimestamp(time),
-            style: AppTypography.labelSmall.copyWith(fontSize: 9),
+            style: context.typography.labelSmall.copyWith(fontSize: 9),
           ),
         ),
         const SizedBox(height: 6),
@@ -275,15 +276,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+        color: context.colors.surface,
+        border: Border(top: BorderSide(color: context.colors.border, width: 0.5)),
       ),
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _messageController,
-              style: AppTypography.bodyMedium,
+              style: context.typography.bodyMedium,
               maxLines: null,
               decoration: const InputDecoration(
                 hintText: 'Escribe un mensaje privado...',
@@ -297,7 +298,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           const SizedBox(width: 8),
           CircleAvatar(
-            backgroundColor: AppColors.primary,
+            backgroundColor: context.colors.primary,
             radius: 22,
             child: IconButton(
               icon: const Icon(Icons.send, color: Colors.white, size: 18),

@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app_logger.dart';
 
 class PlayerExistsException implements Exception {
   final String playerId;
@@ -54,17 +54,17 @@ class PlayerService {
           password.isNotEmpty) {
         // To create a user without signing out the tutor, we use a secondary app
         try {
-          FirebaseApp tempApp = await Firebase.initializeApp(
+          final FirebaseApp tempApp = await Firebase.initializeApp(
             name: 'temp_register',
             options: Firebase.app().options,
           );
-          UserCredential cred = await FirebaseAuth.instanceFor(
+          final UserCredential cred = await FirebaseAuth.instanceFor(
             app: tempApp,
           ).createUserWithEmailAndPassword(email: email, password: password);
           authUid = cred.user?.uid;
           await tempApp.delete();
-        } catch (e) {
-          debugPrint('Error creating auth for player: $e');
+        } on FirebaseAuthException catch (e) {
+          AppLogger.error('Error creating auth for player', error: e, tag: 'PlayerService');
           rethrow;
         }
       }

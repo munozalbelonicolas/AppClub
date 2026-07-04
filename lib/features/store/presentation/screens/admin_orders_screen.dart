@@ -1,11 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../../../../core/widgets/jn_empty_state.dart';
+import '../../../../core/widgets/jn_skeleton_card.dart';
 import '../widgets/order_status_badge.dart';
 import 'admin_order_detail_screen.dart';
 
@@ -19,12 +22,12 @@ class AdminOrdersScreen extends ConsumerStatefulWidget {
 class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final _tabs = [
-    {'key': 'all', 'label': 'Todos'},
-    {'key': 'pending_payment', 'label': 'Pendientes'},
-    {'key': 'payment_uploaded', 'label': 'Por Verificar'},
-    {'key': 'confirmed', 'label': 'Confirmados'},
-    {'key': 'delivered', 'label': 'Entregados'},
+  final List<Map<String, String>> _tabs = [
+    {'label': 'Todos', 'key': 'all'},
+    {'label': 'Pendientes', 'key': 'pending_payment'},
+    {'label': 'A Revisar', 'key': 'payment_uploaded'},
+    {'label': 'Para Retirar', 'key': 'confirmed'},
+    {'label': 'Entregados', 'key': 'delivered'},
   ];
 
   @override
@@ -42,17 +45,17 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text('Pedidos de la Tienda', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text('Gestión de Pedidos', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textTertiary,
+          indicatorColor: context.colors.primary,
+          labelColor: context.colors.primary,
+          unselectedLabelColor: context.colors.textTertiary,
           tabs: _tabs.map((t) => Tab(text: t['label'] as String)).toList(),
         ),
       ),
@@ -68,18 +71,17 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
       stream: _buildQuery(filter),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return ListView.builder(
+            padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
+            itemCount: 4,
+            itemBuilder: (context, index) => const JNSkeletonCard(height: 100),
+          );
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.inbox_outlined, size: 64, color: AppColors.textTertiary),
-                const SizedBox(height: 16),
-                Text('No hay pedidos', style: AppTypography.bodyLarge.copyWith(color: AppColors.textTertiary)),
-              ],
-            ),
+          return const JNEmptyState(
+            icon: Icons.inbox_outlined,
+            title: 'No hay pedidos',
+            message: 'No se encontraron pedidos en esta categoría.',
           );
         }
 
@@ -110,12 +112,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
                           children: [
                             Text(
                               data['buyerName'] ?? '',
-                              style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                              style: context.typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               '${data['productName']} — Talle: ${data['selectedSize']}',
-                              style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                              style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -124,7 +126,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
                       ),
                       Text(
                         '\$${(data['totalPrice'] ?? 0).toStringAsFixed(0)}',
-                        style: AppTypography.titleSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                        style: context.typography.titleSmall.copyWith(color: context.colors.accent, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -136,7 +138,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
                       if (createdAt != null)
                         Text(
                           _formatDate(createdAt.toDate()),
-                          style: AppTypography.badge.copyWith(color: AppColors.textTertiary, fontSize: 10),
+                          style: context.typography.badge.copyWith(color: context.colors.textTertiary, fontSize: 10),
                         ),
                     ],
                   ),

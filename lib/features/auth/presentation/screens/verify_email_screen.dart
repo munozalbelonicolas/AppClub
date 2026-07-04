@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/services/auth_service.dart';
 
 class VerifyEmailScreen extends ConsumerWidget {
   final VoidCallback onRefresh;
@@ -19,13 +20,13 @@ class VerifyEmailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.error),
+            icon: Icon(Icons.logout, color: context.colors.error),
             onPressed: () async {
               await ref.read(authServiceProvider).signOut();
               onSignOut();
@@ -42,16 +43,16 @@ class VerifyEmailScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(
+              Icon(
                 Icons.mark_email_unread_outlined,
                 size: 80,
-                color: AppColors.primary,
+                color: context.colors.primary,
               ),
               const SizedBox(height: 24),
               Text(
                 'Verificá tu correo',
                 textAlign: TextAlign.center,
-                style: AppTypography.headlineMedium.copyWith(
+                style: context.typography.headlineMedium.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -59,8 +60,8 @@ class VerifyEmailScreen extends ConsumerWidget {
               Text(
                 'Te enviamos un enlace de verificación a tu correo electrónico. Por favor revisá tu bandeja de entrada o carpeta de spam y hacé clic en el enlace para continuar.',
                 textAlign: TextAlign.center,
-                style: AppTypography.bodyLarge.copyWith(
-                  color: AppColors.textSecondary,
+                style: context.typography.bodyLarge.copyWith(
+                  color: context.colors.textSecondary,
                 ),
               ),
               const SizedBox(height: 32),

@@ -1,15 +1,17 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
+
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/image_upload_service.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 import '../widgets/order_status_badge.dart';
 
 class OrderDetailScreen extends ConsumerStatefulWidget {
@@ -24,6 +26,13 @@ class OrderDetailScreen extends ConsumerStatefulWidget {
 class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   final _picker = ImagePicker();
   bool _isUploading = false;
+  late final Stream<DocumentSnapshot> _orderStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _orderStream = FirebaseFirestore.instance.collection('store_orders').doc(widget.orderId).snapshots();
+  }
 
   Future<void> _uploadReceipt() async {
     try {
@@ -60,16 +69,16 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Comprobante enviado. El club verificará tu pago.'),
-            backgroundColor: AppColors.success,
+          SnackBar(
+            content: const Text('Comprobante enviado. El club verificará tu pago.'),
+            backgroundColor: context.colors.success,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
         );
       }
     } finally {
@@ -80,14 +89,14 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text('Detalle del Pedido', style: AppTypography.titleLarge),
-        backgroundColor: AppColors.surface,
+        title: Text('Detalle del Pedido', style: context.typography.titleLarge),
+        backgroundColor: context.colors.surface,
         elevation: 0,
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('store_orders').doc(widget.orderId).snapshots(),
+        stream: _orderStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -122,7 +131,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Producto', style: AppTypography.labelMedium.copyWith(color: AppColors.textTertiary)),
+                      Text('Producto', style: context.typography.labelMedium.copyWith(color: context.colors.textTertiary)),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -136,12 +145,12 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(data['productName'] ?? '', style: AppTypography.titleMedium),
+                                Text(data['productName'] ?? '', style: context.typography.titleMedium),
                                 const SizedBox(height: 4),
                                 if (createdAt != null)
                                   Text(
                                     'Pedido el ${_formatDate(createdAt.toDate())}',
-                                    style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
+                                    style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
                                   ),
                               ],
                             ),
@@ -165,21 +174,21 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 const SizedBox(height: 20),
 
                 // Receipt section
-                Text('Comprobante de Pago', style: AppTypography.titleMedium.copyWith(color: AppColors.primary)),
+                Text('Comprobante de Pago', style: context.typography.titleMedium.copyWith(color: context.colors.primary)),
                 const SizedBox(height: 12),
 
                 if (status == 'pending_payment') ...[
                   JNCard(
-                    color: AppColors.warning.withValues(alpha: 0.08),
-                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                    color: context.colors.warning.withValues(alpha: 0.08),
+                    border: Border.all(color: context.colors.warning.withValues(alpha: 0.3)),
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        const Icon(Icons.receipt_long, size: 48, color: AppColors.warning),
+                        Icon(Icons.receipt_long, size: 48, color: context.colors.warning),
                         const SizedBox(height: 12),
                         Text(
                           'Realizá la transferencia y luego subí el comprobante aquí.',
-                          style: AppTypography.bodyMedium.copyWith(color: AppColors.warning),
+                          style: context.typography.bodyMedium.copyWith(color: context.colors.warning),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
@@ -206,7 +215,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             padding: const EdgeInsets.only(top: 12),
                             child: Text(
                               'Esperando verificación del club...',
-                              style: AppTypography.bodySmall.copyWith(color: AppColors.info),
+                              style: context.typography.bodySmall.copyWith(color: context.colors.info),
                             ),
                           ),
                       ],
@@ -218,15 +227,15 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 if (status == 'rejected' && adminNotes != null && adminNotes.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   JNCard(
-                    color: AppColors.error.withValues(alpha: 0.08),
-                    border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                    color: context.colors.error.withValues(alpha: 0.08),
+                    border: Border.all(color: context.colors.error.withValues(alpha: 0.3)),
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Motivo del rechazo', style: AppTypography.labelMedium.copyWith(color: AppColors.error)),
+                        Text('Motivo del rechazo', style: context.typography.labelMedium.copyWith(color: context.colors.error)),
                         const SizedBox(height: 8),
-                        Text(adminNotes, style: AppTypography.bodyMedium),
+                        Text(adminNotes, style: context.typography.bodyMedium),
                       ],
                     ),
                   ),
@@ -244,10 +253,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   /// Build a visual timeline of the order's progress.
   Widget _buildOrderTimeline(String currentStatus) {
     final steps = [
-      _TimelineStep('Pedido Creado', 'pending_payment', Icons.shopping_cart),
-      _TimelineStep('Comprobante Enviado', 'payment_uploaded', Icons.upload_file),
-      _TimelineStep('Pago Confirmado', 'confirmed', Icons.check_circle),
-      _TimelineStep('Entregado', 'delivered', Icons.local_shipping),
+      const _TimelineStep('Pedido Creado', 'pending_payment', Icons.shopping_cart),
+      const _TimelineStep('Comprobante Enviado', 'payment_uploaded', Icons.upload_file),
+      const _TimelineStep('Pago Confirmado', 'confirmed', Icons.check_circle),
+      const _TimelineStep('Entregado', 'delivered', Icons.local_shipping),
     ];
 
     final statusOrder = ['pending_payment', 'payment_uploaded', 'confirmed', 'delivered'];
@@ -274,17 +283,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     height: 28,
                     decoration: BoxDecoration(
                       color: isRejected
-                          ? AppColors.error.withValues(alpha: 0.15)
+                          ? context.colors.error.withValues(alpha: 0.15)
                           : isCompleted
-                              ? AppColors.success.withValues(alpha: 0.15)
-                              : AppColors.surfaceLight,
+                              ? context.colors.success.withValues(alpha: 0.15)
+                              : context.colors.surfaceLight,
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: isRejected
-                            ? AppColors.error
+                            ? context.colors.error
                             : isCompleted
-                                ? AppColors.success
-                                : AppColors.border,
+                                ? context.colors.success
+                                : context.colors.border,
                         width: isCurrent ? 2 : 1,
                       ),
                     ),
@@ -296,10 +305,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                               : step.icon,
                       size: 14,
                       color: isRejected
-                          ? AppColors.error
+                          ? context.colors.error
                           : isCompleted
-                              ? AppColors.success
-                              : AppColors.textTertiary,
+                              ? context.colors.success
+                              : context.colors.textTertiary,
                     ),
                   ),
                   if (!isLast)
@@ -307,8 +316,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                       width: 2,
                       height: 24,
                       color: isCompleted && !isRejected
-                          ? AppColors.success.withValues(alpha: 0.3)
-                          : AppColors.border,
+                          ? context.colors.success.withValues(alpha: 0.3)
+                          : context.colors.border,
                     ),
                 ],
               ),
@@ -319,10 +328,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     isRejected && index == currentIndex ? 'Rechazado' : step.label,
-                    style: AppTypography.bodySmall.copyWith(
+                    style: context.typography.bodySmall.copyWith(
                       color: isCompleted || isCurrent
-                          ? (isRejected ? AppColors.error : AppColors.textPrimary)
-                          : AppColors.textTertiary,
+                          ? (isRejected ? context.colors.error : context.colors.textPrimary)
+                          : context.colors.textTertiary,
                       fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
@@ -341,8 +350,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     final placeholder = Container(
       width: size,
       height: size,
-      color: AppColors.surfaceLight,
-      child: const Icon(Icons.shopping_bag, color: AppColors.accent, size: 28),
+      color: context.colors.surfaceLight,
+      child: Icon(Icons.shopping_bag, color: context.colors.accent, size: 28),
     );
 
     if (imageUrl == null || imageUrl.isEmpty) return placeholder;
@@ -369,14 +378,14 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   Widget _buildReceiptImage(String url) {
     final errorWidget = Container(
       height: 200,
-      color: AppColors.surfaceLight,
-      child: const Center(
+      color: context.colors.surfaceLight,
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt, size: 48, color: AppColors.textTertiary),
-            SizedBox(height: 8),
-            Text('Comprobante enviado'),
+            Icon(Icons.receipt, size: 48, color: context.colors.textTertiary),
+            const SizedBox(height: 8),
+            const Text('Comprobante enviado'),
           ],
         ),
       ),
@@ -405,14 +414,14 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
+          color: context.colors.surfaceLight,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           children: [
-            Text(label, style: AppTypography.badge.copyWith(color: AppColors.textTertiary, fontSize: 10)),
+            Text(label, style: context.typography.badge.copyWith(color: context.colors.textTertiary, fontSize: 10)),
             const SizedBox(height: 2),
-            Text(value, style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+            Text(value, style: context.typography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
           ],
         ),
       ),

@@ -1,17 +1,20 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
-import '../../../../core/widgets/jn_button.dart';
-import '../../../../core/providers/session_provider.dart';
+
 import '../../../../core/models/user_session.dart';
-import 'register_player_screen.dart';
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/app_logger.dart';
+import '../../../../core/theme/app_theme_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 import 'edit_child_profile_screen.dart';
+import 'register_player_screen.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   const MyProfileScreen({super.key});
@@ -88,7 +91,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error picking avatar: $e');
+      AppLogger.error('Error picking avatar', error: e, tag: 'App');
     }
   }
 
@@ -105,7 +108,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error picking medical card: $e');
+      AppLogger.error('Error picking medical card', error: e, tag: 'App');
     }
   }
 
@@ -120,10 +123,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.dark(
-              primary: AppColors.primary,
+              primary: context.colors.primary,
               onPrimary: Colors.white,
-              surface: AppColors.surface,
-              onSurface: AppColors.textPrimary,
+              surface: context.colors.surface,
+              onSurface: context.colors.textPrimary,
             ),
           ),
           child: child!,
@@ -143,7 +146,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         .where('tutorId', isEqualTo: tutorId)
         .snapshots()
         .asyncMap((snapshot) async {
-      List<Map<String, dynamic>> children = [];
+      final List<Map<String, dynamic>> children = [];
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final playerId = data['playerId'] as String?;
@@ -234,20 +237,20 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Perfil guardado correctamente!'),
-            backgroundColor: AppColors.success,
+          SnackBar(
+            content: const Text('Perfil guardado correctamente!'),
+            backgroundColor: context.colors.success,
           ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      debugPrint('Error saving profile: $e');
+      AppLogger.error('Error saving profile', error: e, tag: 'App');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al guardar: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -260,9 +263,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     if (user == null) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -271,7 +274,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     final bool showAptoExpired = user.role != 'padre' && user.isAptoFisicoExpired;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: Text(user.role == 'padre' ? 'Mi Perfil (Tutor)' : 'Mi Perfil y Ficha'),
         backgroundColor: Colors.transparent,
@@ -291,21 +294,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     JNCard(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.error.withValues(alpha: 0.2),
-                          AppColors.surface,
+                          context.colors.error.withValues(alpha: 0.2),
+                          context.colors.surface,
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       border: Border.all(
-                        color: AppColors.error.withValues(alpha: 0.4),
+                        color: context.colors.error.withValues(alpha: 0.4),
                       ),
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.warning_amber_rounded,
-                            color: AppColors.error,
+                            color: context.colors.error,
                             size: 28,
                           ),
                           const SizedBox(width: 14),
@@ -315,14 +318,14 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               children: [
                                 Text(
                                   'Deuda Pendiente',
-                                  style: AppTypography.titleMedium.copyWith(
-                                    color: AppColors.error,
+                                  style: context.typography.titleMedium.copyWith(
+                                    color: context.colors.error,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   'Registras una cuota mensual pendiente. Regulariza tu situación para evitar la suspensión.',
-                                  style: AppTypography.bodySmall,
+                                  style: context.typography.bodySmall,
                                 ),
                               ],
                             ),
@@ -338,14 +341,14 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     JNCard(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.warning.withValues(alpha: 0.15),
-                          AppColors.surface,
+                          context.colors.warning.withValues(alpha: 0.15),
+                          context.colors.surface,
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       border: Border.all(
-                        color: AppColors.warning.withValues(alpha: 0.4),
+                        color: context.colors.warning.withValues(alpha: 0.4),
                       ),
                       padding: const EdgeInsets.all(16),
                       child: Row(
@@ -355,8 +358,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                 ? Icons.cancel
                                 : Icons.notification_important_outlined,
                             color: showAptoExpired
-                                ? AppColors.error
-                                : AppColors.warning,
+                                ? context.colors.error
+                                : context.colors.warning,
                             size: 28,
                           ),
                           const SizedBox(width: 14),
@@ -368,10 +371,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                   showAptoExpired
                                       ? 'Apto Físico Vencido'
                                       : 'Apto Físico por Vencer',
-                                  style: AppTypography.titleMedium.copyWith(
+                                  style: context.typography.titleMedium.copyWith(
                                     color: showAptoExpired
-                                        ? AppColors.error
-                                        : AppColors.warning,
+                                        ? context.colors.error
+                                        : context.colors.warning,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -379,7 +382,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                   _aptoFisicoExpiry == null
                                       ? 'No has cargado tu certificado de apto físico obligatorio.'
                                       : 'Tu certificado médico vence pronto el ${_formatDate(_aptoFisicoExpiry!)}. Por favor, sube uno nuevo.',
-                                  style: AppTypography.bodySmall,
+                                  style: context.typography.bodySmall,
                                 ),
                               ],
                             ),
@@ -398,7 +401,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           onTap: _pickAvatar,
                           child: CircleAvatar(
                             radius: 54,
-                            backgroundColor: AppColors.surfaceLight,
+                            backgroundColor: context.colors.surfaceLight,
                             backgroundImage: _avatarPath != null
                                 ? (_avatarPath!.startsWith('http')
                                       ? NetworkImage(_avatarPath!)
@@ -407,10 +410,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                             as ImageProvider)
                                 : null,
                             child: _avatarPath == null
-                                ? const Icon(
+                                ? Icon(
                                     Icons.person,
                                     size: 48,
-                                    color: AppColors.textTertiary,
+                                    color: context.colors.textTertiary,
                                   )
                                 : null,
                           ),
@@ -422,8 +425,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             onTap: _pickAvatar,
                             child: Container(
                               padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
+                              decoration: BoxDecoration(
+                                color: context.colors.primary,
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -441,8 +444,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   Center(
                     child: Text(
                       'Toca para cambiar foto de perfil',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textTertiary,
+                      style: context.typography.labelSmall.copyWith(
+                        color: context.colors.textTertiary,
                       ),
                     ),
                   ),
@@ -452,7 +455,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   // ─── Personal Data Section ────────────────
                   Text(
                     user.role == 'padre' ? 'Datos del Tutor' : 'Datos del Jugador',
-                    style: AppTypography.labelMedium,
+                    style: context.typography.labelMedium,
                   ),
                   const SizedBox(height: 8),
 
@@ -462,7 +465,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                       children: [
                         TextFormField(
                           controller: _nameController,
-                          style: AppTypography.bodyLarge,
+                          style: context.typography.bodyLarge,
                           decoration: const InputDecoration(
                             labelText: 'Nombre',
                           ),
@@ -473,7 +476,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _lastNameController,
-                          style: AppTypography.bodyLarge,
+                          style: context.typography.bodyLarge,
                           decoration: const InputDecoration(
                             labelText: 'Apellido',
                           ),
@@ -484,7 +487,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _dniController,
-                          style: AppTypography.bodyLarge,
+                          style: context.typography.bodyLarge,
                           decoration: const InputDecoration(labelText: 'DNI'),
                           keyboardType: TextInputType.number,
                         ),
@@ -492,7 +495,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _phone1Controller,
-                            style: AppTypography.bodyLarge,
+                            style: context.typography.bodyLarge,
                             decoration: const InputDecoration(
                               labelText: 'Teléfono de Contacto 1',
                             ),
@@ -501,7 +504,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _phone2Controller,
-                            style: AppTypography.bodyLarge,
+                            style: context.typography.bodyLarge,
                             decoration: const InputDecoration(
                               labelText: 'Teléfono de Contacto 2 (Opcional)',
                             ),
@@ -514,7 +517,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _ageController,
-                                  style: AppTypography.bodyLarge,
+                                  style: context.typography.bodyLarge,
                                   decoration: const InputDecoration(
                                     labelText: 'Edad',
                                   ),
@@ -525,7 +528,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _heightController,
-                                  style: AppTypography.bodyLarge,
+                                  style: context.typography.bodyLarge,
                                   decoration: const InputDecoration(
                                     labelText: 'Altura (ej. 1.55 m)',
                                   ),
@@ -535,7 +538,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _weightController,
-                                  style: AppTypography.bodyLarge,
+                                  style: context.typography.bodyLarge,
                                   decoration: const InputDecoration(
                                     labelText: 'Peso (ej. 45 kg)',
                                   ),
@@ -557,7 +560,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                       children: [
                         Text(
                           'Jugadores Registrados (Hijos)',
-                          style: AppTypography.labelMedium,
+                          style: context.typography.labelMedium,
                         ),
                         TextButton.icon(
                           onPressed: () {
@@ -571,7 +574,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text('Registrar Hijo'),
                           style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primary,
+                            foregroundColor: context.colors.primary,
                           ),
                         ),
                       ],
@@ -590,8 +593,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             child: Center(
                               child: Text(
                                 'No tienes hijos/jugadores vinculados.',
-                                style: AppTypography.bodySmall.copyWith(
-                                  color: AppColors.textTertiary,
+                                style: context.typography.bodySmall.copyWith(
+                                  color: context.colors.textTertiary,
                                 ),
                               ),
                             ),
@@ -619,7 +622,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                   children: [
                                     CircleAvatar(
                                       radius: 24,
-                                      backgroundColor: AppColors.surfaceLight,
+                                      backgroundColor: context.colors.surfaceLight,
                                       backgroundImage: child['avatarUrl'] != null &&
                                               child['avatarUrl'].toString().isNotEmpty
                                           ? (child['avatarUrl'].toString().startsWith('http')
@@ -630,9 +633,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                           : null,
                                       child: child['avatarUrl'] == null ||
                                               child['avatarUrl'].toString().isEmpty
-                                          ? const Icon(
+                                          ? Icon(
                                               Icons.person,
-                                              color: AppColors.textTertiary,
+                                              color: context.colors.textTertiary,
                                             )
                                           : null,
                                     ),
@@ -643,12 +646,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                         children: [
                                           Text(
                                             '${child['name']} ${child['lastName'] ?? ''}',
-                                            style: AppTypography.titleMedium,
+                                            style: context.typography.titleMedium,
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
                                             'DNI: ${child['dni'] ?? ''} · Cat: ${child['category'] ?? ''}',
-                                            style: AppTypography.bodySmall,
+                                            style: context.typography.bodySmall,
                                           ),
                                         ],
                                       ),
@@ -661,8 +664,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: (child['linkStatus'] == 'linked'
-                                                ? AppColors.success
-                                                : AppColors.warning)
+                                                ? context.colors.success
+                                                : context.colors.warning)
                                             .withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
@@ -670,10 +673,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                         child['linkStatus'] == 'linked'
                                             ? 'Vinculado'
                                             : 'Pendiente',
-                                        style: AppTypography.labelSmall.copyWith(
+                                        style: context.typography.labelSmall.copyWith(
                                           color: child['linkStatus'] == 'linked'
-                                              ? AppColors.success
-                                              : AppColors.warning,
+                                              ? context.colors.success
+                                              : context.colors.warning,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -689,7 +692,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     ),
                   ] else ...[
                     // ─── Parents Data Section ─────────────────
-                    Text('Datos Familiares', style: AppTypography.labelMedium),
+                    Text('Datos Familiares', style: context.typography.labelMedium),
                     const SizedBox(height: 8),
 
                     JNCard(
@@ -698,7 +701,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                         children: [
                           TextFormField(
                             controller: _fatherNameController,
-                            style: AppTypography.bodyLarge,
+                            style: context.typography.bodyLarge,
                             decoration: const InputDecoration(
                               labelText: 'Nombre y Apellido del Padre',
                             ),
@@ -706,7 +709,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _motherNameController,
-                            style: AppTypography.bodyLarge,
+                            style: context.typography.bodyLarge,
                             decoration: const InputDecoration(
                               labelText: 'Nombre y Apellido de la Madre',
                             ),
@@ -720,7 +723,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     // ─── Physical Fitness Section ─────────────
                     Text(
                       'Certificado Médico (Apto Físico)',
-                      style: AppTypography.labelMedium,
+                      style: context.typography.labelMedium,
                     ),
                     const SizedBox(height: 8),
 
@@ -739,20 +742,20 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                       _aptoFisicoPath == null
                                           ? 'No cargado'
                                           : 'Archivo certificado cargado',
-                                      style: AppTypography.titleMedium.copyWith(
+                                      style: context.typography.titleMedium.copyWith(
                                         color: _aptoFisicoPath == null
-                                            ? AppColors.textSecondary
-                                            : AppColors.success,
+                                            ? context.colors.textSecondary
+                                            : context.colors.success,
                                       ),
                                     ),
                                     if (_aptoFisicoExpiry != null) ...[
                                       const SizedBox(height: 4),
                                       Text(
                                         'Vence el: ${_formatDate(_aptoFisicoExpiry!)}',
-                                        style: AppTypography.bodySmall.copyWith(
+                                        style: context.typography.bodySmall.copyWith(
                                           color: showAptoWarning
-                                              ? AppColors.warning
-                                              : AppColors.textTertiary,
+                                              ? context.colors.warning
+                                              : context.colors.textTertiary,
                                         ),
                                       ),
                                     ],
@@ -760,9 +763,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.calendar_month,
-                                  color: AppColors.primary,
+                                  color: context.colors.primary,
                                 ),
                                 onPressed: () => _selectExpiryDate(context),
                                 tooltip: 'Seleccionar fecha de vencimiento',

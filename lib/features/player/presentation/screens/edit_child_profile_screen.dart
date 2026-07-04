@@ -1,12 +1,15 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/services/app_logger.dart';
+import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_button.dart';
+import '../../../../core/widgets/jn_card.dart';
 
 class EditChildProfileScreen extends ConsumerStatefulWidget {
   final String childId;
@@ -79,7 +82,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
         });
       }
     } catch (e) {
-      debugPrint('Error picking avatar: $e');
+      AppLogger.error('Error picking avatar', error: e, tag: 'App');
     }
   }
 
@@ -96,7 +99,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
         });
       }
     } catch (e) {
-      debugPrint('Error picking medical card: $e');
+      AppLogger.error('Error picking medical card', error: e, tag: 'App');
     }
   }
 
@@ -110,11 +113,11 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.primary,
+            colorScheme: ColorScheme.dark(
+              primary: context.colors.primary,
               onPrimary: Colors.white,
-              surface: AppColors.surface,
-              onSurface: AppColors.textPrimary,
+              surface: context.colors.surface,
+              onSurface: context.colors.textPrimary,
             ),
           ),
           child: child!,
@@ -153,20 +156,20 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Perfil del jugador actualizado'),
-            backgroundColor: AppColors.success,
+          SnackBar(
+            content: const Text('Perfil del jugador actualizado'),
+            backgroundColor: context.colors.success,
           ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      debugPrint('Error saving child profile: $e');
+      AppLogger.error('Error saving child profile', error: e, tag: 'App');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al guardar: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -187,7 +190,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
         _aptoFisicoExpiry!.isBefore(DateTime.now().add(const Duration(days: 30)));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Editar Jugador'),
       ),
@@ -204,7 +207,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                     onTap: _pickAvatar,
                     child: CircleAvatar(
                       radius: 54,
-                      backgroundColor: AppColors.surfaceLight,
+                      backgroundColor: context.colors.surfaceLight,
                       backgroundImage: _avatarPath != null
                           ? (_avatarPath!.startsWith('http')
                                 ? NetworkImage(_avatarPath!)
@@ -213,10 +216,10 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                                       as ImageProvider)
                           : null,
                       child: _avatarPath == null
-                          ? const Icon(
+                          ? Icon(
                               Icons.person,
                               size: 48,
-                              color: AppColors.textTertiary,
+                              color: context.colors.textTertiary,
                             )
                           : null,
                     ),
@@ -228,8 +231,8 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                       onTap: _pickAvatar,
                       child: Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
+                        decoration: BoxDecoration(
+                          color: context.colors.primary,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -247,14 +250,14 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
             Center(
               child: Text(
                 'Toca para cambiar foto',
-                style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.textTertiary,
+                style: context.typography.labelSmall.copyWith(
+                  color: context.colors.textTertiary,
                 ),
               ),
             ),
 
             const SizedBox(height: 24),
-            Text('Datos del Jugador', style: AppTypography.titleLarge),
+            Text('Datos del Jugador', style: context.typography.titleLarge),
             const SizedBox(height: 12),
             JNCard(
               padding: const EdgeInsets.all(16),
@@ -262,14 +265,14 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                 children: [
                   TextFormField(
                     controller: _nameController,
-                    style: AppTypography.bodyLarge,
+                    style: context.typography.bodyLarge,
                     decoration: const InputDecoration(labelText: 'Nombre'),
                     validator: (v) => v == null || v.isEmpty ? 'Ingresa el nombre' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _lastNameController,
-                    style: AppTypography.bodyLarge,
+                    style: context.typography.bodyLarge,
                     decoration: const InputDecoration(labelText: 'Apellido'),
                     validator: (v) => v == null || v.isEmpty ? 'Ingresa el apellido' : null,
                   ),
@@ -279,7 +282,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                       Expanded(
                         child: TextFormField(
                           controller: _ageController,
-                          style: AppTypography.bodyLarge,
+                          style: context.typography.bodyLarge,
                           decoration: const InputDecoration(labelText: 'Edad'),
                           keyboardType: TextInputType.number,
                         ),
@@ -288,7 +291,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                       Expanded(
                         child: TextFormField(
                           controller: _heightController,
-                          style: AppTypography.bodyLarge,
+                          style: context.typography.bodyLarge,
                           decoration: const InputDecoration(labelText: 'Altura (ej. 155)'),
                           keyboardType: TextInputType.number,
                         ),
@@ -297,7 +300,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                       Expanded(
                         child: TextFormField(
                           controller: _weightController,
-                          style: AppTypography.bodyLarge,
+                          style: context.typography.bodyLarge,
                           decoration: const InputDecoration(labelText: 'Peso (ej. 45)'),
                           keyboardType: TextInputType.number,
                         ),
@@ -309,7 +312,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
             ),
 
             const SizedBox(height: 24),
-            Text('Apto Físico', style: AppTypography.titleLarge),
+            Text('Apto Físico', style: context.typography.titleLarge),
             const SizedBox(height: 12),
             JNCard(
               padding: const EdgeInsets.all(16),
@@ -323,8 +326,8 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                             ? Icons.cancel
                             : Icons.check_circle,
                         color: showAptoExpired
-                            ? AppColors.error
-                            : AppColors.success,
+                            ? context.colors.error
+                            : context.colors.success,
                         size: 28,
                       ),
                       const SizedBox(width: 14),
@@ -336,10 +339,10 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                               showAptoExpired
                                   ? 'Apto Físico Vencido/Faltante'
                                   : 'Apto Físico Válido',
-                              style: AppTypography.titleMedium.copyWith(
+                              style: context.typography.titleMedium.copyWith(
                                 color: showAptoExpired
-                                    ? AppColors.error
-                                    : AppColors.success,
+                                    ? context.colors.error
+                                    : context.colors.success,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -347,7 +350,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                               _aptoFisicoExpiry == null
                                   ? 'Sube el certificado médico.'
                                   : 'Vence el ${_formatDate(_aptoFisicoExpiry!)}.',
-                              style: AppTypography.bodySmall,
+                              style: context.typography.bodySmall,
                             ),
                           ],
                         ),
@@ -362,7 +365,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.colors.border),
                         image: DecorationImage(
                           image: _aptoFisicoPath!.startsWith('http')
                               ? NetworkImage(_aptoFisicoPath!) as ImageProvider
