@@ -55,6 +55,7 @@ class AuthService {
     required String lastName,
     required String phone1,
     String? phone2,
+    String role = 'padre',
   }) async {
     try {
       final UserCredential userCredential = await _auth
@@ -72,6 +73,7 @@ class AuthService {
           phone1: phone1,
           phone2: phone2,
           emailVerified: firebaseUser.emailVerified,
+          role: role,
         );
         return session;
       }
@@ -163,6 +165,7 @@ class AuthService {
     String? phone1,
     String? phone2,
     bool emailVerified = true, // By default true for Google Sign In demo
+    String? role,
   }) async {
     final docRef = _db.collection('users').doc(uid);
     final docSnap = await docRef.get();
@@ -216,9 +219,11 @@ class AuthService {
       // New user
       final isDirector =
           email.trim().toLowerCase() == 'munozalbelonicolas@gmail.com';
-      final String initialRole = isDirector ? 'directivo' : 'padre';
+      final String initialRole = role ?? (isDirector ? 'directivo' : 'padre');
       const String? initialCategory = null;
-      final String initialStatus = isDirector ? 'active' : 'pending_children';
+      final String initialStatus = isDirector
+          ? 'active'
+          : (initialRole == 'socio' ? 'pending_approval' : 'pending_children');
 
       final newProfile = {
         'name': name,

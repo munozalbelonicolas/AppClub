@@ -151,6 +151,9 @@ class UserSession {
   /// Check if user is parent/player
   bool get isNormalUser => role == 'padre' || role == 'jugador';
 
+  /// Check if user is socio
+  bool get isSocio => role == 'socio';
+
   /// Helper to check if a fitness card is about to expire (within 30 days) or expired
   bool get isAptoFisicoWarning {
     if (aptoFisicoExpiry == null) return true; // Warning if not uploaded

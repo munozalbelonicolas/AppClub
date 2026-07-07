@@ -1,24 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/providers/session_provider.dart';
 import '../core/theme/app_theme_colors.dart';
 import '../features/calendar/presentation/screens/calendar_screen.dart';
 import '../features/communications/presentation/screens/communications_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/lineup/presentation/screens/lineup_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
+import '../features/socio/presentation/screens/socio_carnet_screen.dart';
+import '../features/socio/presentation/screens/socio_dashboard_screen.dart';
 import '../features/store/presentation/screens/store_screen.dart';
 
 /// Main app shell with bottom navigation
-class AppShell extends StatefulWidget {
+class AppShell extends ConsumerStatefulWidget {
   final VoidCallback onLogout;
   const AppShell({super.key, required this.onLogout});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> {
   int _currentIndex = 0;
 
   void _navigateTo(int index) {
@@ -52,19 +56,46 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final session = ref.watch(currentUserProvider);
+    final isSocio = session?.isSocio ?? false;
+
+    // Safety check if index is out of bounds for socio
+    if (isSocio && _currentIndex > 3) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _currentIndex = 0);
+      });
+    }
+
     return Scaffold(
       backgroundColor: context.colors.background,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 250),
         switchInCurve: Curves.easeOut,
         switchOutCurve: Curves.easeIn,
-        child: _buildScreen(),
+        child: _buildScreen(isSocio),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: _buildBottomNav(isSocio),
     );
   }
 
-  Widget _buildScreen() {
+  Widget _buildScreen(bool isSocio) {
+    if (isSocio) {
+      switch (_currentIndex) {
+        case 0:
+          return const SocioDashboardScreen(key: ValueKey('socio_home'));
+        case 1:
+          return const SocioCarnetScreen(key: ValueKey('socio_carnet'));
+        case 2:
+          return const StoreScreen(key: ValueKey('store'));
+        case 3:
+          return SettingsScreen(
+            key: const ValueKey('settings'),
+            onLogout: widget.onLogout,
+          );
+        default:
+          return const SocioDashboardScreen(key: ValueKey('socio_home'));
+      }
+    }
     switch (_currentIndex) {
       case 0:
         return HomeScreen(
@@ -92,7 +123,42 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(bool isSocio) {
+    if (isSocio) {
+      return NavigationBar(
+        selectedIndex: _currentIndex > 3 ? 0 : _currentIndex,
+        onDestinationSelected: (index) {
+          HapticFeedback.selectionClick();
+          _navigateTo(index);
+        },
+        backgroundColor: context.colors.surface,
+        indicatorColor: context.colors.primary.withValues(alpha: 0.1),
+        elevation: 0,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined, color: context.colors.textSecondary),
+            selectedIcon: Icon(Icons.home, color: context.colors.primary),
+            label: 'Inicio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.badge_outlined, color: context.colors.textSecondary),
+            selectedIcon: Icon(Icons.badge, color: context.colors.primary),
+            label: 'Carnet',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.storefront_outlined, color: context.colors.textSecondary),
+            selectedIcon: Icon(Icons.storefront, color: context.colors.primary),
+            label: 'Tienda',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined, color: context.colors.textSecondary),
+            selectedIcon: Icon(Icons.settings, color: context.colors.primary),
+            label: 'Más',
+          ),
+        ],
+      );
+    }
     return NavigationBar(
       selectedIndex: _currentIndex,
       onDestinationSelected: (index) {

@@ -33,6 +33,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _termsAccepted = false;
   bool _isLoading = false;
+  String _selectedRole = 'padre';
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate() || !_termsAccepted) return;
@@ -49,6 +50,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         phone2: _phone2Controller.text.trim().isEmpty
             ? null
             : _phone2Controller.text.trim(),
+        role: _selectedRole,
       );
 
       if (session != null && mounted) {
@@ -97,12 +99,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Completá tus datos para registrarte como Tutor',
-                  style: context.typography.bodyMedium.copyWith(
+                  'Completá tus datos para registrarte en el club',
+                  style: context.typography.bodyLarge.copyWith(
                     color: context.colors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'padre', label: Text('Tutor')),
+                    ButtonSegment(value: 'socio', label: Text('Socio')),
+                  ],
+                  selected: {_selectedRole},
+                  onSelectionChanged: (Set<String> newSelection) {
+                    setState(() {
+                      _selectedRole = newSelection.first;
+                    });
+                  },
+                ),
+                const SizedBox(height: 24),
 
                 TextFormField(
                   controller: _nameController,
