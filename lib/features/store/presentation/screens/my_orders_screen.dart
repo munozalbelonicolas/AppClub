@@ -32,7 +32,6 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
     _ordersStream = FirebaseFirestore.instance
         .collection('store_orders')
         .where('buyerId', isEqualTo: user?.id)
-        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
@@ -66,7 +65,22 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
             );
           }
 
-          final docs = snapshot.data!.docs;
+          if (snapshot.hasError) {
+            return Center(child: Text('Error al cargar pedidos: ${snapshot.error}'));
+          }
+
+          final docs = snapshot.data!.docs.toList();
+          docs.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aTime = aData['createdAt'] as Timestamp?;
+            final bTime = bData['createdAt'] as Timestamp?;
+            if (aTime == null && bTime == null) return 0;
+            if (aTime == null) return 1;
+            if (bTime == null) return -1;
+            return bTime.compareTo(aTime);
+          });
+
           return ListView.separated(
             padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
             itemCount: docs.length,

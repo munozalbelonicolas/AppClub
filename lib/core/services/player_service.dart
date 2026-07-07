@@ -30,6 +30,7 @@ class PlayerService {
     String? password,
     required bool enableAccount,
     String? avatarUrl,
+    String? tutorName,
   }) async {
     // 1. Check if DNI already exists
     final querySnapshot = await _db
@@ -76,12 +77,24 @@ class PlayerService {
 
       // Calculate age for legacy compatibility
       int computedAge = 0;
+      String computedCategory = category;
       if (birthDate != null) {
         final now = DateTime.now();
         computedAge = now.year - birthDate.year;
         if (now.month < birthDate.month ||
             (now.month == birthDate.month && now.day < birthDate.day)) {
           computedAge--;
+        }
+        
+        // Dynamically assign and create category based on birth year
+        computedCategory = birthDate.year.toString();
+        final categoryRef = _db.collection('categories').doc(computedCategory);
+        final categorySnap = await categoryRef.get();
+        if (!categorySnap.exists) {
+          await categoryRef.set({
+            'name': computedCategory,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
         }
       }
 
@@ -91,13 +104,15 @@ class PlayerService {
         'dni': dni,
         'age': computedAge,
         'birthDate': birthDate != null ? Timestamp.fromDate(birthDate) : null,
-        'category': category,
+        'category': computedCategory,
         'weight': weight,
         'height': height,
         'email': email,
         'role': 'jugador',
         'status': 'pending_approval',
         'avatarUrl': avatarUrl,
+        'fatherName': tutorName,
+        'parentName': tutorName,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -107,6 +122,16 @@ class PlayerService {
         'playerId': newPlayerRef.id,
         'isEnabledByTutor': enableAccount,
         'status': 'linked', // Auto linked since they created it
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Create notification for admin
+      await _db.collection('notifications').add({
+        'type': 'player_registration',
+        'userId': newPlayerRef.id,
+        'userName': '$name $lastName',
+        'tutorId': tutorId,
+        'read': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }

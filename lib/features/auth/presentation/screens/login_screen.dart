@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +41,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         widget.onLogin();
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        if (e.code == 'too-many-requests') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Cuenta bloqueada por múltiples intentos fallidos. Restablece tu contraseña o intenta más tarde.'),
+              backgroundColor: context.colors.error,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Credenciales incorrectas o error de red.')),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -51,6 +68,83 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final emailCtrl = TextEditingController(text: _emailController.text);
+    
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: dialogContext.colors.surface,
+          title: const Text('Recuperar contraseña'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.',
+                style: context.typography.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                style: context.typography.bodyLarge,
+                decoration: const InputDecoration(
+                  hintText: 'Correo electrónico',
+                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancelar', style: TextStyle(color: dialogContext.colors.textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: dialogContext.colors.primary),
+              onPressed: () async {
+                final email = emailCtrl.text.trim();
+                if (email.isEmpty || !email.contains('@')) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(content: Text('Por favor, ingresa un correo válido.')),
+                  );
+                  return;
+                }
+                
+                Navigator.pop(dialogContext); // Close dialog
+                setState(() => _isLoading = true);
+                
+                try {
+                  final authService = ref.read(authServiceProvider);
+                  await authService.sendPasswordResetEmail(email);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Se ha enviado un correo para restablecer tu contraseña.'),
+                      backgroundColor: context.colors.success,
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Ocurrió un error. Verifica que el correo esté registrado.'),
+                      backgroundColor: context.colors.error,
+                    ),
+                  );
+                } finally {
+                  if (mounted) setState(() => _isLoading = false);
+                }
+              },
+              child: const Text('Enviar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -171,7 +265,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: _handleForgotPassword,
                   child: Text(
                     '¿Olvidaste tu contraseña?',
                     style: context.typography.bodySmall.copyWith(

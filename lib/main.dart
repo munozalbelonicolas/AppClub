@@ -20,10 +20,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.playIntegrity,
-    appleProvider: AppleProvider.deviceCheck,
-  );
+  await FirebaseAppCheck.instance.activate();
 
   // Lock orientation to portrait
   SystemChrome.setPreferredOrientations([

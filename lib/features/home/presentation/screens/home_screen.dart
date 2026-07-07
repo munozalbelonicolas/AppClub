@@ -370,7 +370,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         null; // To be fetched from Firestore
     const Map<String, dynamic>? pendingPayment =
         null; // To be fetched from Firestore
-    const int unreadAnnouncements = 0; // To be fetched from Firestore
 
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin

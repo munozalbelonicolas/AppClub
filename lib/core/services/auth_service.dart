@@ -89,6 +89,15 @@ class AuthService {
     }
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      AppLogger.error('Error sending password reset email', error: e, tag: 'AuthService');
+      rethrow;
+    }
+  }
+
   Future<void> checkEmailVerified() async {
     final user = _auth.currentUser;
     if (user != null) {
@@ -135,9 +144,11 @@ class AuthService {
         );
       }
     } catch (e) {
-      AppLogger.warning('Google Sign-In not configured, using demo dialog', tag: 'AuthService');
-      // Fallback to Demo Dialog
+      AppLogger.warning('Google Sign-In failed or not configured', tag: 'AuthService');
+      
       if (!context.mounted) return null;
+
+      // Mostramos el selector falso para facilitar pruebas (Demo)
       return await _showDemoGoogleSignInDialog(context);
     }
     return null;
@@ -206,7 +217,7 @@ class AuthService {
       final isDirector =
           email.trim().toLowerCase() == 'munozalbelonicolas@gmail.com';
       final String initialRole = isDirector ? 'directivo' : 'padre';
-      final String? initialCategory = isDirector ? null : 'Sub-12';
+      const String? initialCategory = null;
       final String initialStatus = isDirector ? 'active' : 'pending_children';
 
       final newProfile = {
@@ -236,7 +247,6 @@ class AuthService {
         role: initialRole,
         status: initialStatus,
         emailVerified: emailVerified,
-        category: initialCategory,
         phone1: phone1,
         phone2: phone2,
         termsAcceptedAt: isNewRegistration ? DateTime.now() : null,
@@ -404,7 +414,7 @@ class AuthService {
                           ),
                           ActionChip(
                             label: const Text(
-                              'dt.prueba@gmail.com (DT Sub-12)',
+                              'dt.prueba@gmail.com (DT 2021)',
                             ),
                             labelStyle: context.typography.labelSmall.copyWith(
                               color: Colors.white,
@@ -421,7 +431,7 @@ class AuthService {
                           ),
                           ActionChip(
                             label: const Text(
-                              'padre.prueba@gmail.com (Padre Sub-12)',
+                              'padre.prueba@gmail.com (Padre)',
                             ),
                             labelStyle: context.typography.labelSmall.copyWith(
                               color: Colors.white,
@@ -491,19 +501,22 @@ class AuthService {
   }
 
   Future<void> completeRegistration({
-    required String phone1,
+    String? phone1,
     String? phone2,
   }) async {
     final session = _ref.read(currentUserProvider);
     if (session == null) throw Exception('No session found');
 
     final docRef = _db.collection('users').doc(session.id);
-    await docRef.update({
-      'phone1': phone1,
-      'phone2': phone2,
+    final updateData = <String, dynamic>{
       'termsAcceptedAt': FieldValue.serverTimestamp(),
       'termsVersion': '1.0',
-    });
+    };
+    
+    if (phone1 != null) updateData['phone1'] = phone1;
+    if (phone2 != null) updateData['phone2'] = phone2;
+
+    await docRef.update(updateData);
 
     // We can rely on the realtime listener to update the session provider, 
     // but we can also manually trigger a sync just in case.

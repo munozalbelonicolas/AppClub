@@ -52,7 +52,6 @@ void showAdminNotificationsDialog(BuildContext context) {
                       ),
                       subtitle: Text('${data['tutorName']} solicita vincularse a ${data['playerName']}.'),
                       onTap: () {
-                        docs[index].reference.update({'read': true});
                         Navigator.pop(context); // close notifications dialog
                         showDialog(
                           context: context,
@@ -70,6 +69,7 @@ void showAdminNotificationsDialog(BuildContext context) {
                                         .collection('player_tutor_links')
                                         .doc(data['linkId'])
                                         .update({'status': 'rejected'});
+                                    docs[index].reference.delete();
                                     Navigator.pop(context);
                                   },
                                   child: Text('Rechazar', style: TextStyle(color: context.colors.error)),
@@ -81,6 +81,7 @@ void showAdminNotificationsDialog(BuildContext context) {
                                         .collection('player_tutor_links')
                                         .doc(data['linkId'])
                                         .update({'status': 'linked'});
+                                    docs[index].reference.delete();
                                     Navigator.pop(context);
                                   },
                                   child: const Text('Aprobar', style: TextStyle(color: Colors.white)),
@@ -114,7 +115,7 @@ void showAdminNotificationsDialog(BuildContext context) {
                       ),
                       subtitle: Text(subtitle),
                       onTap: () {
-                        docs[index].reference.update({'read': true});
+                        docs[index].reference.delete();
                         Navigator.pop(context);
                         final orderId = data['orderId'];
                         if (orderId != null) {
@@ -142,7 +143,7 @@ void showAdminNotificationsDialog(BuildContext context) {
                     ),
                     subtitle: Text('${data['userName']} solicita aprobación.'),
                     onTap: () {
-                      docs[index].reference.update({'read': true});
+                      docs[index].reference.delete();
                       Navigator.pop(context);
                       
                       final userId = data['userId'];

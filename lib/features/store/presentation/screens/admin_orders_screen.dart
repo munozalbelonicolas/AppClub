@@ -77,6 +77,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
             itemBuilder: (context, index) => const JNSkeletonCard(height: 100),
           );
         }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error al cargar pedidos: ${snapshot.error}'));
+        }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const JNEmptyState(
             icon: Icons.inbox_outlined,
@@ -85,7 +88,18 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
           );
         }
 
-        final docs = snapshot.data!.docs;
+        final docs = snapshot.data!.docs.toList();
+        docs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aTime = aData['createdAt'] as Timestamp?;
+          final bTime = bData['createdAt'] as Timestamp?;
+          if (aTime == null && bTime == null) return 0;
+          if (aTime == null) return 1;
+          if (bTime == null) return -1;
+          return bTime.compareTo(aTime);
+        });
+
         return ListView.separated(
           padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
           itemCount: docs.length,
@@ -156,7 +170,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
     if (filter == 'all') {
       return base.orderBy('createdAt', descending: true).snapshots();
     }
-    return base.where('status', isEqualTo: filter).orderBy('createdAt', descending: true).snapshots();
+    return base.where('status', isEqualTo: filter).snapshots();
   }
 
   String _formatDate(DateTime dt) {

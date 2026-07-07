@@ -26,7 +26,6 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
   final _dniController = TextEditingController();
   final _fullNameController = TextEditingController();
   DateTime? _birthDate;
-  final _categoryController = TextEditingController();
   final _weightController = TextEditingController();
   final _heightController = TextEditingController();
   final _emailController = TextEditingController();
@@ -80,7 +79,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
             name: name,
             lastName: lastName,
             birthDate: _birthDate,
-            category: _categoryController.text.trim(),
+            category: '', // Automatically computed from birthDate
             weight: _weightController.text.trim(),
             height: _heightController.text.trim(),
             email: _enableLogin ? _emailController.text.trim() : null,
@@ -89,6 +88,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                 : null,
             enableAccount: _enableLogin,
             avatarUrl: _avatarPath,
+            tutorName: '${tutorSession.name} ${tutorSession.lastName}',
           );
 
         if (mounted) {
@@ -274,52 +274,34 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate:
-                                _birthDate ??
-                                DateTime.now().subtract(
-                                  const Duration(days: 365 * 10),
-                                ),
-                            firstDate: DateTime(1900),
-                            lastDate: DateTime.now(),
-                          );
-                          if (date != null) {
-                            setState(() => _birthDate = date);
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Fecha de Nacimiento',
-                            errorText: _birthDate == null ? 'Requerido' : null,
+                InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate:
+                          _birthDate ??
+                          DateTime.now().subtract(
+                            const Duration(days: 365 * 10),
                           ),
-                          child: Text(
-                            _birthDate != null
-                                ? '${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}'
-                                : 'Seleccionar fecha',
-                            style: context.typography.bodyLarge,
-                          ),
-                        ),
-                      ),
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() => _birthDate = date);
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Fecha de Nacimiento',
+                      errorText: _birthDate == null ? 'Requerido' : null,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _categoryController,
-                        style: context.typography.bodyLarge,
-                        decoration: const InputDecoration(
-                          labelText: 'Categoría (ej: Sub-12)',
-                        ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Requerido' : null,
-                      ),
+                    child: Text(
+                      _birthDate != null
+                          ? '${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}'
+                          : 'Seleccionar fecha',
+                      style: context.typography.bodyLarge,
                     ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 12),
 
@@ -433,7 +415,6 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
   void dispose() {
     _dniController.dispose();
     _fullNameController.dispose();
-    _categoryController.dispose();
     _weightController.dispose();
     _heightController.dispose();
     _emailController.dispose();

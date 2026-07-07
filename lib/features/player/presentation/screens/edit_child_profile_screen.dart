@@ -73,7 +73,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
+        source: ImageSource.camera,
         imageQuality: 70,
       );
       if (image != null) {
@@ -96,6 +96,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
       if (file != null) {
         setState(() {
           _aptoFisicoPath = file.path;
+          _aptoFisicoExpiry = DateTime.now().add(const Duration(days: 365));
         });
       }
     } catch (e) {
@@ -103,33 +104,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
     }
   }
 
-  Future<void> _selectExpiryDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate:
-          _aptoFisicoExpiry ?? DateTime.now().add(const Duration(days: 365)),
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: context.colors.primary,
-              onPrimary: Colors.white,
-              surface: context.colors.surface,
-              onSurface: context.colors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != _aptoFisicoExpiry) {
-      setState(() {
-        _aptoFisicoExpiry = picked;
-      });
-    }
-  }
+
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
@@ -382,14 +357,6 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                     onPressed: _pickAptoFisico,
                   ),
                   const SizedBox(height: 12),
-                  JNButton(
-                    label: _aptoFisicoExpiry == null
-                        ? 'Establecer Vencimiento'
-                        : 'Cambiar Vencimiento',
-                    icon: Icons.calendar_month,
-                    variant: JNButtonVariant.outline,
-                    onPressed: () => _selectExpiryDate(context),
-                  ),
                 ],
               ),
             ),

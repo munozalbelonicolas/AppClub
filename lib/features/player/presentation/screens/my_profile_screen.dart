@@ -82,7 +82,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
+        source: ImageSource.camera,
         imageQuality: 70,
       );
       if (image != null) {
@@ -95,50 +95,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
   }
 
-  Future<void> _pickAptoFisico() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? file = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
-      if (file != null) {
-        setState(() {
-          _aptoFisicoPath = file.path;
-        });
-      }
-    } catch (e) {
-      AppLogger.error('Error picking medical card', error: e, tag: 'App');
-    }
-  }
 
-  Future<void> _selectExpiryDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate:
-          _aptoFisicoExpiry ?? DateTime.now().add(const Duration(days: 365)),
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: context.colors.primary,
-              onPrimary: Colors.white,
-              surface: context.colors.surface,
-              onSurface: context.colors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != _aptoFisicoExpiry) {
-      setState(() {
-        _aptoFisicoExpiry = picked;
-      });
-    }
-  }
 
   Stream<List<Map<String, dynamic>>> _fetchChildren(String tutorId) {
     return FirebaseFirestore.instance
@@ -762,14 +719,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                   ],
                                 ),
                               ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.calendar_month,
-                                  color: context.colors.primary,
-                                ),
-                                onPressed: () => _selectExpiryDate(context),
-                                tooltip: 'Seleccionar fecha de vencimiento',
-                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -785,14 +734,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             ),
                             const SizedBox(height: 12),
                           ],
-                          JNButton(
-                            label: _aptoFisicoPath == null
-                                ? 'Cargar Certificado'
-                                : 'Cambiar Certificado',
-                            onPressed: _pickAptoFisico,
-                            variant: JNButtonVariant.outline,
-                            icon: Icons.upload_file,
-                          ),
                         ],
                       ),
                     ),

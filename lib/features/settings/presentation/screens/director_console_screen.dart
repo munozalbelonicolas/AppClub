@@ -9,9 +9,11 @@ import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../../../player/presentation/screens/consolidated_roster_screen.dart';
 import '../../../results/presentation/screens/manage_scorers_screen.dart';
 import '../widgets/admin_notifications_dialog.dart';
 import 'admin_user_profile_screen.dart';
+import 'manage_categories_screen.dart';
 
 class DirectorConsoleScreen extends ConsumerWidget {
   const DirectorConsoleScreen({super.key});
@@ -166,6 +168,64 @@ class DirectorConsoleScreen extends ConsumerWidget {
                             children: [
                               Text('Goleadores por Categoría', style: context.typography.titleMedium),
                               Text('Gestionar tabla de goleadores', style: context.typography.bodySmall),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: context.colors.textTertiary),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: JNCard(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ManageCategoriesScreen()),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.category, color: context.colors.primary, size: 28),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Gestionar Categorías', style: context.typography.titleMedium),
+                              Text('Crear o eliminar categorías', style: context.typography.bodySmall),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: context.colors.textTertiary),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: JNCard(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ConsolidatedRosterScreen()),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.list_alt, color: context.colors.primary, size: 28),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Consolidado de Jugadores', style: context.typography.titleMedium),
+                              Text('Listado completo y exportación a Excel', style: context.typography.bodySmall),
                             ],
                           ),
                         ),

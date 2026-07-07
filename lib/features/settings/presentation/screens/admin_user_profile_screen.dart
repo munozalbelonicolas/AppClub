@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/category_service.dart';
+
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
@@ -89,7 +91,6 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
     String selectedRole = data['role'] ?? 'padre';
     String? selectedCategory = data['category'];
     final roles = ['padre', 'jugador', 'dt', 'secretario', 'directivo'];
-    final categories = ['Sub-12', 'Sub-14', 'Sub-16', 'Sub-18', 'Primera'];
 
     showDialog(
       context: context,
@@ -110,22 +111,41 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                       selectedRole = v!;
                       if (selectedRole == 'directivo' || selectedRole == 'secretario') {
                         selectedCategory = null;
-                      } else {
-                        selectedCategory ??= 'Sub-12';
                       }
                     });
                   },
                 ),
                 const SizedBox(height: 16),
                 if (selectedRole != 'directivo' && selectedRole != 'secretario')
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedCategory,
-                    decoration: const InputDecoration(labelText: 'Categoría'),
-                    items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (v) {
-                      setState(() {
-                        selectedCategory = v;
-                      });
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final categoriesAsync = ref.watch(categoriesStreamProvider);
+                      return categoriesAsync.when(
+                        data: (categories) {
+                          if (categories.isEmpty) {
+                            return const Text('No hay categorías creadas. Cree una primero en "Gestionar Categorías".');
+                          }
+                          
+                          // Ensure selectedCategory is valid
+                          if (selectedCategory != null && !categories.contains(selectedCategory)) {
+                            selectedCategory = null;
+                          }
+                          selectedCategory ??= categories.first;
+
+                          return DropdownButtonFormField<String>(
+                            initialValue: selectedCategory,
+                            decoration: const InputDecoration(labelText: 'Categoría'),
+                            items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                            onChanged: (v) {
+                              setState(() {
+                                selectedCategory = v;
+                              });
+                            },
+                          );
+                        },
+                        loading: () => const CircularProgressIndicator(),
+                        error: (err, stack) => Text('Error al cargar: $err'),
+                      );
                     },
                   ),
               ],

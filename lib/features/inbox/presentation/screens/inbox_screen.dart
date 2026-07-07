@@ -319,8 +319,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             // Coach restriction: DTs only manage their own category
             if (currentUser.role == 'dt') {
               final dtCategory = (currentUser.category ?? '').toLowerCase();
-              if (otherCategory != dtCategory &&
-                  otherUserId != currentUser.id) {
+              final isParticipant = (data['participants'] as List?)?.contains(currentUser.id) ?? false;
+              if (otherCategory != dtCategory && !isParticipant) {
                 return false;
               }
             }
@@ -637,9 +637,10 @@ class _NewChatUserSelector extends StatelessWidget {
                       // Don't chat with self
                       if (u['id'] == currentUserId) return false;
 
-                      // Coaches (DT) can only message users of their category
+                      // Coaches (DT) can only message users of their category OR secretaries/directors
                       if (currentUserRole == 'dt') {
-                        return u['category'] == currentUserCategory;
+                        final uRole = u['role'] ?? '';
+                        return u['category'] == currentUserCategory || uRole == 'secretario' || uRole == 'directivo';
                       }
 
                       return true;

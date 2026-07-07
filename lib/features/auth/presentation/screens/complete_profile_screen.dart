@@ -37,9 +37,11 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
     setState(() => _isLoading = true);
     try {
       final authService = ref.read(authServiceProvider);
+      final session = ref.read(currentUserProvider);
+      
       await authService.completeRegistration(
-        phone1: _phone1Controller.text.trim(),
-        phone2: _phone2Controller.text.trim().isEmpty
+        phone1: session?.role == 'jugador' ? null : _phone1Controller.text.trim(),
+        phone2: session?.role == 'jugador' || _phone2Controller.text.trim().isEmpty
             ? null
             : _phone2Controller.text.trim(),
       );
@@ -99,7 +101,9 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Faltan algunos datos para finalizar tu registro con Google.',
+                  session?.role == 'jugador'
+                      ? 'Debes aceptar los términos y condiciones y el reglamento del club para continuar.'
+                      : 'Faltan algunos datos para finalizar tu registro con Google.',
                   style: context.typography.bodyMedium,
                 ),
                 const SizedBox(height: 32),
@@ -138,48 +142,50 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Contact Details
-                Text(
-                  'Datos de contacto',
-                  style: context.typography.labelMedium,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _phone1Controller,
-                  decoration: InputDecoration(
-                    labelText: 'Teléfono principal',
-                    hintText: 'Ej. 11 1234 5678',
-                    labelStyle: context.typography.bodyMedium.copyWith(
-                        color: context.colors.textSecondary),
-                    filled: true,
-                    fillColor: context.colors.surfaceLight,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                      borderSide: BorderSide.none,
-                    ),
+                // Contact Details (Only for non-players)
+                if (session?.role != 'jugador') ...[
+                  Text(
+                    'Datos de contacto',
+                    style: context.typography.labelMedium,
                   ),
-                  keyboardType: TextInputType.phone,
-                  validator: (value) =>
-                      value == null || value.isEmpty ? 'Requerido' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _phone2Controller,
-                  decoration: InputDecoration(
-                    labelText: 'Teléfono secundario (opcional)',
-                    hintText: 'Ej. 11 1234 5678',
-                    labelStyle: context.typography.bodyMedium.copyWith(
-                        color: context.colors.textSecondary),
-                    filled: true,
-                    fillColor: context.colors.surfaceLight,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                      borderSide: BorderSide.none,
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _phone1Controller,
+                    decoration: InputDecoration(
+                      labelText: 'Teléfono principal',
+                      hintText: 'Ej. 11 1234 5678',
+                      labelStyle: context.typography.bodyMedium.copyWith(
+                          color: context.colors.textSecondary),
+                      filled: true,
+                      fillColor: context.colors.surfaceLight,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
+                    keyboardType: TextInputType.phone,
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Requerido' : null,
                   ),
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _phone2Controller,
+                    decoration: InputDecoration(
+                      labelText: 'Teléfono secundario (opcional)',
+                      hintText: 'Ej. 11 1234 5678',
+                      labelStyle: context.typography.bodyMedium.copyWith(
+                          color: context.colors.textSecondary),
+                      filled: true,
+                      fillColor: context.colors.surfaceLight,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 32),
+                ],
 
                 // Terms
                 Row(
