@@ -26,6 +26,7 @@ import 'sponsors_management_screen.dart';
 import 'support_form_screen.dart';
 import 'terms_conditions_screen.dart';
 import 'birthday_config_screen.dart';
+import '../../../coach_panel/presentation/screens/coach_dashboard_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   final VoidCallback onLogout;
@@ -310,6 +311,29 @@ class SettingsScreen extends ConsumerWidget {
                   ),
               ],
             ).animate(delay: 150.ms).fadeIn(duration: 400.ms),
+            const SizedBox(height: 20),
+          ],
+
+          // ─── Herramientas de DT ───────────────────────────
+          if (user.isCoach) ...[
+            Text('Herramientas de DT', style: context.typography.labelMedium),
+            const SizedBox(height: 8),
+            _SettingsGroup(
+              items: [
+                _SettingNav(
+                  icon: Icons.sports,
+                  label: 'Panel DT (Ver Plantel)',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CoachDashboardScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ).animate(delay: 155.ms).fadeIn(duration: 400.ms),
             const SizedBox(height: 20),
           ],
 
