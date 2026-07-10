@@ -25,6 +25,7 @@ import 'privacy_policy_screen.dart';
 import 'sponsors_management_screen.dart';
 import 'support_form_screen.dart';
 import 'terms_conditions_screen.dart';
+import 'birthday_config_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   final VoidCallback onLogout;
@@ -270,6 +271,18 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             _SettingsGroup(
               items: [
+                _SettingNav(
+                  icon: Icons.cake,
+                  label: 'Sistema de Cumpleaños',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BirthdayConfigScreen(),
+                      ),
+                    );
+                  },
+                ),
                 _SettingNav(
                   icon: Icons.business,
                   label: 'Gestión de Sponsors',
