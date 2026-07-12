@@ -68,9 +68,19 @@ class VerifyEmailScreen extends ConsumerWidget {
               JNButton(
                 label: 'Ya lo verifiqué',
                 onPressed: () async {
-                  await ref.read(authServiceProvider).checkEmailVerified();
-                  // Will force refresh of user session in AppNavigator
-                  onRefresh();
+                  final verified = await ref.read(authServiceProvider).checkEmailVerified();
+                  if (!verified && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'El correo aún no ha sido verificado. Por favor revisá tu bandeja de entrada.',
+                        ),
+                        backgroundColor: context.colors.warning,
+                      ),
+                    );
+                  } else {
+                    onRefresh();
+                  }
                 },
                 fullWidth: true,
               ),

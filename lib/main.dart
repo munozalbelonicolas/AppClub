@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/app_shell.dart';
 import 'core/providers/session_provider.dart';
 import 'core/providers/theme_provider.dart';
+import 'core/services/auth_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/screens/complete_profile_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
@@ -58,6 +59,13 @@ class _AppNavigator extends ConsumerStatefulWidget {
 
 class _AppNavigatorState extends ConsumerState<_AppNavigator> {
   bool _splashFinished = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the AuthService to start listening to persistent login state changes
+    ref.read(authServiceProvider);
+  }
 
   void _onSplashFinished() {
     setState(() => _splashFinished = true);

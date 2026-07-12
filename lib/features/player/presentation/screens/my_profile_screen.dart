@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -426,6 +427,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           decoration: const InputDecoration(
                             labelText: 'Nombre',
                           ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]")),
+                          ],
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) return 'Ingresa el nombre';
                             if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
@@ -441,6 +445,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           decoration: const InputDecoration(
                             labelText: 'Apellido',
                           ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]")),
+                          ],
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) return 'Ingresa el apellido';
                             if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
@@ -455,6 +462,17 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           style: context.typography.bodyLarge,
                           decoration: const InputDecoration(labelText: 'DNI'),
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(8),
+                          ],
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Ingresa el DNI';
+                            if (v.length < 7 || v.length > 8) {
+                              return 'El DNI debe tener 7 u 8 dígitos';
+                            }
+                            return null;
+                          },
                         ),
                         if (user.role == 'padre') ...[
                           const SizedBox(height: 12),
@@ -497,6 +515,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                   decoration: const InputDecoration(
                                     labelText: 'Altura (ej. 1.55 m)',
                                   ),
+                                  validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -507,6 +526,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                   decoration: const InputDecoration(
                                     labelText: 'Peso (ej. 45 kg)',
                                   ),
+                                  validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
                                 ),
                               ),
                             ],

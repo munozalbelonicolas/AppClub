@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/auth_service.dart';
@@ -6,6 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
+import '../../../settings/presentation/screens/terms_conditions_screen.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   final VoidCallback onRegisterSuccess;
@@ -36,7 +38,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String _selectedRole = 'padre';
 
   Future<void> _handleRegister() async {
-    if (!_formKey.currentState!.validate() || !_termsAccepted) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    if (!_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Debes aceptar los Términos y Condiciones para registrarte.',
+          ),
+          backgroundColor: context.colors.error,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -126,6 +140,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: 'Nombre',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]")),
+                  ],
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Requerido';
                     if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
@@ -143,6 +160,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: 'Apellido',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]")),
+                  ],
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Requerido';
                     if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
@@ -229,24 +249,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              backgroundColor: context.colors.surface,
-                              title: const Text('Términos y Condiciones'),
-                              content: const SingleChildScrollView(
-                                child: Text(
-                                  'Al registrarte en AppClub, aceptas cumplir con las normativas internas del club, incluyendo el respeto a los compañeros, entrenadores y directivos.\n\n'
-                                  'La información proporcionada debe ser veraz y está sujeta a verificación por parte de la secretaría técnica.\n\n'
-                                  'El club se reserva el derecho de admisión y permanencia.',
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('Cerrar'),
-                                ),
-                              ],
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TermsConditionsScreen(),
                             ),
                           );
                         },
@@ -274,7 +280,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 JNButton(
                   label: 'Crear Cuenta',
-                  onPressed: _termsAccepted ? _handleRegister : () {},
+                  onPressed: _handleRegister,
                   fullWidth: true,
                   size: JNButtonSize.large,
                   isLoading: _isLoading,

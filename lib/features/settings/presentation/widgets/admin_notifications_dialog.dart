@@ -76,13 +76,28 @@ void showAdminNotificationsDialog(BuildContext context) {
                                 ),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(backgroundColor: context.colors.success),
-                                  onPressed: () {
-                                    FirebaseFirestore.instance
-                                        .collection('player_tutor_links')
-                                        .doc(data['linkId'])
-                                        .update({'status': 'linked'});
-                                    docs[index].reference.delete();
-                                    Navigator.pop(context);
+                                  onPressed: () async {
+                                    final String? linkId = data['linkId'];
+                                    final String? tutorId = data['tutorId'];
+
+                                    if (linkId != null) {
+                                      await FirebaseFirestore.instance
+                                          .collection('player_tutor_links')
+                                          .doc(linkId)
+                                          .update({'status': 'linked'});
+                                    }
+
+                                    if (tutorId != null) {
+                                      await FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(tutorId)
+                                          .update({'status': 'active'});
+                                    }
+
+                                    await docs[index].reference.delete();
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                    }
                                   },
                                   child: const Text('Aprobar', style: TextStyle(color: Colors.white)),
                                 ),

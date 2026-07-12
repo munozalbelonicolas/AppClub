@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -53,6 +54,20 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
     } catch (e) {
       AppLogger.error('Error picking avatar', error: e, tag: 'App');
     }
+  }
+
+  String _formatDNI(String dni) {
+    final digits = dni.replaceAll(RegExp(r'\D'), '');
+    if (digits.length <= 3) return digits;
+    final reversed = digits.split('').reversed.toList();
+    final buffer = StringBuffer();
+    for (int i = 0; i < reversed.length; i++) {
+      if (i > 0 && i % 3 == 0) {
+        buffer.write('.');
+      }
+      buffer.write(reversed[i]);
+    }
+    return buffer.toString().split('').reversed.join();
   }
 
   Future<void> _handleRegister() async {
@@ -113,7 +128,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
               backgroundColor: context.colors.surface,
               title: const Text('Jugador ya registrado'),
               content: Text(
-                'El jugador ${e.playerName} ya se encuentra registrado en el club. ¿Deseas enviar una solicitud para ser co-tutor?',
+                'El jugador con el DNI ${_formatDNI(_dniController.text.trim())} ya se encuentra registrado en el club. ¿Deseas enviar una solicitud para ser co-tutor?',
               ),
               actions: [
                 TextButton(
@@ -262,7 +277,17 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                   decoration: const InputDecoration(
                     labelText: 'DNI (Sin puntos)',
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(8),
+                  ],
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Requerido';
+                    if (v.length < 7 || v.length > 8) {
+                      return 'El DNI debe tener 7 u 8 dígitos';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
 
@@ -270,10 +295,17 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                   controller: _fullNameController,
                   style: context.typography.bodyLarge,
                   decoration: const InputDecoration(labelText: 'Nombre completo'),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]")),
+                  ],
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Requerido';
                     if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
                       return 'Solo se permiten letras';
+                    }
+                    final parts = v.trim().split(RegExp(r'\s+'));
+                    if (parts.length < 2) {
+                      return 'Debes ingresar nombre y apellido';
                     }
                     return null;
                   },
@@ -320,6 +352,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Peso (ej: 60kg)',
                         ),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -330,6 +363,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Altura (ej: 1.70m)',
                         ),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
                       ),
                     ),
                   ],

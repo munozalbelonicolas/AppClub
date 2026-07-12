@@ -7,6 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
+import '../../../settings/presentation/screens/terms_conditions_screen.dart';
 
 class CompleteProfileScreen extends ConsumerStatefulWidget {
   final VoidCallback onComplete;
@@ -32,7 +33,19 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   bool _isLoading = false;
 
   Future<void> _handleComplete() async {
-    if (!_formKey.currentState!.validate() || !_termsAccepted) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    if (!_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Debes aceptar los Términos y Condiciones para continuar.',
+          ),
+          backgroundColor: context.colors.error,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -202,9 +215,31 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'Acepto los términos y condiciones y el reglamento del club',
-                        style: context.typography.bodySmall,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TermsConditionsScreen(),
+                            ),
+                          );
+                        },
+                        child: Text.rich(
+                          TextSpan(
+                            text: 'He leído y acepto los ',
+                            style: context.typography.bodySmall,
+                            children: [
+                              TextSpan(
+                                text: 'Términos y Condiciones.',
+                                style: context.typography.bodySmall.copyWith(
+                                  color: context.colors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -214,7 +249,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                 // Submit button
                 JNButton(
                   label: 'Finalizar Registro',
-                  onPressed: _termsAccepted ? _handleComplete : null,
+                  onPressed: _handleComplete,
                   isLoading: _isLoading,
                   fullWidth: true,
                   size: JNButtonSize.large,

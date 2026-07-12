@@ -20,7 +20,29 @@ class AuthService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   StreamSubscription<DocumentSnapshot>? _userSubscription;
 
-  AuthService(this._ref);
+  AuthService(this._ref) {
+    _init();
+  }
+
+  void _init() {
+    _auth.authStateChanges().listen((firebaseUser) {
+      if (firebaseUser == null) {
+        final currentSession = _ref.read(currentUserProvider);
+        if (currentSession == null || !currentSession.id.startsWith('mock_uid_')) {
+          _userSubscription?.cancel();
+          _userSubscription = null;
+          _ref.read(currentUserProvider.notifier).state = null;
+        }
+      } else {
+        _syncUserProfile(
+          firebaseUser.uid,
+          firebaseUser.email ?? '',
+          firebaseUser.displayName ?? '',
+          emailVerified: firebaseUser.emailVerified,
+        );
+      }
+    });
+  }
 
   Future<UserSession?> signInWithEmailAndPassword(
     String email,
@@ -100,19 +122,22 @@ class AuthService {
     }
   }
 
-  Future<void> checkEmailVerified() async {
+  Future<bool> checkEmailVerified() async {
     final user = _auth.currentUser;
     if (user != null) {
       await user.reload(); // Re-fetch user data from Firebase
-      if (user.emailVerified) {
+      final refreshedUser = _auth.currentUser; // Get a fresh reference
+      if (refreshedUser != null && refreshedUser.emailVerified) {
         final session = _ref.read(currentUserProvider);
         if (session != null) {
           _ref.read(currentUserProvider.notifier).state = session.copyWith(
             emailVerified: true,
           );
         }
+        return true;
       }
     }
+    return false;
   }
 
   /// Tries real Google Sign-In.

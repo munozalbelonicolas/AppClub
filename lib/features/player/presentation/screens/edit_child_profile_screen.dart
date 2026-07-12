@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -242,6 +243,9 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                     controller: _nameController,
                     style: context.typography.bodyLarge,
                     decoration: const InputDecoration(labelText: 'Nombre'),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]")),
+                    ],
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return 'Ingresa el nombre';
                       if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
@@ -255,6 +259,9 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                     controller: _lastNameController,
                     style: context.typography.bodyLarge,
                     decoration: const InputDecoration(labelText: 'Apellido'),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]")),
+                    ],
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return 'Ingresa el apellido';
                       if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
@@ -281,6 +288,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                           style: context.typography.bodyLarge,
                           decoration: const InputDecoration(labelText: 'Altura (ej. 155)'),
                           keyboardType: TextInputType.number,
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -290,6 +298,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                           style: context.typography.bodyLarge,
                           decoration: const InputDecoration(labelText: 'Peso (ej. 45)'),
                           keyboardType: TextInputType.number,
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
                         ),
                       ),
                     ],
