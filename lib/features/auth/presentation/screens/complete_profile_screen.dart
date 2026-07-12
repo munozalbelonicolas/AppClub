@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/session_provider.dart';
@@ -177,8 +178,15 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                       ),
                     ),
                     keyboardType: TextInputType.phone,
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Requerido' : null,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Requerido';
+                      if (value.length != 10) return 'El teléfono debe tener 10 dígitos';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -196,6 +204,16 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                       ),
                     ),
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    validator: (value) {
+                      if (value != null && value.isNotEmpty && value.length != 10) {
+                        return 'El teléfono debe tener 10 dígitos';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 32),
                 ],

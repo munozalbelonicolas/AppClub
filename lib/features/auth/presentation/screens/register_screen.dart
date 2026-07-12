@@ -194,7 +194,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: 'Teléfono principal',
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Requerido';
+                    if (v.length != 10) return 'El teléfono debe tener 10 dígitos';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -206,6 +214,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: 'Teléfono secundario (Opcional)',
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  validator: (v) {
+                    if (v != null && v.isNotEmpty && v.length != 10) {
+                      return 'El teléfono debe tener 10 dígitos';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 

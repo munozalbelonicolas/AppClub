@@ -483,6 +483,15 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               labelText: 'Teléfono de Contacto 1',
                             ),
                             keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(10),
+                            ],
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return 'Ingresa el teléfono';
+                              if (v.length != 10) return 'El teléfono debe tener 10 dígitos';
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
@@ -492,6 +501,16 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               labelText: 'Teléfono de Contacto 2 (Opcional)',
                             ),
                             keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(10),
+                            ],
+                            validator: (v) {
+                              if (v != null && v.isNotEmpty && v.length != 10) {
+                                return 'El teléfono debe tener 10 dígitos';
+                              }
+                              return null;
+                            },
                           ),
                         ] else ...[
                           const SizedBox(height: 12),
