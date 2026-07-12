@@ -72,76 +72,119 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _handleForgotPassword() async {
     final emailCtrl = TextEditingController(text: _emailController.text);
+    final formKey = GlobalKey<FormState>();
+    bool dialogLoading = false;
     
     await showDialog(
       context: context,
+      barrierDismissible: false, // Prevent dismissing by clicking outside
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: dialogContext.colors.surface,
-          title: const Text('Recuperar contraseña'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.',
-                style: context.typography.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                style: context.typography.bodyLarge,
-                decoration: const InputDecoration(
-                  hintText: 'Correo electrónico',
-                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return PopScope(
+              canPop: !dialogLoading,
+              child: AlertDialog(
+                backgroundColor: dialogContext.colors.surface,
+                title: const Text('Recuperar contraseña'),
+                content: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.',
+                        style: dialogContext.typography.bodyMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        style: dialogContext.typography.bodyLarge,
+                        enabled: !dialogLoading,
+                        decoration: const InputDecoration(
+                          hintText: 'Correo electrónico',
+                          prefixIcon: Icon(Icons.email_outlined, size: 20),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Por favor, ingresa tu correo.';
+                          }
+                          final email = value.trim();
+                          if (!email.contains('@') || !email.contains('.')) {
+                            return 'Por favor, ingresa un correo válido.';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
                 ),
+                actions: [
+                  TextButton(
+                    onPressed: dialogLoading ? null : () => Navigator.pop(dialogContext),
+                    child: Text(
+                      'Cancelar',
+                      style: TextStyle(
+                        color: dialogLoading
+                            ? dialogContext.colors.textDisabled
+                            : dialogContext.colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: dialogContext.colors.primary,
+                    ),
+                    onPressed: dialogLoading
+                        ? null
+                        : () async {
+                            if (formKey.currentState!.validate()) {
+                              setDialogState(() => dialogLoading = true);
+                              final email = emailCtrl.text.trim();
+                              try {
+                                final authService = ref.read(authServiceProvider);
+                                await authService.sendPasswordResetEmail(email);
+                                if (!dialogContext.mounted) return;
+                                Navigator.pop(dialogContext); // Close dialog
+                                
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                      'Se ha enviado un correo para restablecer tu contraseña.',
+                                    ),
+                                    backgroundColor: context.colors.success,
+                                  ),
+                                );
+                              } catch (e) {
+                                setDialogState(() => dialogLoading = false);
+                                if (!dialogContext.mounted) return;
+                                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                      'Ocurrió un error. Verifica que el correo esté registrado.',
+                                    ),
+                                    backgroundColor: dialogContext.colors.error,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    child: dialogLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Enviar'),
+                  ),
+                ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text('Cancelar', style: TextStyle(color: dialogContext.colors.textSecondary)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: dialogContext.colors.primary),
-              onPressed: () async {
-                final email = emailCtrl.text.trim();
-                if (email.isEmpty || !email.contains('@')) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('Por favor, ingresa un correo válido.')),
-                  );
-                  return;
-                }
-                
-                Navigator.pop(dialogContext); // Close dialog
-                setState(() => _isLoading = true);
-                
-                try {
-                  final authService = ref.read(authServiceProvider);
-                  await authService.sendPasswordResetEmail(email);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Se ha enviado un correo para restablecer tu contraseña.'),
-                      backgroundColor: context.colors.success,
-                    ),
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Ocurrió un error. Verifica que el correo esté registrado.'),
-                      backgroundColor: context.colors.error,
-                    ),
-                  );
-                } finally {
-                  if (mounted) setState(() => _isLoading = false);
-                }
-              },
-              child: const Text('Enviar'),
-            ),
-          ],
+            );
+          },
         );
       },
     );

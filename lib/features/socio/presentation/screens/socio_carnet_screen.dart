@@ -74,7 +74,7 @@ class SocioCarnetScreen extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.shield, color: Colors.white, size: 28),
+                            const Icon(Icons.shield, color: Colors.white, size: 28),
                             const SizedBox(width: 12),
                             Text(
                               'CLUB JORGE NEWBERY',

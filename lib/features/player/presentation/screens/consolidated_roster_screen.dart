@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' hide Border;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/category_service.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -166,10 +167,13 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
                   separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
+                    final playerId = docs[index].id;
                     final name = data['name'] ?? '';
                     final lastName = data['lastName'] ?? '';
                     final category = data['category'] ?? 'Sin categoría';
                     final dni = data['dni'] ?? 'Sin DNI';
+                    final quotaStatus = data['quotaStatus'] as String? ?? 'atrasado';
+                    final isAlDia = quotaStatus == 'al_dia';
                     
                     return JNCard(
                       child: ListTile(
@@ -179,6 +183,36 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
                         ),
                         title: Text('$lastName, $name', style: context.typography.titleMedium),
                         subtitle: Text('Cat: $category • DNI: $dni', style: context.typography.bodySmall),
+                        trailing: InkWell(
+                          onTap: isAdmin ? () {
+                            final newStatus = isAlDia ? 'atrasado' : 'al_dia';
+                            ref.read(firestoreServiceProvider).updatePlayerQuotaStatus(playerId, newStatus);
+                          } : null,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isAlDia ? context.colors.success.withValues(alpha: 0.1) : context.colors.error.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: isAlDia ? context.colors.success : context.colors.error),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  isAlDia ? 'AL DÍA' : 'ATRASADO',
+                                  style: context.typography.labelSmall.copyWith(
+                                    color: isAlDia ? context.colors.success : context.colors.error,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (isAdmin) ...[
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.edit, size: 12, color: isAlDia ? context.colors.success : context.colors.error),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   },

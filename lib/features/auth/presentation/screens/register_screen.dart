@@ -126,7 +126,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: 'Nombre',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Requerido';
+                    if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
+                      return 'Solo se permiten letras';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -137,7 +143,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: 'Apellido',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Requerido';
+                    if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
+                      return 'Solo se permiten letras';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 

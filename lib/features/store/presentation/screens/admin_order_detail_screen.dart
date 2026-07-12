@@ -47,8 +47,18 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
       String notifMessage;
       switch (newStatus) {
         case 'confirmed':
-          notifType = 'store_order_confirmed';
-          notifMessage = '✅ Tu pago por ${orderData['productName']} fue confirmado. Ya podés pasar a retirarlo por el club.';
+          final isQuota = orderData['isQuotaPayment'] == true;
+          if (isQuota && orderData['playerId'] != null) {
+            await FirebaseFirestore.instance.collection('users').doc(orderData['playerId']).update({
+              'quotaStatus': 'al_dia',
+              'lastQuotaPaymentDate': FieldValue.serverTimestamp(),
+            });
+            notifType = 'quota_payment_confirmed';
+            notifMessage = '✅ Tu pago de cuota para ${orderData['productName'].split(' - ').last} fue confirmado.';
+          } else {
+            notifType = 'store_order_confirmed';
+            notifMessage = '✅ Tu pago por ${orderData['productName']} fue confirmado. Ya podés pasar a retirarlo por el club.';
+          }
           break;
         case 'delivered':
           notifType = 'store_order_delivered';
@@ -229,7 +239,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                 // Action buttons
                 if (status == 'pending_payment' || status == 'payment_uploaded') ...[
                   JNButton(
-                    label: '✅ Confirmar y Listo para Retirar',
+                    label: data['isQuotaPayment'] == true ? '✅ Confirmar Cuota' : '✅ Confirmar y Listo para Retirar',
                     onPressed: () => _updateStatus('confirmed'),
                     variant: JNButtonVariant.success,
                   ),
@@ -241,7 +251,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                   ),
                 ],
 
-                if (status == 'confirmed') ...[
+                if (status == 'confirmed' && data['isQuotaPayment'] != true) ...[
                   JNButton(
                     label: '📦 Marcar como Entregado',
                     onPressed: () => _updateStatus('delivered'),

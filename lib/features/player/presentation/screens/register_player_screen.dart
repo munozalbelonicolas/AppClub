@@ -270,7 +270,13 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                   controller: _fullNameController,
                   style: context.typography.bodyLarge,
                   decoration: const InputDecoration(labelText: 'Nombre completo'),
-                  validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Requerido';
+                    if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
+                      return 'Solo se permiten letras';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
 

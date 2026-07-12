@@ -242,14 +242,26 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                     controller: _nameController,
                     style: context.typography.bodyLarge,
                     decoration: const InputDecoration(labelText: 'Nombre'),
-                    validator: (v) => v == null || v.isEmpty ? 'Ingresa el nombre' : null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Ingresa el nombre';
+                      if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
+                        return 'Solo se permiten letras';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _lastNameController,
                     style: context.typography.bodyLarge,
                     decoration: const InputDecoration(labelText: 'Apellido'),
-                    validator: (v) => v == null || v.isEmpty ? 'Ingresa el apellido' : null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Ingresa el apellido';
+                      if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$").hasMatch(v.trim())) {
+                        return 'Solo se permiten letras';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   Row(

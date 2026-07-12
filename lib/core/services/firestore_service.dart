@@ -49,15 +49,22 @@ class FirestoreService {
 
   // ─── Players ──────────────────────────────────────
   Stream<List<Map<String, dynamic>>> getPlayers() {
-    return _db.collection('players').snapshots().map(
+    return _db.collection('users').where('role', isEqualTo: 'jugador').snapshots().map(
           (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
         );
   }
 
   Stream<Map<String, dynamic>?> getPlayerProfile(String playerId) {
-    return _db.collection('players').doc(playerId).snapshots().map(
+    return _db.collection('users').doc(playerId).snapshots().map(
           (doc) => doc.exists ? {'id': doc.id, ...doc.data()!} : null,
         );
+  }
+
+  Future<void> updatePlayerQuotaStatus(String playerId, String status) async {
+    await _db.collection('users').doc(playerId).update({
+      'quotaStatus': status,
+      if (status == 'al_dia') 'lastQuotaPaymentDate': FieldValue.serverTimestamp(),
+    });
   }
 
   // ─── Payments ─────────────────────────────────────
@@ -135,6 +142,33 @@ final playerProfileStreamProvider = StreamProvider.family<Map<String, dynamic>?,
 
 final convocatoriaStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, matchId) {
   return ref.watch(firestoreServiceProvider).getConvocatoria(matchId);
+});
+
+final tutorPlayersStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, tutorId) {
+  return FirebaseFirestore.instance
+      .collection('player_tutor_links')
+      .where('tutorId', isEqualTo: tutorId)
+      .snapshots()
+      .asyncMap((snapshot) async {
+    final List<Map<String, dynamic>> children = [];
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final playerId = data['playerId'] as String?;
+      if (playerId != null) {
+        final playerDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(playerId)
+            .get();
+        if (playerDoc.exists) {
+          children.add({
+            'id': playerDoc.id,
+            ...playerDoc.data()!,
+          });
+        }
+      }
+    }
+    return children;
+  });
 });
 
 final lineupStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, matchId) {

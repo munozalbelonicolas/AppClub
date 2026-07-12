@@ -58,7 +58,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     final bodyController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    bool isMatch = false;
+    String eventType = 'ninguno';
+    bool hasTransport = false;
     String? selectedOpponentId;
 
     String selectedCategory = 'deportivo';
@@ -162,30 +163,61 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         },
                       ),
                       const SizedBox(height: 12),
-                      SwitchListTile(
-                        title: const Text('¿Es publicación de un Partido?'),
-                        value: isMatch,
-                        activeThumbColor: context.colors.primary,
-                        contentPadding: EdgeInsets.zero,
+                      DropdownButtonFormField<String>(
+                        dropdownColor: context.colors.surface,
+                        initialValue: eventType,
+                        decoration: const InputDecoration(labelText: 'Tipo de Evento'),
+                        items: const [
+                          DropdownMenuItem(value: 'ninguno', child: Text('Ninguno (Comunicado normal)')),
+                          DropdownMenuItem(value: 'partido', child: Text('Partido')),
+                          DropdownMenuItem(value: 'evento', child: Text('Evento Especial')),
+                          DropdownMenuItem(value: 'jornada', child: Text('Jornada')),
+                          DropdownMenuItem(value: 'cuadrangular', child: Text('Cuadrangular')),
+                          DropdownMenuItem(value: 'torneo', child: Text('Torneo')),
+                        ],
                         onChanged: (val) {
-                          setDialogState(() {
-                            isMatch = val;
-                          });
+                          if (val != null) {
+                            setDialogState(() {
+                              eventType = val;
+                              if (eventType == 'ninguno') {
+                                hasTransport = false;
+                                selectedOpponentId = null;
+                              }
+                            });
+                          }
                         },
                       ),
-                      if (isMatch) ...[
+                      if (eventType != 'ninguno') ...[
+                        const SizedBox(height: 12),
+                        SwitchListTile(
+                          title: const Row(
+                            children: [
+                              Icon(Icons.directions_bus, color: Colors.orange),
+                              SizedBox(width: 8),
+                              Text('Traslado Incluido'),
+                            ],
+                          ),
+                          value: hasTransport,
+                          activeThumbColor: Colors.orange,
+                          activeTrackColor: Colors.orange.withValues(alpha: 0.3),
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: (val) {
+                            setDialogState(() {
+                              hasTransport = val;
+                            });
+                          },
+                        ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           dropdownColor: context.colors.surface,
                           initialValue: selectedOpponentId,
-                          decoration: const InputDecoration(labelText: 'Club Rival'),
+                          decoration: const InputDecoration(labelText: 'Club Rival (Opcional)'),
                           items: clubs.where((c) => c['isLocal'] != true).map((club) {
                             return DropdownMenuItem<String>(
                               value: club['id'],
                               child: Text(club['name'], style: context.typography.bodyLarge),
                             );
                           }).toList(),
-                          validator: (val) => isMatch && val == null ? 'Selecciona un rival' : null,
                           onChanged: (val) {
                             setDialogState(() {
                               selectedOpponentId = val;
@@ -226,8 +258,10 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         'authorName': '${sessionUser.name} ${sessionUser.lastName}',
                         'authorRole': sessionUser.role,
                         'commentsEnabled': commentsEnabled,
-                        'isMatch': isMatch,
-                        'opponentClubId': isMatch ? selectedOpponentId : null,
+                        'isMatch': eventType == 'partido', // Backwards compatibility
+                        'eventType': eventType,
+                        'hasTransport': hasTransport,
+                        'opponentClubId': (eventType != 'ninguno') ? selectedOpponentId : null,
                       });
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -581,6 +615,54 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                 ],
               ),
               const SizedBox(height: 8),
+              if (ann['eventType'] != null && ann['eventType'] != 'ninguno')
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: context.colors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: context.colors.primary),
+                        ),
+                        child: Text(
+                          (ann['eventType'] as String).toUpperCase(),
+                          style: context.typography.labelSmall.copyWith(
+                            color: context.colors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      if (ann['hasTransport'] == true)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.orange),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.directions_bus, size: 14, color: Colors.orange),
+                              const SizedBox(width: 4),
+                              Text(
+                                'TRASLADO INCLUIDO',
+                                style: context.typography.labelSmall.copyWith(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               Text(
                 ann['body'] as String,
                 style: context.typography.bodyMedium,
