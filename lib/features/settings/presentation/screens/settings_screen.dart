@@ -12,21 +12,20 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../../../coach_panel/presentation/screens/coach_dashboard_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
-// Import screens from other features
 import '../../../player/presentation/screens/my_profile_screen.dart';
 import '../../../results/presentation/screens/fixture_screen.dart';
 import '../../../results/presentation/screens/league_report_screen.dart';
 import '../../../results/presentation/screens/manage_scorers_screen.dart';
 import '../../../results/presentation/screens/results_screen.dart';
+import 'birthday_config_screen.dart';
 import 'club_management_screen.dart';
 import 'director_console_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'sponsors_management_screen.dart';
 import 'support_form_screen.dart';
 import 'terms_conditions_screen.dart';
-import 'birthday_config_screen.dart';
-import '../../../coach_panel/presentation/screens/coach_dashboard_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   final VoidCallback onLogout;
