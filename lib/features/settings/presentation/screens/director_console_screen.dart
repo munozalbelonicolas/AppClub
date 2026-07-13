@@ -16,8 +16,22 @@ import 'admin_user_profile_screen.dart';
 import 'birthdays_of_month_screen.dart';
 import 'manage_categories_screen.dart';
 
-class DirectorConsoleScreen extends ConsumerWidget {
+class DirectorConsoleScreen extends ConsumerStatefulWidget {
   const DirectorConsoleScreen({super.key});
+
+  @override
+  ConsumerState<DirectorConsoleScreen> createState() => _DirectorConsoleScreenState();
+}
+
+class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _approveUser(
     BuildContext context,
@@ -77,7 +91,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(
@@ -139,6 +153,16 @@ class DirectorConsoleScreen extends ConsumerWidget {
           }
 
           final docs = snapshot.data?.docs ?? [];
+          final filteredDocs = docs.where((doc) {
+            if (_searchQuery.isEmpty) return true;
+            final data = doc.data() as Map<String, dynamic>;
+            final String name = data['name']?.toString().toLowerCase() ?? '';
+            final String lastName = data['lastName']?.toString().toLowerCase() ?? '';
+            final String email = data['email']?.toString().toLowerCase() ?? '';
+            return name.contains(_searchQuery) ||
+                   lastName.contains(_searchQuery) ||
+                   email.contains(_searchQuery);
+          }).toList();
 
           return CustomScrollView(
             slivers: [
@@ -269,14 +293,34 @@ class DirectorConsoleScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  child: Text(
-                    'Usuarios Registrados (${docs.length})',
-                    style: context.typography.headlineSmall,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Usuarios Registrados (${filteredDocs.length})',
+                        style: context.typography.headlineSmall,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _searchController,
+                        style: context.typography.bodyMedium,
+                        decoration: const InputDecoration(
+                          hintText: 'Buscar por nombre, apellido o email...',
+                          prefixIcon: Icon(Icons.search, size: 20),
+                          contentPadding: EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        onChanged: (val) {
+                          setState(() {
+                            _searchQuery = val.toLowerCase();
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
 
-              if (docs.isEmpty)
+              if (filteredDocs.isEmpty)
                 SliverToBoxAdapter(
                   child: Center(
                     child: Padding(
@@ -312,7 +356,7 @@ class DirectorConsoleScreen extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
-                      final doc = docs[index];
+                      final doc = filteredDocs[index];
                       final data = doc.data() as Map<String, dynamic>;
                       final String userId = doc.id;
                       final String name = data['name'] ?? '';
