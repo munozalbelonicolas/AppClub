@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
@@ -23,6 +24,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _keepSession = true;
 
   Future<void> _handleLogin() async {
     if (_emailController.text.trim().isEmpty ||
@@ -37,6 +39,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('keep_session', _keepSession);
+
       // Wait for provider update
       if (mounted) {
         widget.onLogin();
@@ -304,18 +309,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 10),
 
-              // Forgot password
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _handleForgotPassword,
-                  child: Text(
-                    '¿Olvidaste tu contraseña?',
-                    style: context.typography.bodySmall.copyWith(
-                      color: context.colors.primary,
+              // Forgot password and Keep session
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: Checkbox(
+                          value: _keepSession,
+                          onChanged: (val) {
+                            setState(() => _keepSession = val ?? true);
+                          },
+                          activeColor: context.colors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Mantener sesión',
+                        style: context.typography.bodySmall,
+                      ),
+                    ],
+                  ),
+                  TextButton(
+                    onPressed: _handleForgotPassword,
+                    child: Text(
+                      '¿Olvidaste tu contraseña?',
+                      style: context.typography.bodySmall.copyWith(
+                        color: context.colors.primary,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
 
               const SizedBox(height: 8),
@@ -357,7 +384,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   final session = await authService.signInWithGoogle(context);
                   setState(() => _isLoading = false);
                   if (session != null) {
-                    widget.onLogin();
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('keep_session', _keepSession);
+                    if (mounted) {
+                      widget.onLogin();
+                    }
                   }
                 },
                 variant: JNButtonVariant.outline,
