@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+
+import 'category_service.dart';
 import 'match_service.dart';
 import 'novedades_service.dart';
 
@@ -140,15 +142,8 @@ final playersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 });
 
 final appCategoriesProvider = Provider<List<String>>((ref) {
-  final playersAsync = ref.watch(playersStreamProvider);
-  final players = playersAsync.valueOrNull ?? [];
-  final categories = players
-      .map((p) => p['category'] as String?)
-      .where((c) => c != null && c.trim().isNotEmpty)
-      .cast<String>()
-      .toSet()
-      .toList();
-  categories.sort();
+  final categoriesAsync = ref.watch(categoriesStreamProvider);
+  final categories = categoriesAsync.valueOrNull ?? [];
   return categories.isEmpty ? ['Sub-8', 'Sub-10', 'Sub-12', 'Primera'] : categories;
 });
 

@@ -273,13 +273,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     final matchesAsync = ref.watch(matchesStreamProvider);
     final allMatches = matchesAsync.valueOrNull ?? [];
 
-    final categories = allMatches
-        .map((m) => m['category'] as String?)
-        .where((c) => c != null && c.isNotEmpty)
-        .cast<String>()
-        .toSet()
-        .toList();
-    categories.sort();
+    final categories = ref.watch(appCategoriesProvider);
 
     if (_selectedCategory == null) {
       if (isAdmin && categories.isNotEmpty) {

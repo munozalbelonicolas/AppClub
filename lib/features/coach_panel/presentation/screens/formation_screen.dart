@@ -303,14 +303,8 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
     final playersAsync = ref.watch(playersStreamProvider);
     final allPlayers = playersAsync.valueOrNull ?? [];
 
-    final categories = ['Todas'];
-    for (final p in allPlayers) {
-      final cat = p['category'] as String?;
-      if (cat != null && cat.isNotEmpty && !categories.contains(cat)) {
-        categories.add(cat);
-      }
-    }
-    categories.sort();
+    final appCategories = ref.watch(appCategoriesProvider);
+    final categories = ['Todas', ...appCategories];
 
     if (!categories.contains(_selectedCategoryFilter)) {
       _selectedCategoryFilter = 'Todas';
