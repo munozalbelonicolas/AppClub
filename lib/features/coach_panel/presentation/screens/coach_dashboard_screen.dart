@@ -24,10 +24,25 @@ class CoachDashboardScreen extends ConsumerWidget {
     final sessionUser = ref.watch(currentUserProvider)!;
 
     final playersAsync = ref.watch(playersStreamProvider);
-    final List<Map<String, dynamic>> players = playersAsync.valueOrNull ?? [];
+    final List<Map<String, dynamic>> allPlayers = playersAsync.valueOrNull ?? [];
+    
+    // Filter players by assignedCategories or category
+    final List<Map<String, dynamic>> players = allPlayers.where((p) {
+      if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
+        return sessionUser.assignedCategories!.contains(p['category']);
+      }
+      return p['category'] == sessionUser.category;
+    }).toList();
     
     final matchesAsync = ref.watch(matchesStreamProvider);
-    final Map<String, dynamic>? nextMatch = matchesAsync.valueOrNull?.firstOrNull;
+    final List<Map<String, dynamic>> allMatches = matchesAsync.valueOrNull ?? [];
+    final Map<String, dynamic>? nextMatch = allMatches.where((m) {
+      final matchCat = m['category'];
+      if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
+        return sessionUser.assignedCategories!.contains(matchCat);
+      }
+      return matchCat == sessionUser.category;
+    }).firstOrNull;
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -63,7 +78,7 @@ class CoachDashboardScreen extends ConsumerWidget {
                         style: context.typography.titleLarge,
                       ),
                       Text(
-                        '${sessionUser.category ?? 'Sin categoría'} · Temporada ${DateTime.now().year}',
+                        '${sessionUser.assignedCategories?.join(', ') ?? sessionUser.category ?? 'Sin categoría'} • Temporada ${DateTime.now().year}',
                         style: context.typography.bodySmall,
                       ),
                     ],
@@ -218,7 +233,7 @@ class CoachDashboardScreen extends ConsumerWidget {
 
           // ─── Squad ────────────────────────────────
           JNSectionHeader(
-            title: 'Plantel ${sessionUser.category ?? 'Sin categoría'}',
+            title: 'Plantel ${sessionUser.assignedCategories?.join(', ') ?? sessionUser.category ?? 'Sin categoría'}',
             actionLabel: '${players.length} jugadores',
             padding: EdgeInsets.zero,
           ),
@@ -233,7 +248,7 @@ class CoachDashboardScreen extends ConsumerWidget {
                     Icon(Icons.groups, size: 48, color: context.colors.textTertiary),
                     const SizedBox(height: 16),
                     Text(
-                      'No hay jugadores registrados en esta categoría',
+                      'No hay jugadores registrados en esta(s) categoría(s)',
                       style: context.typography.titleMedium.copyWith(
                         color: context.colors.textSecondary,
                       ),

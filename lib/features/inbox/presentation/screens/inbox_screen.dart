@@ -45,6 +45,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           currentUserId: currentUser.id,
           currentUserRole: currentUser.role,
           currentUserCategory: currentUser.category,
+          currentUserAssignedCategories: currentUser.assignedCategories,
           onUserSelected: (selectedUser) async {
             Navigator.pop(context);
             // Create or get thread
@@ -583,12 +584,14 @@ class _NewChatUserSelector extends StatelessWidget {
   final String currentUserId;
   final String currentUserRole;
   final String? currentUserCategory;
+  final List<String>? currentUserAssignedCategories;
   final Function(Map<String, dynamic>) onUserSelected;
 
   const _NewChatUserSelector({
     required this.currentUserId,
     required this.currentUserRole,
     this.currentUserCategory,
+    this.currentUserAssignedCategories,
     required this.onUserSelected,
   });
 
@@ -644,7 +647,10 @@ class _NewChatUserSelector extends StatelessWidget {
                       // Coaches (DT) can only message users of their category OR secretaries/directors
                       if (currentUserRole == 'dt') {
                         final uRole = u['role'] ?? '';
-                        return u['category'] == currentUserCategory || uRole == 'secretario' || uRole == 'directivo';
+                        final hasAssignedCategory = (currentUserAssignedCategories != null && currentUserAssignedCategories!.isNotEmpty)
+                            ? currentUserAssignedCategories!.contains(u['category'])
+                            : u['category'] == currentUserCategory;
+                        return hasAssignedCategory || uRole == 'secretario' || uRole == 'directivo';
                       }
 
                       return true;

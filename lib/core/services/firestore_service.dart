@@ -18,7 +18,7 @@ class FirestoreService {
 
   // ─── Novedades (delegated) ────────────────────────
   Stream<List<Map<String, dynamic>>> getAllNovedades() => _novedades.getAllNovedades();
-  Stream<List<Map<String, dynamic>>> getNovedadesForUser(String? category) => _novedades.getNovedadesForUser(category);
+  Stream<List<Map<String, dynamic>>> getNovedadesForUser(List<String>? categories) => _novedades.getNovedadesForUser(categories);
   Future<void> addNovedad(Map<String, dynamic> data) => _novedades.addNovedad(data);
   Future<void> deleteNovedad(String id) => _novedades.deleteNovedad(id);
   Future<void> addCommentToNovedad(String novedadId, Map<String, dynamic> commentData) =>
@@ -122,8 +122,8 @@ final allNovedadesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((r
 });
 
 final userNovedadesStreamProvider =
-    StreamProvider.family<List<Map<String, dynamic>>, String?>((ref, category) {
-      return ref.watch(firestoreServiceProvider).getNovedadesForUser(category);
+    StreamProvider.family<List<Map<String, dynamic>>, List<String>?>((ref, categories) {
+      return ref.watch(firestoreServiceProvider).getNovedadesForUser(categories);
     });
 
 final calendarEventsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {

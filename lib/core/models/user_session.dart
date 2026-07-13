@@ -32,6 +32,9 @@ class UserSession {
   final DateTime? termsAcceptedAt;
   final String? termsVersion;
 
+  // For Coaches (DT) managing multiple categories
+  final List<String>? assignedCategories;
+
   const UserSession({
     required this.id,
     required this.name,
@@ -57,6 +60,7 @@ class UserSession {
     this.phone2,
     this.termsAcceptedAt,
     this.termsVersion,
+    this.assignedCategories,
   });
 
   UserSession copyWith({
@@ -84,6 +88,7 @@ class UserSession {
     String? phone2,
     DateTime? termsAcceptedAt,
     String? termsVersion,
+    List<String>? assignedCategories,
   }) {
     return UserSession(
       id: id ?? this.id,
@@ -110,6 +115,7 @@ class UserSession {
       phone2: phone2 ?? this.phone2,
       termsAcceptedAt: termsAcceptedAt ?? this.termsAcceptedAt,
       termsVersion: termsVersion ?? this.termsVersion,
+      assignedCategories: assignedCategories ?? this.assignedCategories,
     );
   }
 
@@ -228,6 +234,7 @@ class UserSession {
           ? Timestamp.fromDate(termsAcceptedAt!)
           : null,
       'termsVersion': termsVersion,
+      'assignedCategories': assignedCategories,
     };
   }
 }

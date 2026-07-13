@@ -66,7 +66,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return db.collection('inbox_threads').snapshots().map((snap) {
         var docs = snap.docs;
         if (sessionUser.role == 'dt') {
-          final cat = (sessionUser.category ?? '').toLowerCase();
+          final assignedCats = sessionUser.assignedCategories?.map((c) => c.toLowerCase()).toList() ?? [];
+          if (assignedCats.isEmpty && sessionUser.category != null) {
+            assignedCats.add(sessionUser.category!.toLowerCase());
+          }
           docs = docs.where((doc) {
             final data = doc.data();
             final categoriesMap =
@@ -82,7 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 .toString()
                 .toLowerCase();
             final isParticipant = (data['participants'] as List?)?.contains(sessionUser.id) ?? false;
-            return otherCategory == cat || isParticipant;
+            return assignedCats.contains(otherCategory) || isParticipant;
           }).toList();
         }
         return docs.where((doc) {
@@ -417,7 +420,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin
         ? ref.watch(allNovedadesStreamProvider)
-        : ref.watch(userNovedadesStreamProvider(sessionUser.category));
+        : ref.watch(userNovedadesStreamProvider(sessionUser.assignedCategories?.isNotEmpty == true ? sessionUser.assignedCategories : (sessionUser.category != null ? [sessionUser.category!] : [])));
 
     return Scaffold(
       backgroundColor: context.colors.background,

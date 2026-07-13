@@ -44,11 +44,12 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
     }
   }
 
-  Future<void> _updateRole(String role, String? category, String userName) async {
+  Future<void> _updateRole(String role, String? category, List<String>? assignedCategories, String userName) async {
     try {
       await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({
         'role': role,
         'category': category,
+        if (role == 'dt' && assignedCategories != null) 'assignedCategories': assignedCategories,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -159,6 +160,12 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
   void _showRoleDialog(Map<String, dynamic> data) {
     String selectedRole = data['role'] ?? 'padre';
     String? selectedCategory = data['category'];
+    List<String> selectedCategories = [];
+    if (data['assignedCategories'] != null) {
+      selectedCategories = List<String>.from(data['assignedCategories']);
+    } else if (data['category'] != null) {
+      selectedCategories = [data['category']];
+    }
     final roles = ['padre', 'jugador', 'dt', 'secretario', 'directivo'];
 
     showDialog(
@@ -168,63 +175,95 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
           return AlertDialog(
             backgroundColor: context.colors.surface,
             title: const Text('Cambiar Rol o Categoría'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: selectedRole,
-                  decoration: const InputDecoration(labelText: 'Rol'),
-                  items: roles.map((r) => DropdownMenuItem(value: r, child: Text(r.toUpperCase()))).toList(),
-                  onChanged: (v) {
-                    setState(() {
-                      selectedRole = v!;
-                      if (selectedRole == 'directivo' || selectedRole == 'secretario') {
-                        selectedCategory = null;
-                      }
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                if (selectedRole != 'directivo' && selectedRole != 'secretario')
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final categoriesAsync = ref.watch(categoriesStreamProvider);
-                      return categoriesAsync.when(
-                        data: (categories) {
-                          if (categories.isEmpty) {
-                            return const Text('No hay categorías creadas. Cree una primero en "Gestionar Categorías".');
-                          }
-                          
-                          // Ensure selectedCategory is valid
-                          if (selectedCategory != null && !categories.contains(selectedCategory)) {
-                            selectedCategory = null;
-                          }
-                          selectedCategory ??= categories.first;
-
-                          return DropdownButtonFormField<String>(
-                            initialValue: selectedCategory,
-                            decoration: const InputDecoration(labelText: 'Categoría'),
-                            items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                            onChanged: (v) {
-                              setState(() {
-                                selectedCategory = v;
-                              });
-                            },
-                          );
-                        },
-                        loading: () => const CircularProgressIndicator(),
-                        error: (err, stack) => Text('Error al cargar: $err'),
-                      );
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedRole,
+                    decoration: const InputDecoration(labelText: 'Rol'),
+                    items: roles.map((r) => DropdownMenuItem(value: r, child: Text(r.toUpperCase()))).toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        selectedRole = v!;
+                        if (selectedRole == 'directivo' || selectedRole == 'secretario') {
+                          selectedCategory = null;
+                        }
+                      });
                     },
                   ),
-              ],
+                  const SizedBox(height: 16),
+                  if (selectedRole != 'directivo' && selectedRole != 'secretario')
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final categoriesAsync = ref.watch(categoriesStreamProvider);
+                        return categoriesAsync.when(
+                          data: (categories) {
+                            if (categories.isEmpty) {
+                              return const Text('No hay categorías creadas. Cree una primero en "Gestionar Categorías".');
+                            }
+                            
+                            if (selectedRole == 'dt') {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Categorías asignadas:', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: categories.map((c) {
+                                      final isSelected = selectedCategories.contains(c);
+                                      return FilterChip(
+                                        label: Text(c),
+                                        selected: isSelected,
+                                        onSelected: (selected) {
+                                          setState(() {
+                                            if (selected) {
+                                              selectedCategories.add(c);
+                                            } else {
+                                              selectedCategories.remove(c);
+                                            }
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              );
+                            } else {
+                              // Ensure selectedCategory is valid
+                              if (selectedCategory != null && !categories.contains(selectedCategory)) {
+                                selectedCategory = null;
+                              }
+                              selectedCategory ??= categories.first;
+
+                              return DropdownButtonFormField<String>(
+                                initialValue: selectedCategory,
+                                decoration: const InputDecoration(labelText: 'Categoría'),
+                                items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                                onChanged: (v) {
+                                  setState(() {
+                                    selectedCategory = v;
+                                  });
+                                },
+                              );
+                            }
+                          },
+                          loading: () => const CircularProgressIndicator(),
+                          error: (err, stack) => Text('Error al cargar: $err'),
+                        );
+                      },
+                    ),
+                ],
+              ),
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  _updateRole(selectedRole, selectedCategory, '${data['name']} ${data['lastName']}');
+                  _updateRole(selectedRole, selectedRole == 'dt' ? (selectedCategories.isNotEmpty ? selectedCategories.first : null) : selectedCategory, selectedCategories, '${data['name']} ${data['lastName']}');
                 },
                 child: const Text('Guardar'),
               ),

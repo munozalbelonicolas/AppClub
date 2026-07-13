@@ -17,14 +17,14 @@ class NovedadesService {
         );
   }
 
-  Stream<List<Map<String, dynamic>>> getNovedadesForUser(String? category) {
-    final List<String> categories = ['all'];
-    if (category != null && category.isNotEmpty) {
-      categories.add(category);
+  Stream<List<Map<String, dynamic>>> getNovedadesForUser(List<String>? userCategories) {
+    final List<String> categoriesToQuery = ['all'];
+    if (userCategories != null && userCategories.isNotEmpty) {
+      categoriesToQuery.addAll(userCategories.where((c) => c.isNotEmpty));
     }
     return _db
         .collection('novedades')
-        .where('category', whereIn: categories)
+        .where('category', whereIn: categoriesToQuery)
         .snapshots()
         .map((snapshot) {
           final list = snapshot.docs
