@@ -147,12 +147,12 @@ class _ManageScorersScreenState extends ConsumerState<ManageScorersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final _categories = ref.watch(appCategoriesProvider);
-    if (!_categories.contains(_selectedCategory) && _categories.isNotEmpty) {
+    final categories = ref.watch(appCategoriesProvider);
+    if (!categories.contains(_selectedCategory) && categories.isNotEmpty) {
       // Must schedule setState because we are building
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() {
-          _selectedCategory = _categories.first;
+          _selectedCategory = categories.first;
         });
       });
     }
@@ -181,12 +181,12 @@ class _ManageScorersScreenState extends ConsumerState<ManageScorersScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: _categories.contains(_selectedCategory) ? _selectedCategory : null,
+                    initialValue: categories.contains(_selectedCategory) ? _selectedCategory : null,
                     decoration: const InputDecoration(
                       labelText: 'Categoría',
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    items: _categories.map((cat) {
+                    items: categories.map((cat) {
                       return DropdownMenuItem(
                         value: cat,
                         child: Text(cat),

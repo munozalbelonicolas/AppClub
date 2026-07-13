@@ -464,7 +464,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     'Tutor · ...',
                                     style: context.typography.bodyMedium,
                                   ),
-                                  error: (_, __) => Text(
+                                  error: (_, _) => Text(
                                     'Tutor · Error',
                                     style: context.typography.bodyMedium,
                                   ),
