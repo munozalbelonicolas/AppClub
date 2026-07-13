@@ -448,13 +448,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             final DateTime lastTime =
                 lastTimeTimestamp?.toDate() ?? DateTime.now();
 
-            bool isUnread = false;
-            if (data.containsKey('unreadBy')) {
-              isUnread = (data['unreadBy'] as List?)?.contains(currentUser.id) ?? false;
-            } else {
+            bool isUnread = (data['unreadBy'] as List?)?.contains(currentUser.id) ?? false;
+            if (!isUnread) {
               isUnread = currentUser.isNormalUser
-                  ? (data['unreadByUser'] ?? false)
-                  : (data['unreadByAdmin'] ?? false);
+                  ? (data['unreadByUser'] == true)
+                  : (data['unreadByAdmin'] == true);
             }
 
             return Padding(

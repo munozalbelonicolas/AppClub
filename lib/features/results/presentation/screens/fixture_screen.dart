@@ -122,9 +122,17 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                         ],
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('VS', style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.textTertiary)),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('VS', style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.textTertiary)),
+                          if (m['date'] != null && m['time'] != null) ...[
+                            const SizedBox(height: 4),
+                            Text('${m['date']} ${m['time']}', style: context.typography.labelSmall.copyWith(color: context.colors.textSecondary, fontSize: 10)),
+                          ],
+                        ],
+                      ),
                     ),
                     Expanded(
                       child: Column(
@@ -202,6 +210,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text('${home?['name'] ?? '?'} vs ${away?['name'] ?? '?'}', style: context.typography.bodyMedium),
+                        subtitle: m['date'] != null && m['time'] != null ? Text('${m['date']} ${m['time']}', style: context.typography.bodySmall) : null,
                       );
                     }),
                     TextButton.icon(
@@ -248,34 +257,83 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
   void _showAddMatchDialog(BuildContext context, List<Map<String, dynamic>> clubs, Function(Map<String, dynamic>) onAdd) {
     String? homeClubId;
     String? awayClubId;
+    DateTime? matchDate = DateTime.now();
+    TimeOfDay? matchTime = const TimeOfDay(hour: 15, minute: 0);
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final dateStr = matchDate != null ? '${matchDate!.year}-${matchDate!.month.toString().padLeft(2, '0')}-${matchDate!.day.toString().padLeft(2, '0')}' : 'Seleccionar fecha';
+            final timeStr = matchTime != null ? '${matchTime!.hour.toString().padLeft(2, '0')}:${matchTime!.minute.toString().padLeft(2, '0')}' : 'Seleccionar hora';
+
             return AlertDialog(
               backgroundColor: context.colors.surface,
               title: Text('Agregar Partido', style: context.typography.titleLarge),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<String>(
-                    dropdownColor: context.colors.surface,
-                    initialValue: homeClubId,
-                    decoration: const InputDecoration(labelText: 'Club Local'),
-                    items: clubs.map((c) => DropdownMenuItem<String>(value: c['id'], child: Text(c['name'], style: context.typography.bodyLarge))).toList(),
-                    onChanged: (val) => setDialogState(() => homeClubId = val),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    dropdownColor: context.colors.surface,
-                    initialValue: awayClubId,
-                    decoration: const InputDecoration(labelText: 'Club Visitante'),
-                    items: clubs.map((c) => DropdownMenuItem<String>(value: c['id'], child: Text(c['name'], style: context.typography.bodyLarge))).toList(),
-                    onChanged: (val) => setDialogState(() => awayClubId = val),
-                  ),
-                ],
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      dropdownColor: context.colors.surface,
+                      initialValue: homeClubId,
+                      decoration: const InputDecoration(labelText: 'Club Local'),
+                      items: clubs.map((c) => DropdownMenuItem<String>(value: c['id'], child: Text(c['name'], style: context.typography.bodyLarge))).toList(),
+                      onChanged: (val) => setDialogState(() => homeClubId = val),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      dropdownColor: context.colors.surface,
+                      initialValue: awayClubId,
+                      decoration: const InputDecoration(labelText: 'Club Visitante'),
+                      items: clubs.map((c) => DropdownMenuItem<String>(value: c['id'], child: Text(c['name'], style: context.typography.bodyLarge))).toList(),
+                      onChanged: (val) => setDialogState(() => awayClubId = val),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: matchDate ?? DateTime.now(),
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (date != null) {
+                                setDialogState(() => matchDate = date);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(labelText: 'Fecha', contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                              child: Text(dateStr, style: context.typography.bodyLarge),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: matchTime ?? TimeOfDay.now(),
+                              );
+                              if (time != null) {
+                                setDialogState(() => matchTime = time);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(labelText: 'Hora', contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                              child: Text(timeStr, style: context.typography.bodyLarge),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -285,10 +343,13 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary),
                   onPressed: () {
-                    if (homeClubId != null && awayClubId != null) {
+                    if (homeClubId != null && awayClubId != null && matchDate != null && matchTime != null) {
                       onAdd({
                         'homeClubId': homeClubId,
                         'awayClubId': awayClubId,
+                        'date': dateStr,
+                        'time': timeStr,
+                        'status': 'scheduled',
                       });
                       Navigator.pop(context);
                     }

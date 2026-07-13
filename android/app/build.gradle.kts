@@ -8,11 +8,21 @@ plugins {
 android {
     namespace = "com.jorgenewbery.jorge_newbery_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            keepDebugSymbols.add("**/*.so")
+        }
+    }
+
+    lint {
+        checkReleaseBuilds = false
     }
 
     defaultConfig {

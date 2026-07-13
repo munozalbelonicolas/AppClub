@@ -111,7 +111,7 @@ class SponsorsManagementScreen extends ConsumerWidget {
                           return ActionChip(
                             label: Text(preset['name']!),
                             labelStyle: context.typography.labelSmall.copyWith(
-                              color: context.colors.textPrimary,
+                              color: context.colors.primary,
                             ),
                             backgroundColor: context.colors.surfaceLight,
                             onPressed: () {

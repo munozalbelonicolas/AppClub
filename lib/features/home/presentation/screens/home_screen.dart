@@ -90,10 +90,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
         return docs.where((doc) {
           final data = doc.data();
-          if (data.containsKey('unreadBy')) {
-            return (data['unreadBy'] as List?)?.contains(sessionUser.id) ?? false;
+          bool isUnread = (data['unreadBy'] as List?)?.contains(sessionUser.id) ?? false;
+          if (!isUnread) {
+            isUnread = (data['unreadByAdmin'] == true);
           }
-          return (data['unreadByAdmin'] ?? false) == true;
+          return isUnread;
         }).length;
       });
     }
@@ -442,12 +443,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: context.typography.headlineLarge,
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            hasPlayer
-                                ? '${sessionUser.role == 'jugador' ? sessionUser.name : 'Tutor'} · ${sessionUser.category ?? 'Sin Categoría'}'
-                                : '${sessionUser.role.toUpperCase()}${sessionUser.category != null ? " · ${sessionUser.category}" : ""}',
-                            style: context.typography.bodyMedium,
-                          ),
+                          if (sessionUser.role == 'padre')
+                            ref.watch(tutorPlayersStreamProvider(sessionUser.id)).when(
+                                  data: (players) {
+                                    if (players.isEmpty) {
+                                      return Text(
+                                        'Tutor · Sin Categoría',
+                                        style: context.typography.bodyMedium,
+                                      );
+                                    }
+                                    final categories = players
+                                        .map((p) => p['category'] as String?)
+                                        .where((c) => c != null && c.isNotEmpty)
+                                        .toSet()
+                                        .join(', ');
+                                    return Text(
+                                      'Tutor · ${categories.isEmpty ? 'Sin Categoría' : categories}',
+                                      style: context.typography.bodyMedium,
+                                    );
+                                  },
+                                  loading: () => Text(
+                                    'Tutor · ...',
+                                    style: context.typography.bodyMedium,
+                                  ),
+                                  error: (_, __) => Text(
+                                    'Tutor · Error',
+                                    style: context.typography.bodyMedium,
+                                  ),
+                                )
+                          else
+                            Text(
+                              hasPlayer
+                                  ? '${sessionUser.role == 'jugador' ? sessionUser.name : 'Tutor'} · ${sessionUser.category ?? 'Sin Categoría'}'
+                                  : '${sessionUser.role.toUpperCase()}${sessionUser.category != null ? " · ${sessionUser.category}" : ""}',
+                              style: context.typography.bodyMedium,
+                            ),
                         ],
                       ),
                     ),
