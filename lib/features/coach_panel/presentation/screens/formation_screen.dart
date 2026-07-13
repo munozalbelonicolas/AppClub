@@ -158,6 +158,8 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
   
   // For 'Solo lista' mode: list of playerIds
   final List<String> _calledUpPlayers = [];
+  
+  String _selectedCategoryFilter = 'Todas';
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -299,7 +301,24 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
   @override
   Widget build(BuildContext context) {
     final playersAsync = ref.watch(playersStreamProvider);
-    final players = playersAsync.valueOrNull ?? [];
+    final allPlayers = playersAsync.valueOrNull ?? [];
+
+    final categories = ['Todas'];
+    for (final p in allPlayers) {
+      final cat = p['category'] as String?;
+      if (cat != null && cat.isNotEmpty && !categories.contains(cat)) {
+        categories.add(cat);
+      }
+    }
+    categories.sort();
+
+    if (!categories.contains(_selectedCategoryFilter)) {
+      _selectedCategoryFilter = 'Todas';
+    }
+
+    final players = _selectedCategoryFilter == 'Todas'
+        ? allPlayers
+        : allPlayers.where((p) => p['category'] == _selectedCategoryFilter).toList();
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -324,8 +343,27 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
                   color: context.colors.surface,
-                  child: Row(
+                  child: Column(
                     children: [
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedCategoryFilter,
+                        decoration: const InputDecoration(
+                          labelText: 'Filtrar Jugadores por Categoría',
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                        onChanged: (val) {
+                          if (val != null && val != _selectedCategoryFilter) {
+                            setState(() {
+                              _selectedCategoryFilter = val;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: _selectedFormat,
@@ -375,8 +413,9 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                       ),
                     ],
                   ),
-                ),
-                
+                ],
+              ),
+            ),
                 // Main Content
                 Expanded(
                   child: _selectedFormat == 'Solo lista'
