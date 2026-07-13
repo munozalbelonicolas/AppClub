@@ -23,6 +23,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
   // Local state for assignments: positionKey -> playerId
   final Map<String, String> _positions = {};
   bool _isSaving = false;
+  String? _selectedCategory;
 
   final List<Map<String, dynamic>> _fieldPositions = [
     {
@@ -112,7 +113,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     try {
       await FirebaseFirestore.instance
           .collection('match_lineups')
-          .doc('next_match')
+          .doc(nextMatch?['id'] ?? 'next_match')
           .set({
             'matchId': nextMatch?['id'] ?? 'next_match',
             'updatedAt': FieldValue.serverTimestamp(),
@@ -265,8 +266,42 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = ref.watch(currentUserProvider)!;
+    final bool isAdmin = currentUser.isAdmin;
+    final bool isCoach = currentUser.isCoach;
+
     final matchesAsync = ref.watch(matchesStreamProvider);
-    final nextMatch = matchesAsync.valueOrNull?.firstOrNull;
+    final allMatches = matchesAsync.valueOrNull ?? [];
+
+    final categories = allMatches
+        .map((m) => m['category'] as String?)
+        .where((c) => c != null && c.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList();
+    categories.sort();
+
+    if (_selectedCategory == null) {
+      if (isAdmin && categories.isNotEmpty) {
+        _selectedCategory = categories.first;
+      } else if (isCoach) {
+        _selectedCategory = (currentUser.assignedCategories != null && currentUser.assignedCategories!.isNotEmpty)
+            ? currentUser.assignedCategories!.first
+            : currentUser.category;
+      } else {
+        _selectedCategory = currentUser.category;
+      }
+      
+      if (_selectedCategory == null && categories.isNotEmpty) {
+        _selectedCategory = categories.first;
+      }
+    }
+    
+    if (_selectedCategory != null && categories.isNotEmpty && !categories.contains(_selectedCategory)) {
+      _selectedCategory = categories.first;
+    }
+
+    final nextMatch = allMatches.where((m) => m['category'] == _selectedCategory).firstOrNull;
     
     final convocatoriaAsync = nextMatch != null 
         ? ref.watch(convocatoriaStreamProvider(nextMatch['id']))
@@ -274,16 +309,13 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
         
     final allConvocadosList = convocatoriaAsync.valueOrNull ?? [];
 
-    final currentUser = ref.watch(currentUserProvider)!;
-    final bool isCoach = currentUser.isCoach;
-
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(title: const Text('Formación del Equipo'), elevation: 0),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('match_lineups')
-            .doc('next_match')
+            .doc(nextMatch?['id'] ?? 'next_match')
             .snapshots(),
         builder: (context, snapshot) {
           // If we received data from Firestore, sync our local positions state
@@ -315,6 +347,27 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
             children: [
+              if (categories.isNotEmpty && (isAdmin || (isCoach && (currentUser.assignedCategories?.length ?? 0) > 1)))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Categoría',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (val) {
+                      if (val != null && val != _selectedCategory) {
+                        setState(() {
+                          _selectedCategory = val;
+                          _positions.clear();
+                        });
+                      }
+                    },
+                  ),
+                ),
               // Next Match Info Banner
               if (nextMatch != null)
                 JNCard(
