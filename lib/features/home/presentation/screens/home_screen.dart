@@ -856,6 +856,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     );
                     final likes = List<String>.from(post['likes'] as List? ?? []);
                     final hasLiked = likes.contains(sessionUser.id);
+                    
+                    final seenByList = List<Map<String, dynamic>>.from(
+                      (post['seenBy'] as List? ?? []).map(
+                        (e) => Map<String, dynamic>.from(e as Map),
+                      ),
+                    );
+                    final hasSeen = seenByList.any((e) => e['userId'] == sessionUser.id);
+
+                    if (!hasSeen) {
+                      Future.microtask(() {
+                        ref.read(firestoreServiceProvider).novedades.markNovedadAsSeen(postId, sessionUser);
+                      });
+                    }
 
                     // Check permissions to delete the post
                     final bool canDeletePost =
@@ -920,15 +933,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       );
                                     },
                                   ),
-                                if (canDeletePost)
-                                  IconButton(
+                                if (sessionUser.isAdmin || canDeletePost)
+                                  PopupMenuButton<String>(
                                     icon: Icon(
-                                      Icons.delete_outline,
-                                      color: context.colors.error,
+                                      Icons.more_vert,
+                                      color: context.colors.textTertiary,
                                       size: 20,
                                     ),
-                                    onPressed: () =>
-                                        _confirmDeletePost(context, postId),
+                                    padding: EdgeInsets.zero,
+                                    color: context.colors.surface,
+                                    onSelected: (value) {
+                                      if (value == 'delete') {
+                                        _confirmDeletePost(context, postId);
+                                      } else if (value == 'view_views') {
+                                        _showNovedadViewsDialog(context, seenByList);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      if (sessionUser.isAdmin)
+                                        PopupMenuItem(
+                                          value: 'view_views',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.visibility,
+                                                size: 18,
+                                                color: context.colors.primary,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Ver vistas (${seenByList.length})',
+                                                style: context.typography.bodySmall,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      if (canDeletePost)
+                                        PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: context.colors.error,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Eliminar publicación',
+                                                style: context.typography.bodySmall.copyWith(
+                                                  color: context.colors.error,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
                                   ),
                               ],
                             ),
@@ -1441,6 +1501,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await ref
         .read(firestoreServiceProvider)
         .addCommentToNovedad(postId, commentData);
+  }
+
+  void _showNovedadViewsDialog(BuildContext context, List<Map<String, dynamic>> seenByList) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: context.colors.surface,
+        title: Text('Visto por (${seenByList.length})', style: context.typography.titleMedium),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: seenByList.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text('Nadie ha visto esta publicación aún.', style: context.typography.bodyMedium),
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: seenByList.length,
+                  itemBuilder: (context, index) {
+                    final view = seenByList[index];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: JNAvatar(name: view['userName'] ?? '', size: 36),
+                      title: Text(view['userName'] ?? '', style: context.typography.titleSmall),
+                      subtitle: Text((view['role'] ?? '').toUpperCase(), style: context.typography.bodySmall),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDate(String dateStr) {

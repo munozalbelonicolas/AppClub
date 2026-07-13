@@ -88,4 +88,18 @@ class NovedadesService {
       });
     }
   }
+
+  Future<void> markNovedadAsSeen(String novedadId, dynamic user) async {
+    final viewData = {
+      'userId': user.id,
+      'userName': '${user.name} ${user.lastName}',
+      'role': user.role,
+      'seenAt': FieldValue.serverTimestamp(),
+    };
+    try {
+      await _db.collection('novedades').doc(novedadId).update({
+        'seenBy': FieldValue.arrayUnion([viewData]),
+      });
+    } catch (_) {}
+  }
 }
