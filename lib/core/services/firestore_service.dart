@@ -25,6 +25,8 @@ class FirestoreService {
       _novedades.addCommentToNovedad(novedadId, commentData);
   Future<void> deleteCommentFromNovedad(String novedadId, Map<String, dynamic> commentData) =>
       _novedades.deleteCommentFromNovedad(novedadId, commentData);
+  Future<void> toggleLikeNovedad(String novedadId, String userId) =>
+      _novedades.toggleLikeNovedad(novedadId, userId);
 
   // ─── Calendar Events ──────────────────────────────
   Stream<List<Map<String, dynamic>>> getCalendarEvents() {

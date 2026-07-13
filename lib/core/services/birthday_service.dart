@@ -108,6 +108,7 @@ class BirthdayService {
               'title': 'Aviso de Cumpleaños',
               'body': message,
               'targetRole': 'directivo',
+              'type': 'birthday',
               'createdAt': FieldValue.serverTimestamp(),
               'isRead': false,
             });
@@ -120,6 +121,7 @@ class BirthdayService {
                 'body': message,
                 'targetRole': 'dt',
                 'targetCategory': playerCategory,
+                'type': 'birthday',
                 'createdAt': FieldValue.serverTimestamp(),
                 'isRead': false,
               });

@@ -41,8 +41,10 @@ function getTemplateHtml(post: any, dims: { width: number, height: number }) {
   // Optional background image pattern or solid
   let bgStyle = `display: flex; flex-direction: column; width: 100%; height: 100%; background-color: ${bgColor}; padding: 80px; justify-content: space-between;`;
 
-  // We can use emojis instead of complex SVGs for now
-  const headerIcon = isBirthday ? '🎉' : '🏆';
+  // Use SVGs instead of emojis to avoid Satori crashes without twemoji fonts
+  const headerIcon = isBirthday 
+    ? `<svg width="140" height="140" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2h-2v-4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v4H6a2 2 0 0 0-2 2v8"/><path d="M10 5v4"/><path d="M14 5v4"/><path d="M6 13h12"/></svg>` 
+    : `<svg width="140" height="140" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`;
 
   let dateStr = 'Reciente';
   try {
@@ -81,7 +83,7 @@ function getTemplateHtml(post: any, dims: { width: number, height: number }) {
 
       <!-- Main Content -->
       <div style="display: flex; flex-direction: column; flex-grow: 1; justify-content: center; align-items: center; text-align: center; margin: 60px 0;">
-        ${isBirthday ? `<div style="font-size: 140px; margin-bottom: 40px;">${headerIcon} 🎈</div>` : ''}
+        ${isBirthday ? `<div style="display: flex; justify-content: center; margin-bottom: 40px;">${headerIcon}</div>` : ''}
         
         <div style="font-size: 64px; font-weight: bold; color: ${isBirthday ? accentColor : textColor}; margin-bottom: 40px; line-height: 1.2;">
           ${post.title}

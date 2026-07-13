@@ -61,6 +61,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     String eventType = 'ninguno';
     bool hasTransport = false;
     String? selectedOpponentId;
+    DateTime? eventDate;
 
     String selectedCategory = 'deportivo';
     String selectedPriority = 'normal';
@@ -212,7 +213,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           dropdownColor: context.colors.surface,
                           initialValue: selectedOpponentId,
                           decoration: const InputDecoration(labelText: 'Club Rival (Opcional)'),
-                          items: clubs.where((c) => c['isLocal'] != true).map((club) {
+                          items: clubs.map((club) {
                             return DropdownMenuItem<String>(
                               value: club['id'],
                               child: Text(club['name'], style: context.typography.bodyLarge),
@@ -223,6 +224,29 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                               selectedOpponentId = val;
                             });
                           },
+                        ),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: eventDate ?? DateTime.now(),
+                              firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (date != null) {
+                              setDialogState(() => eventDate = date);
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: const InputDecoration(labelText: 'Fecha del Evento (Opcional)'),
+                            child: Text(
+                              eventDate != null
+                                  ? '${eventDate!.day}/${eventDate!.month}/${eventDate!.year}'
+                                  : 'Seleccionar fecha',
+                              style: context.typography.bodyLarge,
+                            ),
+                          ),
                         ),
                       ],
                     ],
@@ -262,6 +286,9 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         'eventType': eventType,
                         'hasTransport': hasTransport,
                         'opponentClubId': (eventType != 'ninguno') ? selectedOpponentId : null,
+                        'eventDate': eventDate != null
+                            ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
+                            : null,
                       });
                       if (context.mounted) {
                         Navigator.pop(context);

@@ -130,7 +130,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${data['productName']} — Talle: ${data['selectedSize']}',
+                              (data['selectedSize'] != null && data['selectedSize'].toString().isNotEmpty)
+                                  ? '${data['productName']} — Talle: ${data['selectedSize']}'
+                                  : '${data['productName']}',
                               style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

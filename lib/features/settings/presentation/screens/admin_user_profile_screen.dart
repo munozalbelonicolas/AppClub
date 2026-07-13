@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/category_service.dart';
 
 import '../../../../core/theme/app_theme_colors.dart';
@@ -87,6 +88,74 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
     }
   }
 
+  Future<void> _deleteLink(String linkId) async {
+    try {
+      await FirebaseFirestore.instance.collection('player_tutor_links').doc(linkId).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Vínculo eliminado con éxito.'),
+            backgroundColor: context.colors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar vínculo: $e'), backgroundColor: context.colors.error),
+        );
+      }
+    }
+  }
+
+  Stream<List<Map<String, dynamic>>> _fetchPlayerTutors(String playerId) {
+    return FirebaseFirestore.instance
+        .collection('player_tutor_links')
+        .where('playerId', isEqualTo: playerId)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      final List<Map<String, dynamic>> links = [];
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final tutorId = data['tutorId'] as String?;
+        if (tutorId != null) {
+          final userDoc = await FirebaseFirestore.instance.collection('users').doc(tutorId).get();
+          if (userDoc.exists) {
+            links.add({
+              'linkId': doc.id,
+              ...userDoc.data()!,
+            });
+          }
+        }
+      }
+      return links;
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> _fetchTutorPlayers(String tutorId) {
+    return FirebaseFirestore.instance
+        .collection('player_tutor_links')
+        .where('tutorId', isEqualTo: tutorId)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      final List<Map<String, dynamic>> links = [];
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final playerId = data['playerId'] as String?;
+        if (playerId != null) {
+          final userDoc = await FirebaseFirestore.instance.collection('users').doc(playerId).get();
+          if (userDoc.exists) {
+            links.add({
+              'linkId': doc.id,
+              ...userDoc.data()!,
+            });
+          }
+        }
+      }
+      return links;
+    });
+  }
+
   void _showRoleDialog(Map<String, dynamic> data) {
     String selectedRole = data['role'] ?? 'padre';
     String? selectedCategory = data['category'];
@@ -98,7 +167,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
         builder: (context, setState) {
           return AlertDialog(
             backgroundColor: context.colors.surface,
-            title: const Text('Cambiar Rol'),
+            title: const Text('Cambiar Rol o Categoría'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -310,11 +379,32 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                     else
                       JNButton(
                         label: 'Bloquear Usuario',
-                        onPressed: () => _updateStatus('disabled', '$name $lastName'),
+                        onPressed: () {
+                          if (email == 'munozalbelonicolas@gmail.com') {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('El Director no puede ser bloqueado.'),
+                                backgroundColor: context.colors.error,
+                              ),
+                            );
+                            return;
+                          }
+                          final currentUserId = ref.read(currentUserProvider)?.id;
+                          if (widget.userId == currentUserId) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('No puedes bloquear tu propia cuenta.'),
+                                backgroundColor: context.colors.error,
+                              ),
+                            );
+                            return;
+                          }
+                          _updateStatus('disabled', '$name $lastName');
+                        },
                       ),
                     const SizedBox(height: 12),
                     JNButton(
-                      label: 'Cambiar Rol',
+                      label: 'Cambiar Rol o Categoría',
                       onPressed: () => _showRoleDialog(data),
                       variant: JNButtonVariant.outline,
                     ),
@@ -353,25 +443,101 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
               if (role == 'padre' || role == 'tutor') ...[
                 Text('Jugadores a cargo', style: context.typography.titleLarge),
                 const SizedBox(height: 12),
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').where('tutorId', isEqualTo: widget.userId).snapshots(),
-                  builder: (context, playersSnapshot) {
-                    if (!playersSnapshot.hasData) return const Center(child: CircularProgressIndicator());
-                    final players = playersSnapshot.data!.docs;
-                    if (players.isEmpty) return const Text('No tiene jugadores registrados.');
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _fetchTutorPlayers(widget.userId),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    final players = snapshot.data!;
+                    if (players.isEmpty) return const Text('No tiene jugadores vinculados.');
                     return ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: players.length,
                       itemBuilder: (context, i) {
-                        final p = players[i].data() as Map<String, dynamic>;
+                        final p = players[i];
+                        final pName = '${p['name'] ?? ''} ${p['lastName'] ?? ''}'.trim();
                         return JNCard(
                           padding: const EdgeInsets.all(12),
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
-                            leading: JNAvatar(name: p['fullName'] ?? 'Jugador', size: 40),
-                            title: Text(p['fullName'] ?? ''),
-                            subtitle: Text('DNI: ${p['dni']} · ${p['category']}'),
+                            leading: JNAvatar(name: pName.isNotEmpty ? pName : 'Jugador', size: 40),
+                            title: Text(pName),
+                            subtitle: Text('DNI: ${p['dni'] ?? 'N/A'} · ${p['category'] ?? 'N/A'}'),
+                            trailing: IconButton(
+                              icon: Icon(Icons.delete_outline, color: context.colors.error),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('¿Desvincular jugador?'),
+                                    content: const Text('Esto eliminará el vínculo entre el tutor y el jugador.'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                          _deleteLink(p['linkId']);
+                                        },
+                                        child: Text('Eliminar', style: TextStyle(color: context.colors.error)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
+
+              if (role == 'jugador') ...[
+                Text('Tutores y Co-tutores', style: context.typography.titleLarge),
+                const SizedBox(height: 12),
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _fetchPlayerTutors(widget.userId),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    final tutors = snapshot.data!;
+                    if (tutors.isEmpty) return const Text('No tiene tutores vinculados.');
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: tutors.length,
+                      itemBuilder: (context, i) {
+                        final t = tutors[i];
+                        final tName = '${t['name'] ?? ''} ${t['lastName'] ?? ''}'.trim();
+                        return JNCard(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: JNAvatar(name: tName.isNotEmpty ? tName : 'Tutor', size: 40),
+                            title: Text(tName),
+                            subtitle: Text('DNI: ${t['dni'] ?? 'N/A'}'),
+                            trailing: IconButton(
+                              icon: Icon(Icons.delete_outline, color: context.colors.error),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('¿Desvincular tutor?'),
+                                    content: const Text('Esto eliminará el vínculo entre el jugador y este tutor/co-tutor.'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                          _deleteLink(t['linkId']);
+                                        },
+                                        child: Text('Eliminar', style: TextStyle(color: context.colors.error)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         );
                       },

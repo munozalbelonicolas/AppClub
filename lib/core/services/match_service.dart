@@ -106,6 +106,7 @@ class MatchService {
         .collection('scorers')
         .where('category', isEqualTo: category)
         .orderBy('goals', descending: true)
+        .limit(50)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs

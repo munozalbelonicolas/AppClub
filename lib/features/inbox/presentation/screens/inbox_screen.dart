@@ -447,9 +447,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             final DateTime lastTime =
                 lastTimeTimestamp?.toDate() ?? DateTime.now();
 
-            final bool isUnread = currentUser.isNormalUser
-                ? (data['unreadByUser'] ?? false)
-                : (data['unreadByAdmin'] ?? false);
+            bool isUnread = false;
+            if (data.containsKey('unreadBy')) {
+              isUnread = (data['unreadBy'] as List?)?.contains(currentUser.id) ?? false;
+            } else {
+              isUnread = currentUser.isNormalUser
+                  ? (data['unreadByUser'] ?? false)
+                  : (data['unreadByAdmin'] ?? false);
+            }
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -459,11 +464,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   FirebaseFirestore.instance
                       .collection('inbox_threads')
                       .doc(threadId)
-                      .update(
-                        currentUser.isNormalUser
-                            ? {'unreadByUser': false}
-                            : {'unreadByAdmin': false},
-                      );
+                      .update({
+                        if (currentUser.isNormalUser) 'unreadByUser': false else 'unreadByAdmin': false,
+                        'unreadBy': FieldValue.arrayRemove([currentUser.id]),
+                      });
 
                   Navigator.push(
                     context,

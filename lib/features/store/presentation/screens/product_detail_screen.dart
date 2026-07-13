@@ -205,7 +205,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       if (!isOutOfStock)
                         JNButton(
                           label: 'Comprar',
-                          onPressed: _selectedSize == null
+                          onPressed: (_selectedSize == null && sizes.isNotEmpty)
                               ? null
                               : () {
                                   Navigator.push(
@@ -215,7 +215,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                         productId: widget.productId,
                                         productName: name,
                                         productImageUrl: imageUrl ?? '',
-                                        selectedSize: _selectedSize!,
+                                        selectedSize: _selectedSize ?? '',
                                         quantity: _quantity,
                                         unitPrice: price,
                                       ),
@@ -228,7 +228,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           label: 'Agotado',
                         ),
 
-                      if (_selectedSize == null && !isOutOfStock)
+                      if (_selectedSize == null && !isOutOfStock && sizes.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(

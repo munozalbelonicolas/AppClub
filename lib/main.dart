@@ -10,6 +10,9 @@ import 'core/providers/session_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/services/auth_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/app_theme_colors.dart';
+import 'core/theme/app_typography.dart';
+import 'core/widgets/jn_button.dart';
 import 'features/auth/presentation/screens/complete_profile_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/pending_approval_screen.dart';
@@ -130,6 +133,47 @@ class _AppNavigatorState extends ConsumerState<_AppNavigator> {
         key: const ValueKey('pending_approval'),
         onRefresh: _forceRefresh,
         onSignOut: _goToSplashThenLogin,
+      );
+    }
+
+    if (session.status == 'disabled') {
+      return Scaffold(
+        key: const ValueKey('disabled'),
+        backgroundColor: context.colors.background,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.block,
+                  size: 80,
+                  color: context.colors.error,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Usuario Bloqueado',
+                  style: context.typography.headlineMedium,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Tu cuenta ha sido suspendida. Si consideras que esto es un error, por favor ponte en contacto con la administración del club.',
+                  textAlign: TextAlign.center,
+                  style: context.typography.bodyMedium.copyWith(
+                    color: context.colors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                JNButton(
+                  label: 'Cerrar Sesión',
+                  onPressed: _goToSplashThenLogin,
+                  fullWidth: true,
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 

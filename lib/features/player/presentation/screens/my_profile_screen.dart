@@ -137,7 +137,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     if (user == null) return;
 
     try {
-      final updatedData = user.role == 'padre'
+      final updatedData = user.role != 'jugador'
           ? {
               'name': _nameController.text.trim(),
               'lastName': _lastNameController.text.trim(),
@@ -178,13 +178,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         category: user.category,
         childId: user.childId,
         dni: _dniController.text.trim(),
-        weight: user.role == 'padre' ? null : _weightController.text.trim(),
-        height: user.role == 'padre' ? null : _heightController.text.trim(),
-        age: user.role == 'padre' ? null : int.tryParse(_ageController.text.trim()),
-        fatherName: user.role == 'padre' ? null : _fatherNameController.text.trim(),
-        motherName: user.role == 'padre' ? null : _motherNameController.text.trim(),
-        aptoFisicoUrl: user.role == 'padre' ? null : _aptoFisicoPath,
-        aptoFisicoExpiry: user.role == 'padre' ? null : _aptoFisicoExpiry,
+        weight: user.role == 'jugador' ? _weightController.text.trim() : null,
+        height: user.role == 'jugador' ? _heightController.text.trim() : null,
+        age: user.role == 'jugador' ? int.tryParse(_ageController.text.trim()) : null,
+        fatherName: user.role == 'jugador' ? _fatherNameController.text.trim() : null,
+        motherName: user.role == 'jugador' ? _motherNameController.text.trim() : null,
+        aptoFisicoUrl: user.role == 'jugador' ? _aptoFisicoPath : null,
+        aptoFisicoExpiry: user.role == 'jugador' ? _aptoFisicoExpiry : null,
         hasPendingDebt: user.hasPendingDebt,
         avatarUrl: _avatarPath,
         phone1: _phone1Controller.text.trim(),
@@ -228,13 +228,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
 
     // Warn if expired or within 30 days of expiry
-    final bool showAptoWarning = user.role != 'padre' && (user.isAptoFisicoWarning || _aptoFisicoExpiry == null);
-    final bool showAptoExpired = user.role != 'padre' && user.isAptoFisicoExpired;
+    final bool showAptoWarning = user.role == 'jugador' && (user.isAptoFisicoWarning || _aptoFisicoExpiry == null);
+    final bool showAptoExpired = user.role == 'jugador' && user.isAptoFisicoExpired;
 
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: Text(user.role == 'padre' ? 'Mi Perfil (Tutor)' : 'Mi Perfil y Ficha'),
+        title: Text(
+          user.role == 'jugador'
+              ? 'Mi Perfil y Ficha'
+              : user.role == 'padre' || user.role == 'tutor'
+                  ? 'Mi Perfil (Tutor)'
+                  : user.role == 'socio'
+                      ? 'Mi Perfil (Socio)'
+                      : 'Mi Perfil',
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -412,7 +420,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
                   // ─── Personal Data Section ────────────────
                   Text(
-                    user.role == 'padre' ? 'Datos del Tutor' : 'Datos del Jugador',
+                    user.role == 'jugador' ? 'Datos del Jugador' : 'Datos Personales',
                     style: context.typography.labelMedium,
                   ),
                   const SizedBox(height: 8),
@@ -474,7 +482,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             return null;
                           },
                         ),
-                        if (user.role == 'padre') ...[
+                        if (user.role != 'jugador') ...[
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _phone1Controller,
@@ -557,7 +565,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
                   const SizedBox(height: 20),
 
-                  if (user.role == 'padre') ...[
+                  if (user.role == 'padre' || user.role == 'tutor') ...[
                     // Hijos / Jugadores a cargo
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -694,7 +702,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                         );
                       },
                     ),
-                  ] else ...[
+                  ],
+                  
+                  if (user.role == 'jugador') ...[
                     // ─── Parents Data Section ─────────────────
                     Text('Datos Familiares', style: context.typography.labelMedium),
                     const SizedBox(height: 8),

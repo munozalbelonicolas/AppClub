@@ -54,9 +54,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           .where('participants', arrayContains: sessionUser.id)
           .snapshots()
           .map(
-            (snap) => snap.docs
-                .where((doc) => (doc.data()['unreadByUser'] ?? false) == true)
-                .length,
+            (snap) => snap.docs.where((doc) {
+              final data = doc.data();
+              if (data.containsKey('unreadBy')) {
+                return (data['unreadBy'] as List?)?.contains(sessionUser.id) ?? false;
+              }
+              return (data['unreadByUser'] ?? false) == true;
+            }).length,
           );
     } else {
       return db.collection('inbox_threads').snapshots().map((snap) {
@@ -77,12 +81,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             final otherCategory = (categoriesMap[otherUserId] ?? '')
                 .toString()
                 .toLowerCase();
-            return otherCategory == cat;
+            final isParticipant = (data['participants'] as List?)?.contains(sessionUser.id) ?? false;
+            return otherCategory == cat || isParticipant;
           }).toList();
         }
-        return docs
-            .where((doc) => (doc.data()['unreadByAdmin'] ?? false) == true)
-            .length;
+        return docs.where((doc) {
+          final data = doc.data();
+          if (data.containsKey('unreadBy')) {
+            return (data['unreadBy'] as List?)?.contains(sessionUser.id) ?? false;
+          }
+          return (data['unreadByAdmin'] ?? false) == true;
+        }).length;
       });
     }
   }
@@ -447,9 +456,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           clipBehavior: Clip.none,
                           children: [
                             IconButton(
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.mail_outline,
-                                color: Colors.white,
+                                color: context.colors.textPrimary,
                                 size: 26,
                               ),
                               onPressed: () {
@@ -504,7 +513,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             alignment: Alignment.center,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 26),
+                                icon: Icon(Icons.notifications_outlined, color: context.colors.textPrimary, size: 26),
                                 onPressed: () => showAdminNotificationsDialog(context),
                               ),
                               if (unreadCount > 0)
@@ -808,6 +817,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         (e) => Map<String, dynamic>.from(e as Map),
                       ),
                     );
+                    final likes = List<String>.from(post['likes'] as List? ?? []);
+                    final hasLiked = likes.contains(sessionUser.id);
 
                     // Check permissions to delete the post
                     final bool canDeletePost =
@@ -857,7 +868,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ],
                                   ),
                                 ),
-                                if (!sessionUser.isNormalUser)
+                                if (!sessionUser.isNormalUser || post['type'] == 'birthday')
                                   IconButton(
                                     icon: Icon(
                                       Icons.share,
@@ -1042,47 +1053,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ],
                             Divider(height: 24, color: context.colors.divider),
 
-                            // Post Footer / Comment Button
-                            GestureDetector(
-                              onTap: () => _toggleComments(postId),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.chat_bubble_outline,
-                                        size: 18,
-                                        color: isExpanded
-                                            ? context.colors.primary
-                                            : context.colors.textSecondary,
+                            // Post Footer
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () {
+                                        ref.read(firestoreServiceProvider).toggleLikeNovedad(postId, sessionUser.id);
+                                      },
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            hasLiked ? Icons.favorite : Icons.favorite_border,
+                                            size: 18,
+                                            color: hasLiked ? context.colors.error : context.colors.textSecondary,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            likes.isEmpty
+                                                ? 'Me gusta'
+                                                : '${likes.length}',
+                                            style: context.typography.bodySmall.copyWith(
+                                              color: hasLiked ? context.colors.error : context.colors.textSecondary,
+                                              fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        comments.isEmpty
-                                            ? 'Comentar'
-                                            : '${comments.length} ${comments.length == 1 ? 'comentario' : 'comentarios'}',
-                                        style: context.typography.bodySmall.copyWith(
-                                          color: isExpanded
-                                              ? context.colors.primary
-                                              : context.colors.textSecondary,
-                                          fontWeight: isExpanded
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                        ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () => _toggleComments(postId),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.chat_bubble_outline,
+                                            size: 18,
+                                            color: isExpanded
+                                                ? context.colors.primary
+                                                : context.colors.textSecondary,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            comments.isEmpty
+                                                ? 'Comentar'
+                                                : '${comments.length}',
+                                            style: context.typography.bodySmall.copyWith(
+                                              color: isExpanded
+                                                  ? context.colors.primary
+                                                  : context.colors.textSecondary,
+                                              fontWeight: isExpanded
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  Icon(
+                                    ),
+                                  ],
+                                ),
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => _toggleComments(postId),
+                                  child: Icon(
                                     isExpanded
                                         ? Icons.keyboard_arrow_up
                                         : Icons.keyboard_arrow_down,
                                     size: 18,
                                     color: context.colors.textTertiary,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
 
                             // Expanded Comments section

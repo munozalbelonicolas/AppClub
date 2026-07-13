@@ -124,7 +124,9 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Talle: ${data['selectedSize']} • \$${(data['totalPrice'] ?? 0).toStringAsFixed(0)}',
+                            (data['selectedSize'] != null && data['selectedSize'].toString().isNotEmpty)
+                                ? 'Talle: ${data['selectedSize']} • \$${(data['totalPrice'] ?? 0).toStringAsFixed(0)}'
+                                : '\$${(data['totalPrice'] ?? 0).toStringAsFixed(0)}',
                             style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
                           ),
                           if (createdAt != null)

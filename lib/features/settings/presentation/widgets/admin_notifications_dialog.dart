@@ -145,6 +145,26 @@ void showAdminNotificationsDialog(BuildContext context) {
                     );
                   }
 
+                  if (type == 'birthday') {
+                    return ListTile(
+                      leading: Icon(
+                        Icons.cake,
+                        color: isRead ? context.colors.textTertiary : context.colors.accent,
+                      ),
+                      title: Text(
+                        data['title'] ?? 'Cumpleaños',
+                        style: context.typography.bodyMedium.copyWith(
+                          fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(data['body'] ?? ''),
+                      onTap: () {
+                        docs[index].reference.update({'read': true});
+                        // Can also navigate to player profile if we had playerId in notification
+                      },
+                    );
+                  }
+
                   return ListTile(
                     leading: Icon(
                       Icons.person_add,

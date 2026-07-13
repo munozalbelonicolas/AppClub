@@ -70,4 +70,22 @@ class NovedadesService {
       'comments': FieldValue.arrayRemove([commentData]),
     });
   }
+
+  Future<void> toggleLikeNovedad(String novedadId, String userId) async {
+    final docRef = _db.collection('novedades').doc(novedadId);
+    final docSnap = await docRef.get();
+    if (!docSnap.exists) return;
+
+    final data = docSnap.data()!;
+    final List<dynamic> likes = data['likes'] ?? [];
+    if (likes.contains(userId)) {
+      await docRef.update({
+        'likes': FieldValue.arrayRemove([userId]),
+      });
+    } else {
+      await docRef.update({
+        'likes': FieldValue.arrayUnion([userId]),
+      });
+    }
+  }
 }

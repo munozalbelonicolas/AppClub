@@ -201,8 +201,10 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          _chip('Talle: ${data['selectedSize']}'),
-                          const SizedBox(width: 8),
+                          if (data['selectedSize'] != null && data['selectedSize'].toString().isNotEmpty) ...[
+                            _chip('Talle: ${data['selectedSize']}'),
+                            const SizedBox(width: 8),
+                          ],
                           _chip('Cant: ${data['quantity']}'),
                           const SizedBox(width: 8),
                           _chip('Total: \$${(data['totalPrice'] ?? 0).toStringAsFixed(0)}'),

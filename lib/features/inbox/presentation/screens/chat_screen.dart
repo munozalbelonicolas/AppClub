@@ -61,11 +61,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       // Update parent thread metadata
       final threadRef = db.collection('inbox_threads').doc(widget.threadId);
+      // Determine other user
+      String otherUserId = '';
+      try {
+        final docSnap = await threadRef.get();
+        if (docSnap.exists) {
+          final parts = docSnap.data()?['participants'] as List<dynamic>? ?? [];
+          for (final p in parts) {
+            if (p != currentUser.id) {
+              otherUserId = p as String;
+              break;
+            }
+          }
+        }
+      } catch (_) {}
+
       batch.update(threadRef, {
         'lastMessageText': text,
         'lastMessageTime': FieldValue.serverTimestamp(),
         'unreadByAdmin': currentUser.isNormalUser,
         'unreadByUser': !currentUser.isNormalUser,
+        if (otherUserId.isNotEmpty) 'unreadBy': [otherUserId],
       });
 
       await batch.commit();

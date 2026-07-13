@@ -160,8 +160,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          _infoChip('Talle', data['selectedSize'] ?? ''),
-                          const SizedBox(width: 12),
+                          if ((data['selectedSize'] ?? '').isNotEmpty) ...[
+                            _infoChip('Talle', data['selectedSize']),
+                            const SizedBox(width: 12),
+                          ],
                           _infoChip('Cantidad', '${data['quantity'] ?? 1}'),
                           const SizedBox(width: 12),
                           _infoChip('Total', '\$${(data['totalPrice'] ?? 0).toStringAsFixed(0)}'),

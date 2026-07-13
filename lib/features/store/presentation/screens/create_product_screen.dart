@@ -96,12 +96,6 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedSizes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Seleccioná al menos un talle'), backgroundColor: context.colors.warning),
-      );
-      return;
-    }
 
     setState(() => _isSaving = true);
     try {

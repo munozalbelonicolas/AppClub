@@ -177,7 +177,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               Text(widget.productName, style: context.typography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 4),
                               Text(
-                                'Talle: ${widget.selectedSize} • Cantidad: ${widget.quantity}',
+                                widget.selectedSize.isNotEmpty
+                                    ? 'Talle: ${widget.selectedSize} • Cantidad: ${widget.quantity}'
+                                    : 'Cantidad: ${widget.quantity}',
                                 style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
                               ),
                             ],

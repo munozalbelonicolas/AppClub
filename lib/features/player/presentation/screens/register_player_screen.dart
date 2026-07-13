@@ -322,7 +322,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                             const Duration(days: 365 * 10),
                           ),
                       firstDate: DateTime(1900),
-                      lastDate: DateTime.now(),
+                      lastDate: DateTime.now().subtract(const Duration(days: 1)),
                     );
                     if (date != null) {
                       setState(() => _birthDate = date);
