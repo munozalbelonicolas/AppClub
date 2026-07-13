@@ -418,10 +418,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     const Map<String, dynamic>? pendingPayment =
         null; // To be fetched from Firestore
 
+    final String categoriesStr = sessionUser.assignedCategories?.isNotEmpty == true
+        ? sessionUser.assignedCategories!.join(',')
+        : (sessionUser.category ?? '');
+
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin
         ? ref.watch(allNovedadesStreamProvider)
-        : ref.watch(userNovedadesStreamProvider(sessionUser.assignedCategories?.isNotEmpty == true ? sessionUser.assignedCategories : (sessionUser.category != null ? [sessionUser.category!] : [])));
+        : ref.watch(userNovedadesStreamProvider(categoriesStr));
 
     return Scaffold(
       backgroundColor: context.colors.background,

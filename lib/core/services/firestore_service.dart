@@ -122,7 +122,8 @@ final allNovedadesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((r
 });
 
 final userNovedadesStreamProvider =
-    StreamProvider.family<List<Map<String, dynamic>>, List<String>?>((ref, categories) {
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, categoriesStr) {
+      final categories = categoriesStr.isEmpty ? null : categoriesStr.split(',');
       return ref.watch(firestoreServiceProvider).getNovedadesForUser(categories);
     });
 
