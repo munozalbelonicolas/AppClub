@@ -71,7 +71,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
       selectedCategory = sessionUser.category!;
     }
 
-    final List<String> categories = ['deportivo', 'administrativo', 'todos', 'Sub-12', 'Sub-14', 'Sub-16'];
+    final appCategories = ref.read(appCategoriesProvider);
+    final List<String> categories = ['deportivo', 'administrativo', 'todos', ...appCategories];
 
     showDialog(
       context: context,
@@ -450,7 +451,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
           }
 
           final allAnnouncements = announcements;
-          final deportivoAnnouncements = announcements.where((a) => a['category'] == 'deportivo' || a['category'] == 'Sub-12').toList();
+          final deportivoAnnouncements = announcements.where((a) => a['category'] != 'administrativo' && a['category'] != 'todos').toList();
           final administrativoAnnouncements = announcements.where((a) => a['category'] == 'administrativo' || a['category'] == 'todos').toList();
 
           return TabBarView(

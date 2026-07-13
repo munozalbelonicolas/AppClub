@@ -15,12 +15,18 @@ class FixtureScreen extends ConsumerStatefulWidget {
 }
 
 class _FixtureScreenState extends ConsumerState<FixtureScreen> {
-  String selectedCategory = 'Sub-12';
-  final List<String> categories = ['Sub-12', 'Sub-14', 'Sub-16', 'Femenino', 'Sénior'];
+  String selectedCategory = 'Primera';
 
   @override
   Widget build(BuildContext context) {
     final sessionUser = ref.watch(currentUserProvider)!;
+    final categories = ref.watch(appCategoriesProvider);
+    if (!categories.contains(selectedCategory) && categories.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() => selectedCategory = categories.first);
+      });
+    }
+
     final fixturesAsync = ref.watch(fixturesStreamProvider(selectedCategory));
     final clubsAsync = ref.watch(clubsStreamProvider);
     final clubs = clubsAsync.value ?? [];
@@ -43,7 +49,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
             padding: const EdgeInsets.all(16.0),
             child: DropdownButtonFormField<String>(
               dropdownColor: context.colors.surface,
-              initialValue: selectedCategory,
+              initialValue: categories.contains(selectedCategory) ? selectedCategory : null,
               decoration: const InputDecoration(labelText: 'Categoría'),
               items: categories.map((cat) {
                 return DropdownMenuItem(value: cat, child: Text(cat, style: context.typography.bodyLarge));

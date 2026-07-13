@@ -139,6 +139,19 @@ final playersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return ref.watch(firestoreServiceProvider).getPlayers();
 });
 
+final appCategoriesProvider = Provider<List<String>>((ref) {
+  final playersAsync = ref.watch(playersStreamProvider);
+  final players = playersAsync.valueOrNull ?? [];
+  final categories = players
+      .map((p) => p['category'] as String?)
+      .where((c) => c != null && c.trim().isNotEmpty)
+      .cast<String>()
+      .toSet()
+      .toList();
+  categories.sort();
+  return categories.isEmpty ? ['Sub-8', 'Sub-10', 'Sub-12', 'Primera'] : categories;
+});
+
 final playerProfileStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, playerId) {
   return ref.watch(firestoreServiceProvider).getPlayerProfile(playerId);
 });

@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -118,6 +119,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider)!;
     final isStaff = !currentUser.isNormalUser;
+    final categories = ref.watch(appCategoriesProvider);
+    final filterOptions = ['Todas', ...categories, 'Padres', 'DTs'];
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -161,7 +164,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               child: Row(
-                children: ['Todas', 'Sub-12', 'Sub-14', 'Padres', 'DTs'].map((
+                children: filterOptions.map((
                   cat,
                 ) {
                   final isSelected = _selectedCategoryFilter == cat;
@@ -327,13 +330,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             }
 
             // Category filters
-            if (_selectedCategoryFilter == 'Sub-12' &&
-                otherCategory != 'sub-12') {
-              return false;
-            }
-            if (_selectedCategoryFilter == 'Sub-14' &&
-                otherCategory != 'sub-14') {
-              return false;
+            if (_selectedCategoryFilter != 'Todas' && 
+                _selectedCategoryFilter != 'Padres' && 
+                _selectedCategoryFilter != 'DTs') {
+              if (otherCategory != _selectedCategoryFilter.toLowerCase()) {
+                return false;
+              }
             }
             if (_selectedCategoryFilter == 'Padres' && otherRole != 'padre') {
               return false;

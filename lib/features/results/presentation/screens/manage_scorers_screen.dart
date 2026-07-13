@@ -18,18 +18,6 @@ class ManageScorersScreen extends ConsumerStatefulWidget {
 class _ManageScorersScreenState extends ConsumerState<ManageScorersScreen> {
   String _selectedCategory = 'Primera';
 
-  final List<String> _categories = [
-    'Sub-8',
-    'Sub-10',
-    'Sub-12',
-    'Sub-14',
-    'Sub-16',
-    'Sub-18',
-    'Sub-20',
-    'Reserva',
-    'Primera',
-    'Femenino'
-  ];
 
   void _showAddEditScorerDialog(BuildContext context, [Map<String, dynamic>? scorer]) {
     final isEditing = scorer != null;
@@ -159,6 +147,16 @@ class _ManageScorersScreenState extends ConsumerState<ManageScorersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final _categories = ref.watch(appCategoriesProvider);
+    if (!_categories.contains(_selectedCategory) && _categories.isNotEmpty) {
+      // Must schedule setState because we are building
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _selectedCategory = _categories.first;
+        });
+      });
+    }
+
     final scorersAsync = ref.watch(scorersStreamProvider(_selectedCategory));
 
     return Scaffold(

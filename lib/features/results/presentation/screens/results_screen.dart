@@ -33,6 +33,15 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final categories = ref.watch(appCategoriesProvider);
+    if (!categories.contains(_selectedCategory) && categories.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _selectedCategory = categories.first;
+        });
+      });
+    }
+
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(
@@ -48,7 +57,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       ),
       body: Column(
         children: [
-          _buildCategorySelector(),
+          _buildCategorySelector(categories),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -64,7 +73,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
-  Widget _buildCategorySelector() {
+  Widget _buildCategorySelector(List<String> categories) {
     return Container(
       color: context.colors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -78,10 +87,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 value: _selectedCategory,
                 isExpanded: true,
                 icon: Icon(Icons.expand_more, color: context.colors.primary),
-                items: [
-                  'Sub-8', 'Sub-10', 'Sub-12', 'Sub-14', 'Sub-16', 
-                  'Sub-18', 'Sub-20', 'Reserva', 'Primera', 'Femenino'
-                ].map((cat) => DropdownMenuItem(value: cat, child: Text(cat, style: context.typography.titleMedium))).toList(),
+                items: categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat, style: context.typography.titleMedium))).toList(),
                 onChanged: (val) {
                   if (val != null) setState(() => _selectedCategory = val);
                 },

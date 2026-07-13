@@ -136,14 +136,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       selectedCategory = sessionUser.category!;
     }
 
-    final List<String> categories = [
-      'all',
-      'Sub-12',
-      'Sub-14',
-      'Sub-16',
-      'Femenino',
-      'Sénior',
-    ];
+    final appCategories = ref.read(appCategoriesProvider);
+    final List<String> categories = ['all', ...appCategories];
 
     final List<Map<String, String>> imagePresets = [
       {
