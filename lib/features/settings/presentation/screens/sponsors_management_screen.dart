@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
@@ -33,12 +37,16 @@ class SponsorsManagementScreen extends ConsumerWidget {
 
   void _showAddSponsorDialog(BuildContext context, WidgetRef ref) {
     final nameController = TextEditingController();
-    final imageUrlController = TextEditingController();
     final linkUrlController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    
+    String? selectedImagePath;
+    String? selectedPresetImage;
+    bool isUploading = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -69,24 +77,57 @@ class SponsorsManagementScreen extends ConsumerWidget {
                             : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: imageUrlController,
-                        style: context.typography.bodyLarge,
-                        decoration: const InputDecoration(
-                          hintText: 'URL de la imagen (HTTPS)',
-                          labelText: 'Imagen URL',
+                      const SizedBox(height: 12),
+                      Text(
+                        'Imagen del Sponsor',
+                        style: context.typography.labelSmall.copyWith(
+                          color: context.colors.textTertiary,
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Ingresa la URL o ruta del recurso';
-                          }
-                          if (!value.startsWith('http') &&
-                              !value.startsWith('assets/')) {
-                            return 'Debe ser una URL válida o ruta de asset (assets/)';
-                          }
-                          return null;
-                        },
                       ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final file = await picker.pickImage(
+                            source: ImageSource.gallery,
+                            imageQuality: 85,
+                          );
+                          if (file != null) {
+                            setDialogState(() {
+                              selectedImagePath = file.path;
+                              selectedPresetImage = null; // Clear preset
+                            });
+                          }
+                        },
+                        child: Container(
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: context.colors.surfaceLight,
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            border: Border.all(
+                              color: selectedImagePath == null && selectedPresetImage == null
+                                  ? context.colors.border
+                                  : context.colors.primary,
+                            ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: _buildImagePreview(
+                            selectedImagePath,
+                            selectedPresetImage,
+                            context,
+                          ),
+                        ),
+                      ),
+                      if (selectedImagePath == null && selectedPresetImage == null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, left: 12),
+                          child: Text(
+                            'Por favor, selecciona una imagen',
+                            style: context.typography.bodySmall.copyWith(
+                              color: context.colors.error,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: linkUrlController,
@@ -117,7 +158,8 @@ class SponsorsManagementScreen extends ConsumerWidget {
                             onPressed: () {
                               setDialogState(() {
                                 nameController.text = preset['name']!;
-                                imageUrlController.text = preset['imageUrl']!;
+                                selectedPresetImage = preset['imageUrl']!;
+                                selectedImagePath = null; // Clear device image
                                 linkUrlController.text = preset['linkUrl']!;
                               });
                             },
@@ -143,28 +185,66 @@ class SponsorsManagementScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
                   ),
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      final sponsorRepo = ref.read(sponsorRepositoryProvider);
-                      await sponsorRepo.addSponsor({
-                        'name': nameController.text.trim(),
-                        'imageUrl': imageUrlController.text.trim(),
-                        'linkUrl': linkUrlController.text.trim(),
-                      });
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Sponsor "${nameController.text}" añadido con éxito!',
+                  onPressed: isUploading ? null : () async {
+                    if (formKey.currentState!.validate() && 
+                       (selectedImagePath != null || selectedPresetImage != null)) {
+                      
+                      setDialogState(() => isUploading = true);
+                      try {
+                        String finalImageUrl = selectedPresetImage ?? '';
+                        
+                        if (selectedImagePath != null) {
+                          final storageRef = FirebaseStorage.instance.ref().child(
+                            'sponsors/sponsor_${DateTime.now().millisecondsSinceEpoch}.jpg'
+                          );
+                          await storageRef.putFile(File(selectedImagePath!));
+                          finalImageUrl = await storageRef.getDownloadURL();
+                        }
+
+                        final sponsorRepo = ref.read(sponsorRepositoryProvider);
+                        await sponsorRepo.addSponsor({
+                          'name': nameController.text.trim(),
+                          'imageUrl': finalImageUrl,
+                          'linkUrl': linkUrlController.text.trim(),
+                        });
+
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Sponsor "${nameController.text}" añadido con éxito!',
+                              ),
+                              backgroundColor: context.colors.success,
                             ),
-                            backgroundColor: context.colors.success,
-                          ),
-                        );
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error al guardar: $e'),
+                              backgroundColor: context.colors.error,
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (context.mounted) {
+                          setDialogState(() => isUploading = false);
+                        }
                       }
+                    } else if (selectedImagePath == null && selectedPresetImage == null) {
+                       // Force UI update to show error
+                       setDialogState(() {});
                     }
                   },
-                  child: const Text('Guardar'),
+                  child: isUploading 
+                      ? const SizedBox(
+                          width: 20, 
+                          height: 20, 
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                        )
+                      : const Text('Guardar'),
                 ),
               ],
             );
@@ -372,6 +452,50 @@ class SponsorsManagementScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) =>
             Center(child: Text('Error al cargar sponsors: $err')),
+      ),
+    );
+  }
+  Widget _buildImagePreview(String? localPath, String? presetPath, BuildContext context) {
+    if (localPath != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.file(File(localPath), fit: BoxFit.cover),
+          Container(
+            color: Colors.black.withValues(alpha: 0.3),
+            child: const Center(
+              child: Icon(Icons.edit, color: Colors.white, size: 32),
+            ),
+          ),
+        ],
+      );
+    } else if (presetPath != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(presetPath, fit: BoxFit.cover),
+          Container(
+            color: Colors.black.withValues(alpha: 0.3),
+            child: const Center(
+              child: Icon(Icons.edit, color: Colors.white, size: 32),
+            ),
+          ),
+        ],
+      );
+    }
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.add_photo_alternate, size: 40, color: context.colors.primary),
+          const SizedBox(height: 8),
+          Text(
+            'Toca para subir imagen',
+            style: context.typography.bodyMedium.copyWith(
+              color: context.colors.primary,
+            ),
+          ),
+        ],
       ),
     );
   }
