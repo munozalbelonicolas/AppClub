@@ -266,7 +266,7 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
         'phone1': phone1,
         'phone2': phone2,
-        ?'dni': dni,
+        if (dni != null) 'dni': dni,
         'termsAcceptedAt':
             isNewRegistration ? FieldValue.serverTimestamp() : null,
         'termsVersion': isNewRegistration ? '1.0' : null,

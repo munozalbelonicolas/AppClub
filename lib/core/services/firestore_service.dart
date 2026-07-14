@@ -58,6 +58,26 @@ class FirestoreService {
         );
   }
 
+  // ─── Attendance ───────────────────────────────────
+  Stream<Map<String, dynamic>?> getAttendance(String dateStr, String category) {
+    return _db
+        .collection('attendance')
+        .doc('$dateStr-$category')
+        .snapshots()
+        .map((doc) => doc.exists ? {'id': doc.id, ...doc.data()!} : null);
+  }
+
+  Future<void> saveAttendance(String dateStr, String category, String dtId, List<String> present, List<String> absent) async {
+    await _db.collection('attendance').doc('$dateStr-$category').set({
+      'dateStr': dateStr,
+      'category': category,
+      'dtId': dtId,
+      'present': present,
+      'absent': absent,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Stream<Map<String, dynamic>?> getPlayerProfile(String playerId) {
     return _db.collection('users').doc(playerId).snapshots().map(
           (doc) => doc.exists ? {'id': doc.id, ...doc.data()!} : null,
@@ -208,4 +228,10 @@ final coachReportsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((r
 
 final scorersStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, category) {
   return ref.watch(firestoreServiceProvider).getScorersByCategory(category);
+});
+
+final attendanceStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, param) {
+  final parts = param.split('|');
+  if (parts.length != 2) return Stream.value(null);
+  return ref.watch(firestoreServiceProvider).getAttendance(parts[0], parts[1]);
 });

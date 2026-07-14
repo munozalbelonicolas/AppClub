@@ -16,6 +16,7 @@ import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_match_card.dart';
 import '../../../../core/widgets/jn_section_header.dart';
+import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
 import '../widgets/export_post_dialog.dart';
@@ -659,7 +660,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       icon: Icons.how_to_reg,
                       label: 'Asistencia',
                       color: context.colors.success,
-                      onTap: () => widget.onNavigate(1),
+                      onTap: () {
+                        if (sessionUser.role == 'dt' || sessionUser.isAdmin) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AttendanceScreen(),
+                            ),
+                          );
+                        } else {
+                          widget.onNavigate(1);
+                        }
+                      },
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
