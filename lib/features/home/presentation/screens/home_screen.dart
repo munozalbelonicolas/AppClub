@@ -403,6 +403,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final clubs = ref.watch(clubsStreamProvider).value ?? [];
     final hasPlayer =
         sessionUser.role == 'padre' || sessionUser.role == 'jugador';
+        
+    final selectedChild = ref.watch(selectedChildProvider);
 
     // In production, these will come from streams or futures.
     // For now, we set them to empty to ensure the app doesn't crash without MockData.
@@ -412,9 +414,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     const Map<String, dynamic>? pendingPayment =
         null; // To be fetched from Firestore
 
-    final String categoriesStr = sessionUser.assignedCategories?.isNotEmpty == true
+    String categoriesStr = sessionUser.assignedCategories?.isNotEmpty == true
         ? sessionUser.assignedCategories!.join(',')
         : (sessionUser.category ?? '');
+        
+    if (sessionUser.role == 'padre' && selectedChild != null && selectedChild['category'] != null) {
+      categoriesStr = selectedChild['category'] as String;
+    }
 
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin
@@ -450,14 +456,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         style: context.typography.bodyMedium,
                                       );
                                     }
-                                    final categories = players
-                                        .map((p) => p['category'] as String?)
-                                        .where((c) => c != null && c.isNotEmpty)
-                                        .toSet()
-                                        .join(', ');
-                                    return Text(
-                                      'Tutor · ${categories.isEmpty ? 'Sin Categoría' : categories}',
-                                      style: context.typography.bodyMedium,
+                                    
+                                    // Set default selected child if null
+                                    if (selectedChild == null) {
+                                      Future.microtask(() {
+                                        ref.read(selectedChildProvider.notifier).state = players.first;
+                                      });
+                                    }
+                                    
+                                    return DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: selectedChild?['id'] as String? ?? players.first['id'] as String?,
+                                        isDense: true,
+                                        icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                                        style: context.typography.bodyMedium.copyWith(
+                                          color: context.colors.primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        items: players.map((p) {
+                                          final cat = p['category'] ?? 'Sin categoría';
+                                          return DropdownMenuItem<String>(
+                                            value: p['id'] as String,
+                                            child: Text('${p['name']} ${p['lastName']} ($cat)'),
+                                          );
+                                        }).toList(),
+                                        onChanged: (val) {
+                                          if (val != null) {
+                                            final child = players.firstWhere((p) => p['id'] == val);
+                                            ref.read(selectedChildProvider.notifier).state = child;
+                                          }
+                                        },
+                                      ),
                                     );
                                   },
                                   loading: () => Text(

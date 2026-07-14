@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -19,6 +20,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   late TabController _tabController;
   String _selectedCategory = 'Primera';
 
+  String? _lastChildId;
+
   @override
   void initState() {
     super.initState();
@@ -34,6 +37,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(appCategoriesProvider);
+    final sessionUser = ref.watch(currentUserProvider);
+    final selectedChild = ref.watch(selectedChildProvider);
+    
+    // Set initial category from selected child if parent
+    if (sessionUser?.role == 'padre' && selectedChild != null && selectedChild['category'] != null) {
+      if (_lastChildId != selectedChild['id']) {
+        _selectedCategory = selectedChild['category'] as String;
+        _lastChildId = selectedChild['id'] as String?;
+      }
+    }
+
     if (!categories.contains(_selectedCategory) && categories.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() {

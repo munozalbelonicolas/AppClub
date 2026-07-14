@@ -16,11 +16,22 @@ class FixtureScreen extends ConsumerStatefulWidget {
 
 class _FixtureScreenState extends ConsumerState<FixtureScreen> {
   String selectedCategory = 'Primera';
+  String? _lastChildId;
 
   @override
   Widget build(BuildContext context) {
     final sessionUser = ref.watch(currentUserProvider)!;
     final categories = ref.watch(appCategoriesProvider);
+    final selectedChild = ref.watch(selectedChildProvider);
+
+    // Set initial category from selected child if parent
+    if (sessionUser.role == 'padre' && selectedChild != null && selectedChild['category'] != null) {
+      if (_lastChildId != selectedChild['id']) {
+        selectedCategory = selectedChild['category'] as String;
+        _lastChildId = selectedChild['id'] as String?;
+      }
+    }
+
     if (!categories.contains(selectedCategory) && categories.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() => selectedCategory = categories.first);
