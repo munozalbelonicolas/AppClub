@@ -91,7 +91,7 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? file = await picker.pickImage(
-        source: ImageSource.gallery,
+        source: ImageSource.camera,
         imageQuality: 80,
       );
       if (file != null) {
@@ -372,8 +372,8 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                     ),
                   ],
                   JNButton(
-                    label: _aptoFisicoPath == null ? 'Subir Apto Físico' : 'Cambiar Imagen',
-                    icon: Icons.upload_file,
+                    label: _aptoFisicoPath == null ? 'Tomar Foto Apto Físico' : 'Tomar Nueva Foto',
+                    icon: Icons.camera_alt,
                     variant: JNButtonVariant.outline,
                     onPressed: _pickAptoFisico,
                   ),
