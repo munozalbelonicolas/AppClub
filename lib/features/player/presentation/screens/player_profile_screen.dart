@@ -335,17 +335,29 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
                 label: 'Peso',
                 value: player['weight'] as String,
               ),
-            if (player.containsKey('parentName'))
+            if (player.containsKey('fatherName') && (player['fatherName'] as String).isNotEmpty)
               _InfoTile(
                 icon: Icons.person,
-                label: 'Padre/Madre',
-                value: player['parentName'] as String,
+                label: 'Padre',
+                value: player['fatherName'] as String,
               ),
-            if (player.containsKey('parentPhone'))
+            if (player.containsKey('motherName') && (player['motherName'] as String).isNotEmpty)
+              _InfoTile(
+                icon: Icons.person_2,
+                label: 'Madre',
+                value: player['motherName'] as String,
+              ),
+            if (player.containsKey('phone1') && (player['phone1'] as String).isNotEmpty)
               _InfoTile(
                 icon: Icons.phone,
-                label: 'Teléfono',
-                value: player['parentPhone'] as String,
+                label: 'Teléfono 1',
+                value: player['phone1'] as String,
+              ),
+            if (player.containsKey('phone2') && (player['phone2'] as String).isNotEmpty)
+              _InfoTile(
+                icon: Icons.phone_android,
+                label: 'Teléfono 2',
+                value: player['phone2'] as String,
               ),
           ].asMap().entries.map((e) {
             return Padding(
