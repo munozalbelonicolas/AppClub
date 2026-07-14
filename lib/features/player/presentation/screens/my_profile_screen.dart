@@ -717,7 +717,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             controller: _fatherNameController,
                             style: context.typography.bodyLarge,
                             decoration: const InputDecoration(
-                              labelText: 'Nombre y Apellido del Padre',
+                              labelText: 'Nombre y Apellido del Tutor/a 1',
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -725,7 +725,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             controller: _motherNameController,
                             style: context.typography.bodyLarge,
                             decoration: const InputDecoration(
-                              labelText: 'Nombre y Apellido de la Madre',
+                              labelText: 'Nombre y Apellido del Tutor/a 2 (Opcional)',
                             ),
                           ),
                         ],

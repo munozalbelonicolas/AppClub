@@ -338,13 +338,13 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
             if (player.containsKey('fatherName') && (player['fatherName'] as String).isNotEmpty)
               _InfoTile(
                 icon: Icons.person,
-                label: 'Padre',
+                label: 'Tutor/a 1',
                 value: player['fatherName'] as String,
               ),
             if (player.containsKey('motherName') && (player['motherName'] as String).isNotEmpty)
               _InfoTile(
                 icon: Icons.person_2,
-                label: 'Madre',
+                label: 'Tutor/a 2',
                 value: player['motherName'] as String,
               ),
             if (player.containsKey('phone1') && (player['phone1'] as String).isNotEmpty)
