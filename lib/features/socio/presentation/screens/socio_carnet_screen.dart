@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
@@ -160,6 +161,21 @@ class SocioCarnetScreen extends ConsumerWidget {
                           'Socio Titular',
                           style: context.typography.titleSmall.copyWith(
                             color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        
+                        // QR Code
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: QrImageView(
+                            data: 'appclub://socio/${sessionUser.id}',
+                            size: 150.0,
+                            backgroundColor: Colors.white,
                           ),
                         ),
                       ],

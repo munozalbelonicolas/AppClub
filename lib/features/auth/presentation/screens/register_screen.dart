@@ -31,6 +31,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _phone1Controller = TextEditingController();
   final _phone2Controller = TextEditingController();
   final _passwordController = TextEditingController();
+  final _dniController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _termsAccepted = false;
@@ -64,6 +65,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         phone2: _phone2Controller.text.trim().isEmpty
             ? null
             : _phone2Controller.text.trim(),
+        dni: _selectedRole == 'socio' ? _dniController.text.trim() : null,
         role: _selectedRole,
       );
 
@@ -172,6 +174,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
+
+                if (_selectedRole == 'socio') ...[
+                  TextFormField(
+                    controller: _dniController,
+                    keyboardType: TextInputType.number,
+                    style: context.typography.bodyLarge,
+                    decoration: const InputDecoration(
+                      labelText: 'DNI',
+                      prefixIcon: Icon(Icons.badge_outlined),
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Requerido para socios';
+                      if (v.trim().length < 7 || v.trim().length > 9) return 'DNI inválido';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 TextFormField(
                   controller: _emailController,
@@ -320,6 +343,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _phone1Controller.dispose();
     _phone2Controller.dispose();
     _passwordController.dispose();
+    _dniController.dispose();
     super.dispose();
   }
 }

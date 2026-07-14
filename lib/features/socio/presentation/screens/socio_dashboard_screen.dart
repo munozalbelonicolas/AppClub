@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -131,6 +132,67 @@ class SocioDashboardScreen extends ConsumerWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                'Últimas Novedades',
+                style: context.typography.titleLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              
+              ref.watch(allNovedadesStreamProvider).when(
+                data: (novedades) {
+                  if (novedades.isEmpty) {
+                    return JNCard(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Center(
+                        child: Text(
+                          'No hay novedades por el momento.',
+                          style: context.typography.bodyLarge.copyWith(
+                            color: context.colors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: novedades.length > 5 ? 5 : novedades.length, // Show up to 5 latest news
+                    separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
+                    itemBuilder: (context, index) {
+                      final post = novedades[index];
+                      return JNCard(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              post['title'] ?? '',
+                              style: context.typography.titleMedium.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              post['body'] ?? '',
+                              style: context.typography.bodyMedium,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(
+                  child: Text('Error al cargar novedades: $error'),
                 ),
               ),
             ],

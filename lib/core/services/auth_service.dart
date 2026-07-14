@@ -77,6 +77,7 @@ class AuthService {
     required String lastName,
     required String phone1,
     String? phone2,
+    String? dni,
     String role = 'padre',
   }) async {
     try {
@@ -94,6 +95,7 @@ class AuthService {
           isNewRegistration: true,
           phone1: phone1,
           phone2: phone2,
+          dni: dni,
           emailVerified: firebaseUser.emailVerified,
           role: role,
         );
@@ -189,6 +191,7 @@ class AuthService {
     bool isNewRegistration = false,
     String? phone1,
     String? phone2,
+    String? dni,
     bool emailVerified = true, // By default true for Google Sign In demo
     String? role,
   }) async {
@@ -263,6 +266,7 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
         'phone1': phone1,
         'phone2': phone2,
+        ?'dni': dni,
         'termsAcceptedAt':
             isNewRegistration ? FieldValue.serverTimestamp() : null,
         'termsVersion': isNewRegistration ? '1.0' : null,
@@ -280,6 +284,7 @@ class AuthService {
         emailVerified: emailVerified,
         phone1: phone1,
         phone2: phone2,
+        dni: dni,
         termsAcceptedAt: isNewRegistration ? DateTime.now() : null,
         termsVersion: isNewRegistration ? '1.0' : null,
       );
