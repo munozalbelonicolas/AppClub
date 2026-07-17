@@ -75,7 +75,7 @@ La Plataforma no comercializa datos personales.
 
 # 4. MENORES DE EDAD
 
-La utilización de la Plataforma por menores de edad deberá contar con autorización de sus padres, madres o representantes legales.
+La utilización de la Plataforma por menores de edad deberá contar con autorización de sus tutores, madres o representantes legales.
 
 Los responsables legales:
 * autorizan el tratamiento de los datos del menor,
@@ -218,7 +218,7 @@ El uso de la Plataforma implica que el usuario ha leído, comprendido y aceptado
 Última actualización: Junio 2026
 
 Bienvenido/a a AppClub (en adelante, la “Plataforma” o la “Aplicación”).
-El acceso, registro y uso de esta aplicación implica la aceptación plena y sin reservas de los presentes Términos y Condiciones por parte de cualquier usuario, incluyendo padres, madres, tutores, jugadores, entrenadores, coordinadores, directivos, administradores y cualquier otra persona que utilice la Plataforma.
+El acceso, registro y uso de esta aplicación implica la aceptación plena y sin reservas de los presentes Términos y Condiciones por parte de cualquier usuario, incluyendo tutores, madres, representantes, jugadores, entrenadores, coordinadores, directivos, administradores y cualquier otra persona que utilice la Plataforma.
 
 Si el usuario no está de acuerdo con estos términos, deberá abstenerse de utilizar la Aplicación.
 
@@ -246,7 +246,7 @@ El usuario es el único responsable del uso que haga de la Aplicación y de cual
 
 # 3. MENORES DE EDAD
 
-En caso de usuarios menores de edad, el uso de la Plataforma deberá ser realizado exclusivamente bajo autorización y supervisión de padres, madres o tutores legales.
+En caso de usuarios menores de edad, el uso de la Plataforma deberá ser realizado exclusivamente bajo autorización y supervisión de tutores, madres o representantes legales.
 
 Los representantes legales asumen plena responsabilidad por:
 * el acceso del menor,

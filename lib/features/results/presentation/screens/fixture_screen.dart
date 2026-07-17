@@ -25,7 +25,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
     final selectedChild = ref.watch(selectedChildProvider);
 
     // Set initial category from selected child if parent
-    if (sessionUser.role == 'padre' && selectedChild != null && selectedChild['category'] != null) {
+    if (sessionUser.role == 'tutor' && selectedChild != null && selectedChild['category'] != null) {
       if (_lastChildId != selectedChild['id']) {
         selectedCategory = selectedChild['category'] as String;
         _lastChildId = selectedChild['id'] as String?;

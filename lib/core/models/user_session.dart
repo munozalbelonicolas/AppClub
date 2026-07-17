@@ -6,9 +6,9 @@ class UserSession {
   final String name;
   final String lastName;
   final String email;
-  final String role; // 'padre', 'jugador', 'dt', 'secretario', 'directivo'
+  final String role; // 'tutor', 'jugador', 'dt', 'secretario', 'directivo'
   final String? category; // e.g., 'Sub-12', 'Sub-14', etc.
-  final String? childId; // For 'padre' role
+  final String? childId; // For 'tutor' role
 
   // New profile fields
   final String? dni;
@@ -155,7 +155,7 @@ class UserSession {
   bool get isCoach => role == 'dt';
 
   /// Check if user is parent/player
-  bool get isNormalUser => role == 'padre' || role == 'jugador';
+  bool get isNormalUser => role == 'tutor' || role == 'jugador';
 
   /// Check if user is socio
   bool get isSocio => role == 'socio';

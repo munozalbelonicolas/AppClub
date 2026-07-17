@@ -403,7 +403,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isNormalUser = sessionUser.isNormalUser;
     final clubs = ref.watch(clubsStreamProvider).value ?? [];
     final hasPlayer =
-        sessionUser.role == 'padre' || sessionUser.role == 'jugador';
+        sessionUser.role == 'tutor' || sessionUser.role == 'jugador';
         
     final selectedChild = ref.watch(selectedChildProvider);
 
@@ -419,7 +419,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? sessionUser.assignedCategories!.join(',')
         : (sessionUser.category ?? '');
         
-    if (sessionUser.role == 'padre' && selectedChild != null && selectedChild['category'] != null) {
+    if (sessionUser.role == 'tutor' && selectedChild != null && selectedChild['category'] != null) {
       categoriesStr = selectedChild['category'] as String;
     }
 
@@ -448,7 +448,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: context.typography.headlineLarge,
                           ),
                           const SizedBox(height: 2),
-                          if (sessionUser.role == 'padre')
+                          if (sessionUser.role == 'tutor')
                             ref.watch(tutorPlayersStreamProvider(sessionUser.id)).when(
                                   data: (players) {
                                     if (players.isEmpty) {

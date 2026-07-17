@@ -36,7 +36,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _termsAccepted = false;
   bool _isLoading = false;
-  String _selectedRole = 'padre';
+  String _selectedRole = 'tutor';
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
@@ -123,7 +123,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 24),
                 SegmentedButton<String>(
                   segments: const [
-                    ButtonSegment(value: 'padre', label: Text('Tutor')),
+                    ButtonSegment(value: 'tutor', label: Text('Tutor')),
                     ButtonSegment(value: 'socio', label: Text('Socio')),
                   ],
                   selected: {_selectedRole},

@@ -237,7 +237,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         title: Text(
           user.role == 'jugador'
               ? 'Mi Perfil y Ficha'
-              : user.role == 'padre' || user.role == 'tutor'
+              : user.role == 'tutor'
                   ? 'Mi Perfil (Tutor)'
                   : user.role == 'socio'
                       ? 'Mi Perfil (Socio)'
@@ -565,7 +565,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
                   const SizedBox(height: 20),
 
-                  if (user.role == 'padre' || user.role == 'tutor') ...[
+                  if (user.role == 'tutor') ...[
                     // Hijos / Jugadores a cargo
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

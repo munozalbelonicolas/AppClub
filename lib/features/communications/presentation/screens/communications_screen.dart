@@ -332,7 +332,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
               
               await announcementRepo.addAnnouncement({
                 'title': 'Cierre de inscripciones para el torneo',
-                'body': 'Recordamos a los padres que este viernes vence el plazo para presentar la ficha médica y completar el registro del torneo anual. No se aceptarán prórrogas.',
+                'body': 'Recordamos a los tutores que este viernes vence el plazo para presentar la ficha médica y completar el registro del torneo anual. No se aceptarán prórrogas.',
                 'category': 'administrativo',
                 'priority': 'high',
                 'date': dateStr,
@@ -379,7 +379,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
           name: 'Mock',
           lastName: 'User',
           email: 'mock@mock.com',
-          role: 'padre',
+          role: 'tutor',
         );
     final isNormalUser = sessionUser.isNormalUser;
     final query = UserAnnouncementQuery(category: sessionUser.category, isAdmin: sessionUser.isAdmin);

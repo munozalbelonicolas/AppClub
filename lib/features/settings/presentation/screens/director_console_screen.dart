@@ -362,7 +362,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                       final String name = data['name'] ?? '';
                       final String lastName = data['lastName'] ?? '';
                       final String email = data['email'] ?? '';
-                      final String role = data['role'] ?? 'padre';
+                      final String role = data['role'] ?? 'tutor';
                       final String? category = data['category'];
                       final String status = data['status'] ?? 'active';
                       final bool isPending = status == 'pending_approval';

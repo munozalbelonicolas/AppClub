@@ -41,7 +41,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     final selectedChild = ref.watch(selectedChildProvider);
     
     // Set initial category from selected child if parent
-    if (sessionUser?.role == 'padre' && selectedChild != null && selectedChild['category'] != null) {
+    if (sessionUser?.role == 'tutor' && selectedChild != null && selectedChild['category'] != null) {
       if (_lastChildId != selectedChild['id']) {
         _selectedCategory = selectedChild['category'] as String;
         _lastChildId = selectedChild['id'] as String?;

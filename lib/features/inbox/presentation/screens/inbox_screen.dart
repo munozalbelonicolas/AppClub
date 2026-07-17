@@ -120,7 +120,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final currentUser = ref.watch(currentUserProvider)!;
     final isStaff = !currentUser.isNormalUser;
     final categories = ref.watch(appCategoriesProvider);
-    final filterOptions = ['Todas', ...categories, 'Padres', 'DTs'];
+    final filterOptions = ['Todas', ...categories, 'Tutores', 'DTs'];
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -331,13 +331,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
             // Category filters
             if (_selectedCategoryFilter != 'Todas' && 
-                _selectedCategoryFilter != 'Padres' && 
+                _selectedCategoryFilter != 'Tutores' && 
                 _selectedCategoryFilter != 'DTs') {
               if (otherCategory != _selectedCategoryFilter.toLowerCase()) {
                 return false;
               }
             }
-            if (_selectedCategoryFilter == 'Padres' && otherRole != 'padre') {
+            if (_selectedCategoryFilter == 'Tutores' && otherRole != 'tutor') {
               return false;
             }
             if (_selectedCategoryFilter == 'DTs' && otherRole != 'dt') {
@@ -441,7 +441,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 data['userCategories'] as Map<String, dynamic>? ?? {};
 
             final String otherName = namesMap[otherUserId] ?? 'Usuario';
-            final String otherRole = rolesMap[otherUserId] ?? 'padre';
+            final String otherRole = rolesMap[otherUserId] ?? 'tutor';
             final String otherCategory = categoriesMap[otherUserId] ?? '';
 
             final lastMsg = data['lastMessageText'] ?? '';
@@ -673,7 +673,7 @@ class _NewChatUserSelector extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final user = users[index];
                     final String name = '${user['name']} ${user['lastName']}';
-                    final String role = user['role'] ?? 'padre';
+                    final String role = user['role'] ?? 'tutor';
                     final String category = user['category'] ?? '';
 
                     return ListTile(

@@ -158,7 +158,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
   }
 
   void _showRoleDialog(Map<String, dynamic> data) {
-    String selectedRole = data['role'] ?? 'padre';
+    String selectedRole = data['role'] ?? 'tutor';
     String? selectedCategory = data['category'];
     List<String> selectedCategories = [];
     if (data['assignedCategories'] != null) {
@@ -166,7 +166,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
     } else if (data['category'] != null) {
       selectedCategories = [data['category']];
     }
-    final roles = ['padre', 'jugador', 'dt', 'secretario', 'directivo'];
+    final roles = ['tutor', 'jugador', 'dt', 'secretario', 'directivo'];
 
     showDialog(
       context: context,
@@ -296,7 +296,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
           final lastName = data['lastName'] ?? '';
           final email = data['email'] ?? '';
           final phone1 = data['phone1'] ?? 'No especificado';
-          final role = data['role'] ?? 'padre';
+          final role = data['role'] ?? 'tutor';
           final category = data['category'];
           final status = data['status'] ?? 'active';
 
@@ -479,7 +479,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
               ),
               const SizedBox(height: 20),
 
-              if (role == 'padre' || role == 'tutor') ...[
+              if (role == 'tutor') ...[
                 Text('Jugadores a cargo', style: context.typography.titleLarge),
                 const SizedBox(height: 12),
                 StreamBuilder<List<Map<String, dynamic>>>(

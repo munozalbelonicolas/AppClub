@@ -78,7 +78,7 @@ class AuthService {
     required String phone1,
     String? phone2,
     String? dni,
-    String role = 'padre',
+    String role = 'tutor',
   }) async {
     try {
       final UserCredential userCredential = await _auth
@@ -212,7 +212,7 @@ class AuthService {
         name: data['name'] ?? name,
         lastName: data['lastName'] ?? lastName,
         email: email,
-        role: data['role'] ?? 'padre',
+        role: data['role'] ?? 'tutor',
         status: data['status'] ?? 'active',
         emailVerified: emailVerified,
         category: data['category'],
@@ -248,7 +248,7 @@ class AuthService {
       // New user
       final isDirector =
           email.trim().toLowerCase() == 'munozalbelonicolas@gmail.com';
-      final String initialRole = role ?? (isDirector ? 'directivo' : 'padre');
+      final String initialRole = role ?? (isDirector ? 'directivo' : 'tutor');
       const String? initialCategory = null;
       final String initialStatus = isDirector
           ? 'active'
@@ -300,7 +300,7 @@ class AuthService {
           name: snapshotData['name'] ?? name,
           lastName: snapshotData['lastName'] ?? lastName,
           email: email,
-          role: snapshotData['role'] ?? 'padre',
+          role: snapshotData['role'] ?? 'tutor',
           status: snapshotData['status'] ?? 'pending_approval',
           emailVerified: snapshotData['emailVerified'] ?? emailVerified,
           category: snapshotData['category'],
@@ -468,7 +468,7 @@ class AuthService {
                           ),
                           ActionChip(
                             label: const Text(
-                              'padre.prueba@gmail.com (Padre)',
+                              'tutor.prueba@gmail.com (Tutor)',
                             ),
                             labelStyle: context.typography.labelSmall.copyWith(
                               color: Colors.white,
@@ -477,7 +477,7 @@ class AuthService {
                             backgroundColor: context.colors.surfaceLight,
                             onPressed: () {
                               setDialogState(() {
-                                emailController.text = 'padre.prueba@gmail.com';
+                                emailController.text = 'tutor.prueba@gmail.com';
                                 nameController.text = 'Carlos';
                                 lastNameController.text = 'Gutiérrez';
                               });
