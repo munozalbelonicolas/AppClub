@@ -565,7 +565,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
                   const SizedBox(height: 20),
 
-                  if (user.role == 'tutor') ...[
+                  if (user.role != 'jugador') ...[
                     // Hijos / Jugadores a cargo
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

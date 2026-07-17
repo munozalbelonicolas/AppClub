@@ -84,7 +84,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── Hijos asociados (Tutor) ────────────────────────
-          if (user.role == 'tutor') ...[
+          if (user.role != 'jugador') ...[
             Text('Mis Hijos (Jugadores)', style: context.typography.labelMedium),
             const SizedBox(height: 8),
             StreamBuilder<List<Map<String, dynamic>>>(
