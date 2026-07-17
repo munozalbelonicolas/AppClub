@@ -192,7 +192,7 @@ class SettingsScreen extends ConsumerWidget {
             items: [
               _SettingNav(
                 icon: Icons.person_outline,
-                label: 'Mi Cuenta y Ficha Médica',
+                label: (user.role == 'jugador' || user.role == 'tutor') ? 'Mi Cuenta y Ficha Médica' : 'Mi Cuenta',
                 onTap: () {
                   Navigator.push(
                     context,
