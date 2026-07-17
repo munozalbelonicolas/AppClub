@@ -165,31 +165,51 @@ void showAdminNotificationsDialog(BuildContext context) {
                     );
                   }
 
+                  if (type == 'new_user_pending' || type == 'player_registration') {
+                    return ListTile(
+                      leading: Icon(
+                        Icons.person_add,
+                        color: isRead ? context.colors.textTertiary : context.colors.primary,
+                      ),
+                      title: Text(
+                        'Nuevo usuario pendiente',
+                        style: context.typography.bodyMedium.copyWith(
+                          fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text('${data['userName'] ?? 'Alguien'} solicita aprobación.'),
+                      onTap: () {
+                        docs[index].reference.delete();
+                        Navigator.pop(context);
+                        
+                        final userId = data['userId'];
+                        if (userId != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AdminUserProfileScreen(userId: userId),
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  }
+
+                  // Fallback genérico para cualquier otro tipo de notificación
                   return ListTile(
                     leading: Icon(
-                      Icons.person_add,
+                      Icons.notifications,
                       color: isRead ? context.colors.textTertiary : context.colors.primary,
                     ),
                     title: Text(
-                      'Nuevo usuario pendiente',
+                      'Notificación',
                       style: context.typography.bodyMedium.copyWith(
                         fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
                       ),
                     ),
-                    subtitle: Text('${data['userName']} solicita aprobación.'),
+                    subtitle: Text(data['body'] ?? data['title'] ?? data['message'] ?? 'Tienes una nueva notificación.'),
                     onTap: () {
-                      docs[index].reference.delete();
-                      Navigator.pop(context);
-                      
-                      final userId = data['userId'];
-                      if (userId != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AdminUserProfileScreen(userId: userId),
-                          ),
-                        );
-                      }
+                      docs[index].reference.update({'read': true});
                     },
                   );
                 },
