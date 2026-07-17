@@ -503,8 +503,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           else
                             Text(
                               hasPlayer
-                                  ? '${sessionUser.role == 'jugador' ? sessionUser.name : 'Tutor'} · ${sessionUser.category ?? 'Sin Categoría'}'
-                                  : '${sessionUser.role.toUpperCase()}${sessionUser.category != null ? " · ${sessionUser.category}" : ""}',
+                                  ? '${sessionUser.role == 'jugador' ? sessionUser.name : (sessionUser.role.toLowerCase() == 'padre' ? 'Tutor' : sessionUser.role.toUpperCase())} · ${sessionUser.category ?? 'Sin Categoría'}'
+                                  : '${(sessionUser.role.toLowerCase() == 'padre' ? 'tutor' : sessionUser.role).toUpperCase()}${sessionUser.category != null ? " · ${sessionUser.category}" : ""}',
                               style: context.typography.bodyMedium,
                             ),
                         ],
