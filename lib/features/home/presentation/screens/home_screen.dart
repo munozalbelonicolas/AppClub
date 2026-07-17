@@ -18,6 +18,7 @@ import '../../../../core/widgets/jn_match_card.dart';
 import '../../../../core/widgets/jn_section_header.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
+import '../../../payments/presentation/screens/payments_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
 import '../widgets/export_post_dialog.dart';
 import '../widgets/sponsor_carousel.dart';
@@ -686,7 +687,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       label: 'Cuotas',
                       color: context.colors.info,
                       badge: '1',
-                      onTap: () => widget.onNavigate(3),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PaymentsScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
@@ -708,9 +716,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: JNCard(
-                    onTap: () => widget.onNavigate(
-                      3,
-                    ), // Noticias/payments tab is index 3 now
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PaymentsScreen(),
+                        ),
+                      );
+                    },
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
