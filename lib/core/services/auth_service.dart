@@ -301,7 +301,7 @@ class AuthService {
           lastName: snapshotData['lastName'] ?? lastName,
           email: email,
           role: snapshotData['role'] ?? 'tutor',
-          status: snapshotData['status'] ?? 'pending_approval',
+          status: snapshotData['status'] ?? 'active',
           emailVerified: snapshotData['emailVerified'] ?? emailVerified,
           category: snapshotData['category'],
           assignedCategories: (snapshotData['assignedCategories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
