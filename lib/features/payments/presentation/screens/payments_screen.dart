@@ -47,14 +47,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
-      await db.collection('notifications').add({
-        'type': 'store_purchase',
-        'orderId': orderRef.id,
-        'buyerName': '${user.name} ${user.lastName}',
-        'productName': 'Cuota Cooperadora - ${player['name']}',
-        'read': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
