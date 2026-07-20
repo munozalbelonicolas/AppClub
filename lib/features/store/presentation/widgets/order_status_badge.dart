@@ -4,8 +4,9 @@ import '../../../../core/theme/app_typography.dart';
 
 class OrderStatusBadge extends StatelessWidget {
   final String status;
+  final bool isQuota;
 
-  const OrderStatusBadge({super.key, required this.status});
+  const OrderStatusBadge({super.key, required this.status, this.isQuota = false});
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +39,9 @@ class OrderStatusBadge extends StatelessWidget {
       case 'payment_uploaded':
         return _StatusConfig('🔵', 'Comprobante Enviado', context.colors.info);
       case 'confirmed':
-        return _StatusConfig('🟢', 'Listo para Retirar', context.colors.success);
+        return _StatusConfig('🟢', isQuota ? 'Pago Aprobado' : 'Listo para Retirar', context.colors.success);
       case 'delivered':
-        return _StatusConfig('✅', 'Entregado', context.colors.success);
+        return _StatusConfig('✅', isQuota ? 'Completado' : 'Entregado', context.colors.success);
       case 'rejected':
         return _StatusConfig('🔴', 'Rechazado', context.colors.error);
       default:

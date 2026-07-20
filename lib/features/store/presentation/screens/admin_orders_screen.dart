@@ -26,8 +26,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
     {'label': 'Todos', 'key': 'all'},
     {'label': 'Pendientes', 'key': 'pending_payment'},
     {'label': 'A Revisar', 'key': 'payment_uploaded'},
-    {'label': 'Para Retirar', 'key': 'confirmed'},
-    {'label': 'Entregados', 'key': 'delivered'},
+    {'label': 'Confirmados', 'key': 'confirmed'},
+    {'label': 'Completados', 'key': 'delivered'},
   ];
 
   @override
@@ -150,7 +150,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      OrderStatusBadge(status: data['status'] ?? 'pending_payment'),
+                      OrderStatusBadge(
+                        status: data['status'] ?? 'pending_payment',
+                        isQuota: data['isQuotaPayment'] == true,
+                      ),
                       if (createdAt != null)
                         Text(
                           _formatDate(createdAt.toDate()),

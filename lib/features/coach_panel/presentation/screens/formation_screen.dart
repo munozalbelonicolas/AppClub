@@ -278,7 +278,7 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                             leading: JNAvatar(
                               name: '${player['name']} ${player['lastName']}',
                               size: 40,
-                              number: player['number'] as int?,
+                              number: player['number'] != null ? int.tryParse(player['number'].toString()) : null,
                             ),
                             title: Text('${player['name']} ${player['lastName']}'),
                             subtitle: Text('${player['position']}'),
@@ -493,7 +493,7 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
           secondary: JNAvatar(
             name: '${player['name']} ${player['lastName']}',
             size: 40,
-            number: player['number'] as int?,
+            number: player['number'] != null ? int.tryParse(player['number'].toString()) : null,
           ),
           onChanged: (val) {
             setState(() {

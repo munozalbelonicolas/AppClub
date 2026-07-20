@@ -118,11 +118,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Status
-                Center(child: OrderStatusBadge(status: status)),
+                Center(child: OrderStatusBadge(status: status, isQuota: data['isQuotaPayment'] == true)),
                 const SizedBox(height: 16),
 
                 // Order Timeline
-                _buildOrderTimeline(status),
+                _buildOrderTimeline(status, isQuota: data['isQuotaPayment'] == true),
                 const SizedBox(height: 20),
 
                 // Product info with image
@@ -253,15 +253,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   }
 
   /// Build a visual timeline of the order's progress.
-  Widget _buildOrderTimeline(String currentStatus) {
+  Widget _buildOrderTimeline(String currentStatus, {bool isQuota = false}) {
     final steps = [
-      const _TimelineStep('Pedido Creado', 'pending_payment', Icons.shopping_cart),
+      _TimelineStep(isQuota ? 'Solicitud Creada' : 'Pedido Creado', 'pending_payment', Icons.shopping_cart),
       const _TimelineStep('Comprobante Enviado', 'payment_uploaded', Icons.upload_file),
-      const _TimelineStep('Pago Confirmado', 'confirmed', Icons.check_circle),
-      const _TimelineStep('Entregado', 'delivered', Icons.local_shipping),
+      _TimelineStep(isQuota ? 'Pago Aprobado' : 'Pago Confirmado', 'confirmed', Icons.check_circle),
+      if (!isQuota) const _TimelineStep('Entregado', 'delivered', Icons.local_shipping),
     ];
 
-    final statusOrder = ['pending_payment', 'payment_uploaded', 'confirmed', 'delivered'];
+    final statusOrder = isQuota 
+        ? ['pending_payment', 'payment_uploaded', 'confirmed']
+        : ['pending_payment', 'payment_uploaded', 'confirmed', 'delivered'];
     final currentIndex = statusOrder.indexOf(currentStatus);
     final isRejected = currentStatus == 'rejected';
 

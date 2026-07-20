@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,16 +18,60 @@ class CalendarScreen extends ConsumerStatefulWidget {
 
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   String _selectedFilter = 'Todos';
-  int _selectedDay = 14; // June 14 selected by default (match day)
+  late DateTime _selectedDate;
+  late DateTime _currentMonth;
 
-  final filters = ['Todos', 'Partidos', 'Entrenamientos', 'Eventos'];
+  final filters = ['Todos', 'Partidos', 'Entrenamientos', 'Eventos', 'Cumpleaños'];
+
+  final List<String> _monthNames = [
+    '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+    _currentMonth = DateTime(now.year, now.month, 1);
+  }
+
+  void _prevMonth() {
+    setState(() {
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1, 1);
+      _selectedDate = _currentMonth;
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 1);
+      _selectedDate = _currentMonth;
+    });
+  }
+
+  void _setToday() {
+    setState(() {
+      final now = DateTime.now();
+      _selectedDate = DateTime(now.year, now.month, now.day);
+      _currentMonth = DateTime(now.year, now.month, 1);
+    });
+  }
+
+  String _formatDateString(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
 
   List<Map<String, dynamic>> _getFilteredEvents(List<Map<String, dynamic>> events) {
+    final selectedDateStr = _formatDateString(_selectedDate);
     return events.where((e) {
+      if (e['date'] != selectedDateStr) return false;
+      
       if (_selectedFilter == 'Todos') return true;
       if (_selectedFilter == 'Partidos') return e['type'] == 'match';
       if (_selectedFilter == 'Entrenamientos') return e['type'] == 'training';
       if (_selectedFilter == 'Eventos') return e['type'] == 'event';
+      if (_selectedFilter == 'Cumpleaños') return e['type'] == 'birthday';
       return true;
     }).toList();
   }
@@ -34,7 +79,55 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(calendarEventsStreamProvider);
-    final filteredEvents = _getFilteredEvents(eventsAsync.valueOrNull ?? []);
+    final matchesAsync = ref.watch(matchesStreamProvider);
+    final playersAsync = ref.watch(playersStreamProvider);
+
+    final rawEvents = eventsAsync.valueOrNull ?? [];
+    final rawMatches = matchesAsync.valueOrNull ?? [];
+    final rawPlayers = playersAsync.valueOrNull ?? [];
+
+    final List<Map<String, dynamic>> allEvents = [];
+
+    for (final e in rawEvents) {
+      final modifiedEvent = Map<String, dynamic>.from(e);
+      if (modifiedEvent['eventCategory'] != null) {
+        modifiedEvent['category'] = modifiedEvent['eventCategory'];
+      }
+      allEvents.add(modifiedEvent);
+    }
+
+    for (final m in rawMatches) {
+      final date = m['date'] as String?;
+      if (date == null) continue;
+      allEvents.add({
+        'title': '${m['homeTeam']} vs ${m['awayTeam']}',
+        'type': 'match',
+        'date': date,
+        'time': m['time'] ?? '',
+        'location': m['location'] ?? 'Cancha',
+        'category': m['category'] ?? '',
+      });
+    }
+
+    for (final p in rawPlayers) {
+      if (p['birthDate'] != null) {
+        final birthDate = (p['birthDate'] as Timestamp).toDate();
+        final dateStr = '${_currentMonth.year}-${birthDate.month.toString().padLeft(2, '0')}-${birthDate.day.toString().padLeft(2, '0')}';
+        final name = '${p['name'] ?? ''} ${p['lastName'] ?? ''}'.trim();
+        final age = _currentMonth.year - birthDate.year;
+        
+        allEvents.add({
+          'title': 'Cumpleaños de $name ($age años)',
+          'type': 'birthday',
+          'date': dateStr,
+          'time': 'Todo el día',
+          'location': '',
+          'category': p['category'] ?? '',
+        });
+      }
+    }
+
+    final filteredEvents = _getFilteredEvents(allEvents);
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -43,7 +136,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.today, size: 22),
-            onPressed: () => setState(() => _selectedDay = DateTime.now().day),
+            onPressed: _setToday,
           ),
         ],
       ),
@@ -56,19 +149,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: Icon(
-                    Icons.chevron_left,
-                    color: context.colors.textSecondary,
-                  ),
-                  onPressed: () {},
+                  icon: Icon(Icons.chevron_left, color: context.colors.textSecondary),
+                  onPressed: _prevMonth,
                 ),
-                Text('Junio 2026', style: context.typography.headlineMedium),
+                Text('${_monthNames[_currentMonth.month]} ${_currentMonth.year}', style: context.typography.headlineMedium),
                 IconButton(
-                  icon: Icon(
-                    Icons.chevron_right,
-                    color: context.colors.textSecondary,
-                  ),
-                  onPressed: () {},
+                  icon: Icon(Icons.chevron_right, color: context.colors.textSecondary),
+                  onPressed: _nextMonth,
                 ),
               ],
             ).animate().fadeIn(duration: 300.ms),
@@ -100,7 +187,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           // ─── Calendar Grid ────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: _buildCalendarGrid(),
+            child: _buildCalendarGrid(allEvents),
           ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
 
           const SizedBox(height: 16),
@@ -171,7 +258,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'No hay eventos',
+                            'No hay eventos para este día',
                             style: context.typography.titleMedium.copyWith(
                               color: context.colors.textSecondary,
                             ),
@@ -194,7 +281,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             location: event['location'] as String,
                             category: event['category'] as String,
                           )
-                          .animate(delay: (300 + index * 60).ms)
+                          .animate(delay: (100 + index * 60).ms)
                           .fadeIn(duration: 400.ms)
                           .slideX(begin: 0.03);
                     },
@@ -205,21 +292,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  Widget _buildCalendarGrid() {
-    // June 2026 starts on Monday (day 1 = Monday)
-    const daysInMonth = 30;
-    const startWeekday = 1; // Monday = 1
+  Widget _buildCalendarGrid(List<Map<String, dynamic>> allEvents) {
+    final daysInMonth = DateUtils.getDaysInMonth(_currentMonth.year, _currentMonth.month);
+    final firstDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month, 1);
+    final startWeekday = firstDayOfMonth.weekday; // 1 (Mon) to 7 (Sun)
 
-    // Event days for highlighting
-    final List<Map<String, dynamic>> allEvents = [];
-    final eventDays = allEvents.map((e) {
-      return int.parse((e['date'] as String).split('-')[2]);
-    }).toSet();
-
-    final matchDays = allEvents
-        .where((e) => e['type'] == 'match')
-        .map((e) => int.parse((e['date'] as String).split('-')[2]))
-        .toSet();
+    final eventDates = allEvents.map((e) => e['date'] as String).toSet();
+    final matchDates = allEvents.where((e) => e['type'] == 'match').map((e) => e['date'] as String).toSet();
 
     return GridView.builder(
       shrinkWrap: true,
@@ -234,13 +313,17 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         final day = index - startWeekday + 2;
         if (day > daysInMonth) return const SizedBox();
 
-        final isSelected = day == _selectedDay;
-        final hasEvent = eventDays.contains(day);
-        final hasMatch = matchDays.contains(day);
-        final isToday = day == 8; // June 8
+        final date = DateTime(_currentMonth.year, _currentMonth.month, day);
+        final dateStr = _formatDateString(date);
+
+        final isSelected = date.year == _selectedDate.year && date.month == _selectedDate.month && date.day == _selectedDate.day;
+        final now = DateTime.now();
+        final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+        final hasEvent = eventDates.contains(dateStr);
+        final hasMatch = matchDates.contains(dateStr);
 
         return GestureDetector(
-          onTap: () => setState(() => _selectedDay = day),
+          onTap: () => setState(() => _selectedDate = date),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             margin: const EdgeInsets.all(2),
@@ -311,6 +394,8 @@ class _CalendarEventCard extends StatelessWidget {
         return context.colors.primary;
       case 'training':
         return context.colors.success;
+      case 'birthday':
+        return context.colors.warning;
       default:
         return context.colors.accent;
     }
@@ -322,6 +407,8 @@ class _CalendarEventCard extends StatelessWidget {
         return Icons.sports_soccer;
       case 'training':
         return Icons.fitness_center;
+      case 'birthday':
+        return Icons.cake;
       default:
         return Icons.event;
     }
@@ -333,6 +420,8 @@ class _CalendarEventCard extends StatelessWidget {
         return 'PARTIDO';
       case 'training':
         return 'ENTRENAMIENTO';
+      case 'birthday':
+        return 'CUMPLEAÑOS';
       default:
         return 'EVENTO';
     }
@@ -367,14 +456,18 @@ class _CalendarEventCard extends StatelessWidget {
                           ? JNBadgeType.error
                           : type == 'training'
                           ? JNBadgeType.success
+                          : type == 'birthday'
+                          ? JNBadgeType.warning
                           : JNBadgeType.accent,
                       small: true,
                     ),
-                    const SizedBox(width: 6),
-                    JNBadge(
-                      label: category.toUpperCase(),
-                      small: true,
-                    ),
+                    if (category.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      JNBadge(
+                        label: category.toUpperCase(),
+                        small: true,
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -389,21 +482,23 @@ class _CalendarEventCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(time, style: context.typography.bodySmall),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 13,
-                      color: context.colors.textTertiary,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        location,
-                        style: context.typography.bodySmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    if (location.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 13,
+                        color: context.colors.textTertiary,
                       ),
-                    ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          location,
+                          style: context.typography.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],

@@ -32,12 +32,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   late TextEditingController _dniController;
   late TextEditingController _weightController;
   late TextEditingController _heightController;
-  late TextEditingController _ageController;
   late TextEditingController _fatherNameController;
   late TextEditingController _motherNameController;
   late TextEditingController _phone1Controller;
   late TextEditingController _phone2Controller;
 
+  DateTime? _birthDate;
   String? _avatarPath;
   String? _aptoFisicoPath;
   DateTime? _aptoFisicoExpiry;
@@ -53,7 +53,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     _dniController = TextEditingController(text: user?.dni ?? '');
     _weightController = TextEditingController(text: user?.weight ?? '');
     _heightController = TextEditingController(text: user?.height ?? '');
-    _ageController = TextEditingController(text: user?.age?.toString() ?? '');
+    _birthDate = user?.birthDate;
     _fatherNameController = TextEditingController(text: user?.fatherName ?? '');
     _motherNameController = TextEditingController(text: user?.motherName ?? '');
     _phone1Controller = TextEditingController(text: user?.phone1 ?? '');
@@ -71,7 +71,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     _dniController.dispose();
     _weightController.dispose();
     _heightController.dispose();
-    _ageController.dispose();
     _fatherNameController.dispose();
     _motherNameController.dispose();
     _phone1Controller.dispose();
@@ -118,6 +117,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           if (playerDoc.exists) {
             children.add({
               'id': playerDoc.id,
+              'linkId': doc.id,
               ...playerDoc.data()!,
               'linkStatus': status,
               'isEnabledByTutor': isEnabledByTutor,
@@ -137,6 +137,18 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     if (user == null) return;
 
     try {
+      int? ageInt;
+      String? computedCategory;
+      if (_birthDate != null) {
+        final now = DateTime.now();
+        ageInt = now.year - _birthDate!.year;
+        if (now.month < _birthDate!.month ||
+            (now.month == _birthDate!.month && now.day < _birthDate!.day)) {
+          ageInt--;
+        }
+        computedCategory = _birthDate!.year.toString();
+      }
+      
       final updatedData = user.role != 'jugador'
           ? {
               'name': _nameController.text.trim(),
@@ -152,7 +164,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               'dni': _dniController.text.trim(),
               'weight': _weightController.text.trim(),
               'height': _heightController.text.trim(),
-              'age': int.tryParse(_ageController.text.trim()),
+              if (ageInt != null) 'age': ageInt,
+              if (_birthDate != null) 'birthDate': Timestamp.fromDate(_birthDate!),
+              if (computedCategory != null) 'category': computedCategory,
               'fatherName': _fatherNameController.text.trim(),
               'motherName': _motherNameController.text.trim(),
               'avatarUrl': _avatarPath,
@@ -175,12 +189,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         lastName: _lastNameController.text.trim(),
         email: user.email,
         role: user.role,
-        category: user.category,
+        category: computedCategory ?? user.category,
         childId: user.childId,
         dni: _dniController.text.trim(),
         weight: user.role == 'jugador' ? _weightController.text.trim() : null,
         height: user.role == 'jugador' ? _heightController.text.trim() : null,
-        age: user.role == 'jugador' ? int.tryParse(_ageController.text.trim()) : null,
+        age: user.role == 'jugador' ? ageInt : null,
+        birthDate: user.role == 'jugador' ? _birthDate : null,
         fatherName: user.role == 'jugador' ? _fatherNameController.text.trim() : null,
         motherName: user.role == 'jugador' ? _motherNameController.text.trim() : null,
         aptoFisicoUrl: user.role == 'jugador' ? _aptoFisicoPath : null,
@@ -522,19 +537,38 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           ),
                         ] else ...[
                           const SizedBox(height: 12),
+                          InkWell(
+                            onTap: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate:
+                                    _birthDate ??
+                                    DateTime.now().subtract(
+                                      const Duration(days: 365 * 10),
+                                    ),
+                                firstDate: DateTime(1900),
+                                lastDate: DateTime.now().subtract(const Duration(days: 1)),
+                              );
+                              if (date != null) {
+                                setState(() => _birthDate = date);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                labelText: 'Fecha de Nacimiento',
+                                errorText: _birthDate == null ? 'Requerido' : null,
+                              ),
+                              child: Text(
+                                _birthDate != null
+                                    ? '${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}'
+                                    : 'Seleccionar fecha',
+                                style: context.typography.bodyLarge,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           Row(
                             children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _ageController,
-                                  style: context.typography.bodyLarge,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Edad',
-                                  ),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
                               Expanded(
                                 child: TextFormField(
                                   controller: _heightController,

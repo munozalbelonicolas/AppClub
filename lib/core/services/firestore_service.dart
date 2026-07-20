@@ -163,8 +163,17 @@ final playersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 
 final appCategoriesProvider = Provider<List<String>>((ref) {
   final categoriesAsync = ref.watch(categoriesStreamProvider);
-  final categories = categoriesAsync.valueOrNull ?? [];
-  return categories.isEmpty ? ['Sub-8', 'Sub-10', 'Sub-12', 'Primera'] : categories;
+  final fetchedCategories = categoriesAsync.valueOrNull ?? [];
+  
+  // Strict filter: only allow categories that are 4 digits (e.g., 2010, 2021)
+  final validCategories = fetchedCategories
+      .map((c) => c.trim())
+      .where((cat) => RegExp(r'^\d{4}$').hasMatch(cat))
+      .toList();
+      
+  return validCategories.isEmpty 
+      ? ['2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021'] 
+      : validCategories;
 });
 
 final playerProfileStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, playerId) {

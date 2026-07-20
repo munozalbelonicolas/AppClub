@@ -186,10 +186,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(8),
                     ],
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return 'Requerido para socios';
-                      if (v.trim().length < 7 || v.trim().length > 9) return 'DNI inválido';
+                      if (v.trim().length != 8) return 'El DNI debe tener 8 dígitos';
                       return null;
                     },
                   ),

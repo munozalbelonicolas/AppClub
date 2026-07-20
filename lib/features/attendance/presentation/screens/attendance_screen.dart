@@ -101,9 +101,24 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final sessionUser = ref.watch(currentUserProvider);
     if (sessionUser == null) return const Scaffold();
 
-    final categories = sessionUser.assignedCategories ?? [];
+    final allCategories = ref.watch(appCategoriesProvider);
+
+    final isAdmin = sessionUser.role == 'directivo' || sessionUser.role == 'secretario';
+    final isCoach = sessionUser.role == 'dt';
+
+    List<String> categories = allCategories;
+    if (isCoach) {
+      categories = sessionUser.assignedCategories ?? [];
+      if (categories.isEmpty && sessionUser.category != null) {
+        categories = [sessionUser.category!];
+      }
+    }
+
     if (_selectedCategory == null && categories.isNotEmpty) {
-      _selectedCategory = categories.first;
+      // Defer state update during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selectedCategory = categories.first);
+      });
     }
 
     final allPlayersAsync = ref.watch(playersStreamProvider);

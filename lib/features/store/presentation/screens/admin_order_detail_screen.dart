@@ -65,12 +65,18 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
           notifMessage = '📦 Tu pedido de ${orderData['productName']} fue entregado.';
           break;
         case 'rejected':
-          notifType = 'store_order_rejected';
-          notifMessage = '❌ Tu pedido de ${orderData['productName']} fue rechazado: ${notes ?? ''}';
-          // Restore stock
-          await FirebaseFirestore.instance.collection('store_products').doc(orderData['productId']).update({
-            'stock': FieldValue.increment(orderData['quantity'] ?? 1),
-          });
+          final isQuota = orderData['isQuotaPayment'] == true;
+          notifType = isQuota ? 'quota_payment_rejected' : 'store_order_rejected';
+          notifMessage = isQuota 
+              ? '❌ Tu pago de cuota para ${orderData['productName'].split(' - ').last} fue rechazado: ${notes ?? ''}'
+              : '❌ Tu pedido de ${orderData['productName']} fue rechazado: ${notes ?? ''}';
+          // Restore stock for store orders
+          if (!isQuota && orderData['productId'] != null) {
+            final qty = (orderData['quantity'] as num?)?.toInt() ?? 1;
+            await FirebaseFirestore.instance.collection('store_products').doc(orderData['productId']).update({
+              'stock': FieldValue.increment(qty),
+            });
+          }
           break;
         default:
           return;
@@ -158,7 +164,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Status
-                Center(child: OrderStatusBadge(status: status)),
+                Center(child: OrderStatusBadge(status: status, isQuota: data['isQuotaPayment'] == true)),
                 const SizedBox(height: 20),
 
                 // Buyer info

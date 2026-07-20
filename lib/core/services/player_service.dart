@@ -88,6 +88,7 @@ class PlayerService {
         
         // Dynamically assign and create category based on birth year
         computedCategory = birthDate.year.toString();
+
         final categoryRef = _db.collection('categories').doc(computedCategory);
         final categorySnap = await categoryRef.get();
         if (!categorySnap.exists) {

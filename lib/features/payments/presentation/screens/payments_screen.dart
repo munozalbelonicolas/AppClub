@@ -26,6 +26,28 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
     try {
       final user = ref.read(currentUserProvider)!;
       final db = FirebaseFirestore.instance;
+
+      // Verificar si ya existe una solicitud de pago de cuota pendiente o con comprobante subido
+      final existingOrders = await db.collection('store_orders')
+          .where('buyerId', isEqualTo: user.id)
+          .where('playerId', isEqualTo: player['id'])
+          .where('isQuotaPayment', isEqualTo: true)
+          .where('status', whereIn: ['pending_payment', 'payment_uploaded'])
+          .get();
+
+      if (existingOrders.docs.isNotEmpty) {
+        // Si existe, simplemente navegamos a esa orden
+        final existingOrderId = existingOrders.docs.first.id;
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OrderDetailScreen(orderId: existingOrderId),
+            ),
+          );
+        }
+        return;
+      }
       
       final orderRef = await db.collection('store_orders').add({
         'buyerId': user.id,

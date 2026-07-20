@@ -283,8 +283,8 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                   ],
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Requerido';
-                    if (v.length < 7 || v.length > 8) {
-                      return 'El DNI debe tener 7 u 8 dígitos';
+                    if (v.length != 8) {
+                      return 'El DNI debe tener 8 dígitos';
                     }
                     return null;
                   },

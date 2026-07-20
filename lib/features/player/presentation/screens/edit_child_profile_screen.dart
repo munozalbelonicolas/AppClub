@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/services/app_logger.dart';
+import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
@@ -34,8 +35,8 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
   late TextEditingController _lastNameController;
   late TextEditingController _weightController;
   late TextEditingController _heightController;
-  late TextEditingController _ageController;
 
+  DateTime? _birthDate;
   String? _avatarPath;
   String? _aptoFisicoPath;
   DateTime? _aptoFisicoExpiry;
@@ -50,7 +51,10 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
     _lastNameController = TextEditingController(text: data['lastName'] ?? '');
     _weightController = TextEditingController(text: data['weight']?.toString() ?? '');
     _heightController = TextEditingController(text: data['height']?.toString() ?? '');
-    _ageController = TextEditingController(text: data['age']?.toString() ?? '');
+
+    if (data['birthDate'] != null && data['birthDate'] is Timestamp) {
+      _birthDate = (data['birthDate'] as Timestamp).toDate();
+    }
 
     _avatarPath = data['avatarUrl'];
     _aptoFisicoPath = data['aptoFisicoUrl'];
@@ -66,7 +70,6 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
     _lastNameController.dispose();
     _weightController.dispose();
     _heightController.dispose();
-    _ageController.dispose();
     super.dispose();
   }
 
@@ -112,14 +115,38 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
     setState(() => _isLoading = true);
 
     try {
+      String? finalAvatarUrl = _avatarPath;
+      if (_avatarPath != null && !_avatarPath!.startsWith('http')) {
+        finalAvatarUrl = await ImageUploadService.uploadProductImage(File(_avatarPath!));
+      }
+
+      String? finalAptoUrl = _aptoFisicoPath;
+      if (_aptoFisicoPath != null && !_aptoFisicoPath!.startsWith('http')) {
+        finalAptoUrl = await ImageUploadService.uploadProductImage(File(_aptoFisicoPath!));
+      }
+
+      int? age;
+      String? computedCategory;
+      if (_birthDate != null) {
+        final now = DateTime.now();
+        age = now.year - _birthDate!.year;
+        if (now.month < _birthDate!.month ||
+            (now.month == _birthDate!.month && now.day < _birthDate!.day)) {
+          age--;
+        }
+        computedCategory = _birthDate!.year.toString();
+      }
+
       final updatedData = {
         'name': _nameController.text.trim(),
         'lastName': _lastNameController.text.trim(),
         'weight': _weightController.text.trim(),
         'height': _heightController.text.trim(),
-        'age': int.tryParse(_ageController.text.trim()),
-        'avatarUrl': _avatarPath,
-        'aptoFisicoUrl': _aptoFisicoPath,
+        if (age != null) 'age': age,
+        if (_birthDate != null) 'birthDate': Timestamp.fromDate(_birthDate!),
+        if (computedCategory != null) 'category': computedCategory,
+        'avatarUrl': finalAvatarUrl,
+        'aptoFisicoUrl': finalAptoUrl,
         'aptoFisicoExpiry': _aptoFisicoExpiry != null
             ? Timestamp.fromDate(_aptoFisicoExpiry!)
             : null,
@@ -129,6 +156,16 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
           .collection('users')
           .doc(widget.childId)
           .update(updatedData);
+
+      final linkId = widget.childData['linkId'] as String?;
+      if (linkId != null) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('player_tutor_links')
+              .doc(linkId)
+              .update({'updatedAt': FieldValue.serverTimestamp()});
+        } catch (_) {}
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -271,17 +308,38 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
                     },
                   ),
                   const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate:
+                            _birthDate ??
+                            DateTime.now().subtract(
+                              const Duration(days: 365 * 10),
+                            ),
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime.now().subtract(const Duration(days: 1)),
+                      );
+                      if (date != null) {
+                        setState(() => _birthDate = date);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Fecha de Nacimiento',
+                        errorText: _birthDate == null ? 'Requerido' : null,
+                      ),
+                      child: Text(
+                        _birthDate != null
+                            ? '${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}'
+                            : 'Seleccionar fecha',
+                        style: context.typography.bodyLarge,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _ageController,
-                          style: context.typography.bodyLarge,
-                          decoration: const InputDecoration(labelText: 'Edad'),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
                           controller: _heightController,

@@ -14,6 +14,7 @@ import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../data/repositories/announcement_repository.dart';
+import 'story_export_screen.dart';
 
 class CommunicationsScreen extends ConsumerStatefulWidget {
   const CommunicationsScreen({super.key});
@@ -69,6 +70,15 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     final bool isDT = sessionUser.role == 'dt';
     if (isDT && sessionUser.category != null) {
       selectedCategory = sessionUser.category!;
+    }
+    
+    String? selectedEventCategory;
+    if (isDT) {
+      if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
+        selectedEventCategory = sessionUser.assignedCategories!.first;
+      } else {
+        selectedEventCategory = sessionUser.category;
+      }
     }
 
     final appCategories = ref.read(appCategoriesProvider);
@@ -191,6 +201,26 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                       ),
                       if (eventType != 'ninguno') ...[
                         const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          dropdownColor: context.colors.surface,
+                          initialValue: selectedEventCategory,
+                          decoration: const InputDecoration(labelText: 'Categoría del Evento/Partido'),
+                          items: (isDT 
+                            ? (sessionUser.assignedCategories ?? (sessionUser.category != null ? [sessionUser.category!] : <String>[])) 
+                            : appCategories).map((cat) {
+                            return DropdownMenuItem<String>(
+                              value: cat,
+                              child: Text(cat.toString().toUpperCase(), style: context.typography.bodyLarge),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setDialogState(() {
+                              selectedEventCategory = val;
+                            });
+                          },
+                          validator: (val) => val == null ? 'Requerido para eventos' : null,
+                        ),
+                        const SizedBox(height: 12),
                         SwitchListTile(
                           title: const Row(
                             children: [
@@ -262,6 +292,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: context.colors.primary,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
@@ -276,6 +307,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         'title': titleController.text.trim(),
                         'body': bodyController.text.trim(),
                         'category': selectedCategory,
+                        'eventCategory': selectedEventCategory,
                         'priority': selectedPriority,
                         'date': dateStr,
                         'read': false,
@@ -393,7 +425,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: context.colors.primary,
-          labelColor: Colors.white,
+          labelColor: context.colors.primary,
           unselectedLabelColor: context.colors.textSecondary,
           tabs: const [
             Tab(text: 'Todos'),
@@ -578,9 +610,33 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                               );
                         } else if (value == 'view_views') {
                           _showViewsDialog(context, seenByList);
+                        } else if (value == 'export_story') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => StoryExportScreen(announcement: ann),
+                            ),
+                          );
                         }
                       },
                       itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'export_story',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.mobile_screen_share,
+                                size: 18,
+                                color: context.colors.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Exportar para Redes (Historia)',
+                                style: context.typography.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
                         PopupMenuItem(
                           value: 'view_views',
                           child: Row(

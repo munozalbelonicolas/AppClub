@@ -68,7 +68,7 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
       ),
       body: Column(
         children: [
-          if (isAdmin)
+          if (isAdmin || isCoach)
             Container(
               color: context.colors.surface,
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
@@ -77,6 +77,14 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
                   final categoriesAsync = ref.watch(categoriesStreamProvider);
                   return categoriesAsync.when(
                     data: (categories) {
+                      List<String> displayCategories = categories;
+                      if (isCoach) {
+                        displayCategories = user.assignedCategories ?? [];
+                        if (displayCategories.isEmpty && user.category != null) {
+                          displayCategories = [user.category!];
+                        }
+                      }
+
                       return DropdownButtonFormField<String>(
                         // ignore: deprecated_member_use
                         value: _selectedCategory,
@@ -85,8 +93,9 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
                           prefixIcon: Icon(Icons.filter_list),
                         ),
                         items: [
-                          const DropdownMenuItem(child: Text('Todas las categorías')),
-                          ...categories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+                          if (isAdmin || (isCoach && displayCategories.length > 1))
+                            DropdownMenuItem(value: null, child: Text(isCoach ? 'Mis categorías' : 'Todas las categorías')),
+                          ...displayCategories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
                         ],
                         onChanged: (val) {
                           setState(() {
@@ -99,17 +108,6 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
                     error: (e, s) => Text('Error al cargar categorías', style: TextStyle(color: context.colors.error)),
                   );
                 },
-              ),
-            ),
-          
-          if (isCoach)
-            Container(
-              color: context.colors.surface,
-              padding: const EdgeInsets.all(AppSpacing.md),
-              width: double.infinity,
-              child: Text(
-                'Mostrando jugadores de tu categoría: ${user.category ?? "Sin asignar"}',
-                style: context.typography.bodyMedium.copyWith(color: context.colors.textSecondary),
               ),
             ),
 
@@ -132,11 +130,23 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
                 var docs = snapshot.data?.docs ?? [];
                 
                 // Filter by category if selected
-                final effectiveCategory = isCoach ? user.category : _selectedCategory;
-                if (effectiveCategory != null) {
+                List<String>? allowedCategories;
+                if (isCoach) {
+                  allowedCategories = user.assignedCategories ?? [];
+                  if (allowedCategories.isEmpty && user.category != null) {
+                    allowedCategories = [user.category!];
+                  }
+                }
+
+                if (_selectedCategory != null) {
                   docs = docs.where((doc) {
                     final data = doc.data() as Map<String, dynamic>;
-                    return data['category'] == effectiveCategory;
+                    return data['category'] == _selectedCategory;
+                  }).toList();
+                } else if (isCoach && allowedCategories != null) {
+                  docs = docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return allowedCategories!.contains(data['category']);
                   }).toList();
                 }
 
@@ -231,6 +241,16 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
     });
 
     try {
+      final user = ref.read(currentUserProvider);
+      final isCoach = user?.role == 'dt';
+      List<String>? allowedCategories;
+      if (isCoach) {
+        allowedCategories = user?.assignedCategories ?? [];
+        if (allowedCategories.isEmpty && user?.category != null) {
+          allowedCategories = [user!.category!];
+        }
+      }
+
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('role', isEqualTo: 'jugador')
@@ -242,6 +262,11 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
         docs = docs.where((doc) {
           final data = doc.data();
           return data['category'] == categoryFilter;
+        }).toList();
+      } else if (isCoach && allowedCategories != null) {
+        docs = docs.where((doc) {
+          final data = doc.data();
+          return allowedCategories!.contains(data['category']);
         }).toList();
       }
 

@@ -275,7 +275,7 @@ class CoachDashboardScreen extends ConsumerWidget {
                             JNAvatar(
                               name: '${player['name']} ${player['lastName']}',
                               size: 40,
-                              number: player['number'] as int,
+                              number: player['number'] != null ? int.tryParse(player['number'].toString()) : null,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -289,14 +289,14 @@ class CoachDashboardScreen extends ConsumerWidget {
                                   Row(
                                     children: [
                                       Text(
-                                        player['position'] as String,
+                                        player['position']?.toString() ?? 'Sin Posición',
                                         style: context.typography.bodySmall,
                                       ),
                                       const SizedBox(width: 8),
                                       Text('·', style: context.typography.bodySmall),
                                       const SizedBox(width: 8),
                                       Text(
-                                        '${player['age']} años',
+                                        '${player['age'] ?? '-'} años',
                                         style: context.typography.bodySmall,
                                       ),
                                     ],
@@ -317,7 +317,7 @@ class CoachDashboardScreen extends ConsumerWidget {
                                     ),
                                     const SizedBox(width: 3),
                                     Text(
-                                      '${player['goals']}',
+                                      '${player['goals'] ?? 0}',
                                       style: context.typography.labelMedium.copyWith(
                                         color: context.colors.primary,
                                       ),
@@ -326,9 +326,9 @@ class CoachDashboardScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${player['attendance']}%',
+                                  '${player['attendance'] ?? 0}%',
                                   style: context.typography.bodySmall.copyWith(
-                                    color: (player['attendance'] as int) >= 90
+                                    color: (int.tryParse(player['attendance']?.toString() ?? '0') ?? 0) >= 90
                                         ? context.colors.success
                                         : context.colors.warning,
                                   ),

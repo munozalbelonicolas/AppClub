@@ -197,8 +197,9 @@ class SponsorsManagementScreen extends ConsumerWidget {
                           final storageRef = FirebaseStorage.instance.ref().child(
                             'sponsors/sponsor_${DateTime.now().millisecondsSinceEpoch}.jpg'
                           );
-                          await storageRef.putFile(File(selectedImagePath!));
-                          finalImageUrl = await storageRef.getDownloadURL();
+                          final uploadTask = storageRef.putFile(File(selectedImagePath!));
+                          final snapshot = await uploadTask;
+                          finalImageUrl = await snapshot.ref.getDownloadURL();
                         }
 
                         final sponsorRepo = ref.read(sponsorRepositoryProvider);

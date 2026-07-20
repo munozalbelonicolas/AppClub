@@ -137,7 +137,10 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
                         ],
                       ),
                     ),
-                    OrderStatusBadge(status: data['status'] ?? 'pending_payment'),
+                    OrderStatusBadge(
+                      status: data['status'] ?? 'pending_payment',
+                      isQuota: data['isQuotaPayment'] == true,
+                    ),
                   ],
                 ),
               ).animate().fadeIn(duration: 300.ms, delay: (index * 50).ms);
