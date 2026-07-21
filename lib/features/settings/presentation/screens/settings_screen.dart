@@ -447,7 +447,7 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () {
                   showAboutDialog(
                     context: context,
-                    applicationName: 'La Jorge App',
+                    applicationName: 'Jorge Newbery App',
                     applicationVersion: '3.41',
                     applicationIcon: Image.asset('assets/images/app_logo.jpg', width: 48, height: 48),
                     applicationLegalese: 'powered by Nilotech @2026 https://nilotech.online\nTodos los derechos reservados',
@@ -499,7 +499,7 @@ class SettingsScreen extends ConsumerWidget {
           Center(
             child: Column(
               children: [
-                Text('La Jorge App', style: context.typography.bodySmall),
+                Text('Jorge Newbery App', style: context.typography.bodySmall),
                 Text('v3.41', style: context.typography.labelSmall),
               ],
             ),
