@@ -71,7 +71,7 @@ class SettingsScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    user.role.toUpperCase(),
+                    user.role.toLowerCase() == 'padre' ? 'TUTOR' : user.role.toUpperCase(),
                     style: context.typography.badge.copyWith(
                       color: context.colors.accent,
                     ),
@@ -441,7 +441,19 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
-              const _SettingNav(icon: Icons.info_outline, label: 'Sobre el club'),
+              _SettingNav(
+                icon: Icons.info_outline,
+                label: 'Acerca de',
+                onTap: () {
+                  showAboutDialog(
+                    context: context,
+                    applicationName: 'La Jorge App',
+                    applicationVersion: '3.41',
+                    applicationIcon: Image.asset('assets/images/app_logo.jpg', width: 48, height: 48),
+                    applicationLegalese: 'powered by Nilotech @2026 https://nilotech.online\nTodos los derechos reservados',
+                  );
+                },
+              ),
               _SettingNav(
                 icon: Icons.description_outlined,
                 label: 'Términos y condiciones',
@@ -487,8 +499,8 @@ class SettingsScreen extends ConsumerWidget {
           Center(
             child: Column(
               children: [
-                Text('Jorge Newbery App', style: context.typography.bodySmall),
-                Text('v1.0.0', style: context.typography.labelSmall),
+                Text('La Jorge App', style: context.typography.bodySmall),
+                Text('v3.41', style: context.typography.labelSmall),
               ],
             ),
           ),

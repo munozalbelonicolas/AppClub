@@ -21,7 +21,7 @@ class PaymentsScreen extends ConsumerStatefulWidget {
 class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   bool _isCreatingOrder = false;
 
-  Future<void> _payQuota(Map<String, dynamic> player) async {
+  Future<void> _payQuota(Map<String, dynamic> player, String quotaMonth) async {
     setState(() => _isCreatingOrder = true);
     try {
       final user = ref.read(currentUserProvider)!;
@@ -32,6 +32,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           .where('buyerId', isEqualTo: user.id)
           .where('playerId', isEqualTo: player['id'])
           .where('isQuotaPayment', isEqualTo: true)
+          .where('quotaMonth', isEqualTo: quotaMonth)
           .where('status', whereIn: ['pending_payment', 'payment_uploaded'])
           .get();
 
@@ -54,13 +55,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         'buyerName': '${user.name} ${user.lastName}',
         'buyerEmail': user.email,
         'productId': 'cuota_cooperadora',
-        'productName': 'Cuota Cooperadora - ${player['name']} ${player['lastName']}',
+        'productName': 'Cuota $quotaMonth - ${player['name']} ${player['lastName']}',
         'productImageUrl': null,
         'selectedSize': 'N/A',
         'quantity': 1,
         'totalPrice': 0, // El administrador validará el monto según el comprobante
         'status': 'pending_payment',
         'isQuotaPayment': true,
+        'quotaMonth': quotaMonth,
         'playerId': player['id'],
         'receiptUrl': null,
         'receiptUploadedAt': null,
@@ -129,7 +131,61 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                   trailing: const Icon(Icons.payment),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _payQuota(p);
+                    _showMonthSelectionDialog(p);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancelar', style: TextStyle(color: context.colors.primary)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showMonthSelectionDialog(Map<String, dynamic> player) {
+    final currentYear = DateTime.now().year;
+    final months = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: context.colors.surface,
+          title: Text('Seleccionar Mes', style: context.typography.titleLarge),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: 12,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final monthStr = '${index + 1}'.padLeft(2, '0');
+                final quotaMonth = '$monthStr/$currentYear';
+                final monthName = months[index];
+                
+                final paidQuotas = List<String>.from(player['paidQuotas'] ?? []);
+                final isPaid = paidQuotas.contains(quotaMonth);
+
+                return ListTile(
+                  tileColor: context.colors.background,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  title: Text('$monthName $currentYear', style: context.typography.titleMedium),
+                  trailing: isPaid 
+                    ? const Icon(Icons.check_circle, color: Colors.green) 
+                    : const Icon(Icons.chevron_right, color: Colors.grey),
+                  enabled: !isPaid,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _payQuota(player, quotaMonth);
                   },
                 );
               },
@@ -235,8 +291,27 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                     }
                     return Column(
                       children: players.map((p) {
-                        final quotaStatus = p['quotaStatus'] as String? ?? 'atrasado';
-                        final isAlDia = quotaStatus == 'al_dia';
+                        final currentYear = DateTime.now().year;
+                        final currentMonth = DateTime.now().month;
+                        final paidQuotas = List<String>.from(p['paidQuotas'] ?? []);
+                        
+                        final missingMonths = <String>[];
+                        final monthNames = [
+                          'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                          'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+                        ];
+
+                        for (int i = 1; i <= currentMonth; i++) {
+                          final monthStr = '$i'.padLeft(2, '0');
+                          final quotaStr = '$monthStr/$currentYear';
+                          if (!paidQuotas.contains(quotaStr)) {
+                            missingMonths.add(monthNames[i - 1]);
+                          }
+                        }
+
+                        final isAlDia = missingMonths.isEmpty;
+                        final badgeText = isAlDia ? 'AL DÍA' : 'DEUDOR';
+                        final debtText = isAlDia ? '' : 'Debe: ${missingMonths.join(", ")}';
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -258,6 +333,13 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                                     children: [
                                       Text('${p['name']} ${p['lastName']}', style: context.typography.titleMedium),
                                       Text('Categoría: ${p['category'] ?? "Sin categoría"}', style: context.typography.bodySmall),
+                                      if (!isAlDia)
+                                        Text(
+                                          debtText, 
+                                          style: context.typography.bodySmall.copyWith(color: context.colors.error, fontWeight: FontWeight.bold),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                     ],
                                   ),
                                 ),
@@ -271,7 +353,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
-                                        isAlDia ? 'AL DÍA' : 'ATRASADO',
+                                        badgeText,
                                         style: context.typography.labelSmall.copyWith(
                                           color: isAlDia ? context.colors.success : context.colors.error,
                                           fontWeight: FontWeight.bold,
@@ -287,7 +369,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                                             backgroundColor: context.colors.primary,
                                             padding: const EdgeInsets.symmetric(horizontal: 12),
                                           ),
-                                          onPressed: () => _payQuota(p),
+                                          onPressed: () => _showMonthSelectionDialog(p),
                                           child: const Text('Pagar', style: TextStyle(fontSize: 12, color: Colors.white)),
                                         ),
                                       ),

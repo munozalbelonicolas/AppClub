@@ -194,12 +194,8 @@ class SponsorsManagementScreen extends ConsumerWidget {
                         String finalImageUrl = selectedPresetImage ?? '';
                         
                         if (selectedImagePath != null) {
-                          final storageRef = FirebaseStorage.instance.ref().child(
-                            'sponsors/sponsor_${DateTime.now().millisecondsSinceEpoch}.jpg'
-                          );
-                          final uploadTask = storageRef.putFile(File(selectedImagePath!));
-                          final snapshot = await uploadTask;
-                          finalImageUrl = await snapshot.ref.getDownloadURL();
+                          // Bypass Firebase Storage and save local path directly
+                          finalImageUrl = selectedImagePath!;
                         }
 
                         final sponsorRepo = ref.read(sponsorRepositoryProvider);
@@ -505,6 +501,19 @@ class SponsorsManagementScreen extends ConsumerWidget {
 Widget _buildSponsorImage(String url) {
   if (url.startsWith('assets/')) {
     return Image.asset(url, width: 80, height: 80, fit: BoxFit.cover);
+  }
+  if (!url.startsWith('http')) {
+    return Image.file(
+      File(url),
+      width: 80,
+      height: 80,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => const SizedBox(
+        width: 80,
+        height: 80,
+        child: Icon(Icons.broken_image, color: Colors.grey),
+      ),
+    );
   }
   return CachedNetworkImage(
     imageUrl: url,

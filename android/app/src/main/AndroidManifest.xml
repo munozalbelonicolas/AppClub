@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="jorge_newbery_app"
+        android:label="La Jorge App"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -432,6 +432,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
 
               const SizedBox(height: 32),
+
+              // Powered by text
+              Center(
+                child: Text(
+                  'powered by Nilotech @2026 https://nilotech.online Todos los derecho reservados',
+                  textAlign: TextAlign.center,
+                  style: context.typography.bodySmall.copyWith(
+                    color: context.colors.textDisabled,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
             ],
           ),
         ),

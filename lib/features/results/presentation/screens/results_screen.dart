@@ -36,9 +36,22 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final categories = ref.watch(appCategoriesProvider);
+    List<String> categories = ref.watch(appCategoriesProvider);
     final sessionUser = ref.watch(currentUserProvider);
     final selectedChild = ref.watch(selectedChildProvider);
+
+    if (sessionUser?.role == 'tutor') {
+      final players = ref.watch(tutorPlayersStreamProvider(sessionUser!.id)).valueOrNull ?? [];
+      final tutorCategories = players
+          .map((p) => p['category'] as String?)
+          .where((c) => c != null && c.isNotEmpty)
+          .cast<String>()
+          .toSet()
+          .toList();
+      if (tutorCategories.isNotEmpty) {
+        categories = tutorCategories;
+      }
+    }
     
     // Set initial category from selected child if parent
     if (sessionUser?.role == 'tutor' && selectedChild != null && selectedChild['category'] != null) {

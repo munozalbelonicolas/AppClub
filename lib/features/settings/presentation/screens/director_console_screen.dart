@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -15,6 +16,7 @@ import '../widgets/admin_notifications_dialog.dart';
 import 'admin_user_profile_screen.dart';
 import 'birthdays_of_month_screen.dart';
 import 'manage_categories_screen.dart';
+import 'manage_quotas_screen.dart';
 
 class DirectorConsoleScreen extends ConsumerStatefulWidget {
   const DirectorConsoleScreen({super.key});
@@ -26,9 +28,18 @@ class DirectorConsoleScreen extends ConsumerStatefulWidget {
 class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  Timer? _debounce;
+  late Stream<QuerySnapshot> _usersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _usersStream = FirebaseFirestore.instance.collection('users').snapshots();
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -138,7 +149,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').snapshots(),
+        stream: _usersStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -238,6 +249,35 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                   child: JNCard(
                     onTap: () => Navigator.push(
                       context,
+                      MaterialPageRoute(builder: (context) => const ManageQuotasScreen()),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.monetization_on, color: context.colors.primary, size: 28),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Estado de Cuotas', style: context.typography.titleMedium),
+                              Text('Ver quiénes deben cuotas', style: context.typography.bodySmall),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: context.colors.textTertiary),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: JNCard(
+                    onTap: () => Navigator.push(
+                      context,
                       MaterialPageRoute(builder: (context) => const ConsolidatedRosterScreen()),
                     ),
                     padding: const EdgeInsets.all(16),
@@ -310,8 +350,13 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                           contentPadding: EdgeInsets.symmetric(vertical: 10),
                         ),
                         onChanged: (val) {
-                          setState(() {
-                            _searchQuery = val.toLowerCase();
+                          if (_debounce?.isActive ?? false) _debounce!.cancel();
+                          _debounce = Timer(const Duration(milliseconds: 500), () {
+                            if (mounted) {
+                              setState(() {
+                                _searchQuery = val.toLowerCase();
+                              });
+                            }
                           });
                         },
                       ),

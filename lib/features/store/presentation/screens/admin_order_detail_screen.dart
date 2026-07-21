@@ -49,10 +49,15 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
         case 'confirmed':
           final isQuota = orderData['isQuotaPayment'] == true;
           if (isQuota && orderData['playerId'] != null) {
-            await FirebaseFirestore.instance.collection('users').doc(orderData['playerId']).update({
+            final quotaMonth = orderData['quotaMonth'];
+            final updateData = <String, dynamic>{
               'quotaStatus': 'al_dia',
               'lastQuotaPaymentDate': FieldValue.serverTimestamp(),
-            });
+            };
+            if (quotaMonth != null) {
+              updateData['paidQuotas'] = FieldValue.arrayUnion([quotaMonth]);
+            }
+            await FirebaseFirestore.instance.collection('users').doc(orderData['playerId']).update(updateData);
             notifType = 'quota_payment_confirmed';
             notifMessage = '✅ Tu pago de cuota para ${orderData['productName'].split(' - ').last} fue confirmado.';
           } else {

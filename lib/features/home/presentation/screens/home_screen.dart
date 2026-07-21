@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +23,7 @@ import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
-import '../widgets/export_post_dialog.dart';
+import '../../../communications/presentation/screens/story_export_screen.dart';
 import '../widgets/sponsor_carousel.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -41,7 +44,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Future.microtask(() {
       if (mounted) {
         final sessionUser = ref.read(currentUserProvider);
-        if (sessionUser != null && (sessionUser.role == 'directivo' || sessionUser.role == 'secretario')) {
+        if (sessionUser != null &&
+            (sessionUser.role == 'directivo' ||
+                sessionUser.role == 'secretario')) {
           ref.read(birthdayServiceProvider).checkAndTriggerBirthdays();
         }
       }
@@ -59,7 +64,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             (snap) => snap.docs.where((doc) {
               final data = doc.data();
               if (data.containsKey('unreadBy')) {
-                return (data['unreadBy'] as List?)?.contains(sessionUser.id) ?? false;
+                return (data['unreadBy'] as List?)?.contains(sessionUser.id) ??
+                    false;
               }
               return (data['unreadByUser'] ?? false) == true;
             }).length,
@@ -68,7 +74,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return db.collection('inbox_threads').snapshots().map((snap) {
         var docs = snap.docs;
         if (sessionUser.role == 'dt') {
-          final assignedCats = sessionUser.assignedCategories?.map((c) => c.toLowerCase()).toList() ?? [];
+          final assignedCats =
+              sessionUser.assignedCategories
+                  ?.map((c) => c.toLowerCase())
+                  .toList() ??
+              [];
           if (assignedCats.isEmpty && sessionUser.category != null) {
             assignedCats.add(sessionUser.category!.toLowerCase());
           }
@@ -86,13 +96,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             final otherCategory = (categoriesMap[otherUserId] ?? '')
                 .toString()
                 .toLowerCase();
-            final isParticipant = (data['participants'] as List?)?.contains(sessionUser.id) ?? false;
+            final isParticipant =
+                (data['participants'] as List?)?.contains(sessionUser.id) ??
+                false;
             return assignedCats.contains(otherCategory) || isParticipant;
           }).toList();
         }
         return docs.where((doc) {
           final data = doc.data();
-          bool isUnread = (data['unreadBy'] as List?)?.contains(sessionUser.id) ?? false;
+          bool isUnread =
+              (data['unreadBy'] as List?)?.contains(sessionUser.id) ?? false;
           if (!isUnread) {
             isUnread = (data['unreadByAdmin'] == true);
           }
@@ -121,11 +134,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
-  void _showCreatePostDialog(BuildContext context, dynamic sessionUser, List<Map<String, dynamic>> clubs) {
+  void _showCreatePostDialog(
+    BuildContext context,
+    dynamic sessionUser,
+    List<Map<String, dynamic>> clubs,
+  ) {
     final titleController = TextEditingController();
     final bodyController = TextEditingController();
-    final imageUrlController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+
+    String? selectedImagePath;
+    String? selectedPresetImage;
 
     String eventType = 'ninguno';
     bool hasTransport = false;
@@ -170,7 +189,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                 side: BorderSide(color: context.colors.border, width: 0.5),
               ),
-              title: Text('Nueva Publicación', style: context.typography.titleLarge),
+              title: Text(
+                'Nueva Publicación',
+                style: context.typography.titleLarge,
+              ),
               content: Form(
                 key: formKey,
                 child: SingleChildScrollView(
@@ -205,12 +227,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: imageUrlController,
-                        style: context.typography.bodyLarge,
-                        decoration: const InputDecoration(
-                          hintText: 'URL de imagen opcional (HTTPS)',
-                          labelText: 'Imagen URL (Opcional)',
+                      Text(
+                        'Imagen de la publicación',
+                        style: context.typography.labelSmall.copyWith(
+                          color: context.colors.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final file = await picker.pickImage(
+                            source: ImageSource.gallery,
+                            imageQuality: 85,
+                          );
+                          if (file != null) {
+                            setDialogState(() {
+                              selectedImagePath = file.path;
+                              selectedPresetImage = null; // Clear preset
+                            });
+                          }
+                        },
+                        child: Container(
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: context.colors.surfaceLight,
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusMd,
+                            ),
+                            border: Border.all(
+                              color:
+                                  selectedImagePath == null &&
+                                      selectedPresetImage == null
+                                  ? context.colors.border
+                                  : context.colors.primary,
+                            ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: _buildImagePreview(
+                            selectedImagePath,
+                            selectedPresetImage,
+                            context,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -233,7 +291,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             backgroundColor: context.colors.surfaceLight,
                             onPressed: () {
                               setDialogState(() {
-                                imageUrlController.text = preset['url']!;
+                                selectedPresetImage = preset['url']!;
+                                selectedImagePath = null; // Clear local image
                               });
                             },
                           );
@@ -278,14 +337,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       DropdownButtonFormField<String>(
                         dropdownColor: context.colors.surface,
                         initialValue: eventType,
-                        decoration: const InputDecoration(labelText: 'Tipo de Evento'),
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de Evento',
+                        ),
                         items: const [
-                          DropdownMenuItem(value: 'ninguno', child: Text('Ninguno (Publicación normal)')),
-                          DropdownMenuItem(value: 'partido', child: Text('Partido')),
-                          DropdownMenuItem(value: 'evento', child: Text('Evento Especial')),
-                          DropdownMenuItem(value: 'jornada', child: Text('Jornada')),
-                          DropdownMenuItem(value: 'cuadrangular', child: Text('Cuadrangular')),
-                          DropdownMenuItem(value: 'torneo', child: Text('Torneo')),
+                          DropdownMenuItem(
+                            value: 'ninguno',
+                            child: Text('Ninguno (Publicación normal)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'partido',
+                            child: Text('Partido'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'evento',
+                            child: Text('Evento Especial'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'jornada',
+                            child: Text('Jornada'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'cuadrangular',
+                            child: Text('Cuadrangular'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'torneo',
+                            child: Text('Torneo'),
+                          ),
                         ],
                         onChanged: (val) {
                           if (val != null) {
@@ -311,7 +390,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           value: hasTransport,
                           activeThumbColor: Colors.orange,
-                          activeTrackColor: Colors.orange.withValues(alpha: 0.3),
+                          activeTrackColor: Colors.orange.withValues(
+                            alpha: 0.3,
+                          ),
                           contentPadding: EdgeInsets.zero,
                           onChanged: (val) {
                             setDialogState(() {
@@ -323,11 +404,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         DropdownButtonFormField<String>(
                           dropdownColor: context.colors.surface,
                           initialValue: selectedOpponentId,
-                          decoration: const InputDecoration(labelText: 'Club Rival (Opcional)'),
-                          items: clubs.where((c) => c['isLocal'] != true).map((club) {
+                          decoration: const InputDecoration(
+                            labelText: 'Club Rival (Opcional)',
+                          ),
+                          items: clubs.where((c) => c['isLocal'] != true).map((
+                            club,
+                          ) {
                             return DropdownMenuItem<String>(
                               value: club['id'],
-                              child: Text(club['name'], style: context.typography.bodyLarge),
+                              child: Text(
+                                club['name'],
+                                style: context.typography.bodyLarge,
+                              ),
                             );
                           }).toList(),
                           onChanged: (val) {
@@ -364,18 +452,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       await firestoreService.addNovedad({
                         'title': titleController.text.trim(),
                         'body': bodyController.text.trim(),
-                        'imageUrl': imageUrlController.text.trim().isEmpty
-                            ? null
-                            : imageUrlController.text.trim(),
+                        'imageUrl': selectedImagePath != null
+                            ? selectedImagePath
+                            : selectedPresetImage,
                         'category': selectedCategory,
                         'authorId': sessionUser.id,
                         'authorName':
                             '${sessionUser.name} ${sessionUser.lastName}',
                         'authorRole': sessionUser.role,
-                        'isMatch': eventType == 'partido', // Kept for backwards compatibility
+                        'isMatch':
+                            eventType ==
+                            'partido', // Kept for backwards compatibility
                         'eventType': eventType,
                         'hasTransport': hasTransport,
-                        'opponentClubId': (eventType != 'ninguno') ? selectedOpponentId : null,
+                        'opponentClubId': (eventType != 'ninguno')
+                            ? selectedOpponentId
+                            : null,
                       });
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -405,8 +497,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final clubs = ref.watch(clubsStreamProvider).value ?? [];
     final hasPlayer =
         sessionUser.role == 'tutor' || sessionUser.role == 'jugador';
-        
+
     final selectedChild = ref.watch(selectedChildProvider);
+
+    int unpaidQuotasCount = 0;
+    if (sessionUser.role == 'tutor' || sessionUser.role == 'jugador') {
+      final players =
+          ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ??
+          [];
+      final currentYear = DateTime.now().year;
+      final currentMonth = DateTime.now().month;
+
+      for (final p in players) {
+        final paidQuotas = List<String>.from(p['paidQuotas'] ?? []);
+        for (int i = 1; i <= currentMonth; i++) {
+          final quotaStr = '${'$i'.padLeft(2, '0')}/$currentYear';
+          if (!paidQuotas.contains(quotaStr)) {
+            unpaidQuotasCount++;
+          }
+        }
+      }
+    }
 
     // In production, these will come from streams or futures.
     // For now, we set them to empty to ensure the app doesn't crash without MockData.
@@ -419,8 +530,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String categoriesStr = sessionUser.assignedCategories?.isNotEmpty == true
         ? sessionUser.assignedCategories!.join(',')
         : (sessionUser.category ?? '');
-        
-    if (sessionUser.role == 'tutor' && selectedChild != null && selectedChild['category'] != null) {
+
+    if (sessionUser.role == 'tutor' &&
+        selectedChild != null &&
+        selectedChild['category'] != null) {
       categoriesStr = selectedChild['category'] as String;
     }
 
@@ -450,7 +563,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const SizedBox(height: 2),
                           if (sessionUser.role == 'tutor')
-                            ref.watch(tutorPlayersStreamProvider(sessionUser.id)).when(
+                            ref
+                                .watch(
+                                  tutorPlayersStreamProvider(sessionUser.id),
+                                )
+                                .when(
                                   data: (players) {
                                     if (players.isEmpty) {
                                       return Text(
@@ -458,34 +575,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         style: context.typography.bodyMedium,
                                       );
                                     }
-                                    
+
                                     // Set default selected child if null
                                     if (selectedChild == null) {
                                       Future.microtask(() {
-                                        ref.read(selectedChildProvider.notifier).state = players.first;
+                                        ref
+                                            .read(
+                                              selectedChildProvider.notifier,
+                                            )
+                                            .state = players
+                                            .first;
                                       });
                                     }
-                                    
+
                                     return DropdownButtonHideUnderline(
                                       child: DropdownButton<String>(
-                                        value: selectedChild?['id'] as String? ?? players.first['id'] as String?,
+                                        value:
+                                            selectedChild?['id'] as String? ??
+                                            players.first['id'] as String?,
                                         isDense: true,
-                                        icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-                                        style: context.typography.bodyMedium.copyWith(
-                                          color: context.colors.primary,
-                                          fontWeight: FontWeight.bold,
+                                        icon: const Icon(
+                                          Icons.keyboard_arrow_down,
+                                          size: 20,
                                         ),
+                                        style: context.typography.bodyMedium
+                                            .copyWith(
+                                              color: context.colors.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                         items: players.map((p) {
-                                          final cat = p['category'] ?? 'Sin categoría';
+                                          final cat =
+                                              p['category'] ?? 'Sin categoría';
                                           return DropdownMenuItem<String>(
                                             value: p['id'] as String,
-                                            child: Text('${p['name']} ${p['lastName']} ($cat)'),
+                                            child: Text(
+                                              '${p['name']} ${p['lastName']} ($cat)',
+                                            ),
                                           );
                                         }).toList(),
                                         onChanged: (val) {
                                           if (val != null) {
-                                            final child = players.firstWhere((p) => p['id'] == val);
-                                            ref.read(selectedChildProvider.notifier).state = child;
+                                            final child = players.firstWhere(
+                                              (p) => p['id'] == val,
+                                            );
+                                            ref
+                                                    .read(
+                                                      selectedChildProvider
+                                                          .notifier,
+                                                    )
+                                                    .state =
+                                                child;
                                           }
                                         },
                                       ),
@@ -575,8 +714,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             alignment: Alignment.center,
                             children: [
                               IconButton(
-                                icon: Icon(Icons.notifications_outlined, color: context.colors.textPrimary, size: 26),
-                                onPressed: () => showAdminNotificationsDialog(context),
+                                icon: Icon(
+                                  Icons.notifications_outlined,
+                                  color: context.colors.textPrimary,
+                                  size: 26,
+                                ),
+                                onPressed: () =>
+                                    showAdminNotificationsDialog(context),
                               ),
                               if (unreadCount > 0)
                                 Positioned(
@@ -686,7 +830,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       icon: Icons.payment,
                       label: 'Cuotas',
                       color: context.colors.info,
-                      badge: '1',
+                      badge: unpaidQuotasCount > 0
+                          ? '$unpaidQuotasCount'
+                          : null,
                       onTap: () {
                         Navigator.push(
                           context,
@@ -730,7 +876,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: context.colors.warning.withValues(alpha: 0.12),
+                            color: context.colors.warning.withValues(
+                              alpha: 0.12,
+                            ),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -902,19 +1050,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         (e) => Map<String, dynamic>.from(e as Map),
                       ),
                     );
-                    final likes = List<String>.from(post['likes'] as List? ?? []);
+                    final likes = List<String>.from(
+                      post['likes'] as List? ?? [],
+                    );
                     final hasLiked = likes.contains(sessionUser.id);
-                    
+
                     final seenByList = List<Map<String, dynamic>>.from(
                       (post['seenBy'] as List? ?? []).map(
                         (e) => Map<String, dynamic>.from(e as Map),
                       ),
                     );
-                    final hasSeen = seenByList.any((e) => e['userId'] == sessionUser.id);
+                    final hasSeen = seenByList.any(
+                      (e) => e['userId'] == sessionUser.id,
+                    );
 
                     if (!hasSeen) {
                       Future.microtask(() {
-                        ref.read(firestoreServiceProvider).novedades.markNovedadAsSeen(postId, sessionUser);
+                        ref
+                            .read(firestoreServiceProvider)
+                            .novedades
+                            .markNovedadAsSeen(postId, sessionUser);
                       });
                     }
 
@@ -959,14 +1114,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ),
                                       Text(
                                         '${(post['authorRole'] ?? '').toUpperCase()} · ${post['category'] == 'all' ? 'Global' : post['category']}',
-                                        style: context.typography.bodySmall.copyWith(
-                                          color: context.colors.textTertiary,
-                                        ),
+                                        style: context.typography.bodySmall
+                                            .copyWith(
+                                              color:
+                                                  context.colors.textTertiary,
+                                            ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                if (!sessionUser.isNormalUser || post['type'] == 'birthday')
+                                if (!sessionUser.isNormalUser ||
+                                    post['type'] == 'birthday')
                                   IconButton(
                                     icon: Icon(
                                       Icons.share,
@@ -974,10 +1132,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       size: 20,
                                     ),
                                     onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) =>
-                                            ExportPostDialog(postId: postId),
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              StoryExportScreen(
+                                                announcement: post,
+                                              ),
+                                        ),
                                       );
                                     },
                                   ),
@@ -994,7 +1156,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       if (value == 'delete') {
                                         _confirmDeletePost(context, postId);
                                       } else if (value == 'view_views') {
-                                        _showNovedadViewsDialog(context, seenByList);
+                                        _showNovedadViewsDialog(
+                                          context,
+                                          seenByList,
+                                        );
                                       }
                                     },
                                     itemBuilder: (context) => [
@@ -1011,7 +1176,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                               const SizedBox(width: 8),
                                               Text(
                                                 'Ver vistas (${seenByList.length})',
-                                                style: context.typography.bodySmall,
+                                                style: context
+                                                    .typography
+                                                    .bodySmall,
                                               ),
                                             ],
                                           ),
@@ -1029,9 +1196,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                               const SizedBox(width: 8),
                                               Text(
                                                 'Eliminar publicación',
-                                                style: context.typography.bodySmall.copyWith(
-                                                  color: context.colors.error,
-                                                ),
+                                                style: context
+                                                    .typography
+                                                    .bodySmall
+                                                    .copyWith(
+                                                      color:
+                                                          context.colors.error,
+                                                    ),
                                               ),
                                             ],
                                           ),
@@ -1041,7 +1212,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            if (post['eventType'] != null && post['eventType'] != 'ninguno')
+                            if (post['eventType'] != null &&
+                                post['eventType'] != 'ninguno')
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: Wrap(
@@ -1049,39 +1221,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   runSpacing: 8,
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: context.colors.primary.withValues(alpha: 0.1),
+                                        color: context.colors.primary
+                                            .withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: context.colors.primary),
+                                        border: Border.all(
+                                          color: context.colors.primary,
+                                        ),
                                       ),
                                       child: Text(
-                                        (post['eventType'] as String).toUpperCase(),
-                                        style: context.typography.labelSmall.copyWith(
-                                          color: context.colors.primary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                        (post['eventType'] as String)
+                                            .toUpperCase(),
+                                        style: context.typography.labelSmall
+                                            .copyWith(
+                                              color: context.colors.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                       ),
                                     ),
                                     if (post['hasTransport'] == true)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: Colors.orange.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: Colors.orange),
+                                          color: Colors.orange.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.orange,
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.directions_bus, size: 14, color: Colors.orange),
+                                            const Icon(
+                                              Icons.directions_bus,
+                                              size: 14,
+                                              color: Colors.orange,
+                                            ),
                                             const SizedBox(width: 4),
                                             Text(
                                               'TRASLADO INCLUIDO',
-                                              style: context.typography.labelSmall.copyWith(
-                                                color: Colors.orange,
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                              style: context
+                                                  .typography
+                                                  .labelSmall
+                                                  .copyWith(
+                                                    color: Colors.orange,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -1129,11 +1325,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     const SizedBox(height: 12),
                                     Text(
                                       post['body'] ?? '',
-                                      style: context.typography.bodyLarge.copyWith(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.9,
-                                        ),
-                                      ),
+                                      style: context.typography.bodyLarge
+                                          .copyWith(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.9,
+                                            ),
+                                          ),
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 24),
@@ -1176,22 +1373,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   borderRadius: BorderRadius.circular(
                                     AppSpacing.radiusMd,
                                   ),
-                                  child: CachedNetworkImage(
-                                    imageUrl: post['imageUrl'],
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: 160,
-                                    placeholder: (context, url) =>
-                                        Shimmer.fromColors(
-                                          baseColor: context.colors.surfaceLight,
-                                          highlightColor: context.colors.surface,
-                                          child: Container(
-                                            color: context.colors.surfaceLight,
-                                            height: 160,
-                                          ),
-                                        ),
-                                    errorWidget: (context, url, error) =>
-                                        const SizedBox.shrink(),
+                                  child: _buildPostImage(
+                                    post['imageUrl'],
+                                    context,
                                   ),
                                 ),
                               ],
@@ -1207,24 +1391,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     GestureDetector(
                                       behavior: HitTestBehavior.opaque,
                                       onTap: () {
-                                        ref.read(firestoreServiceProvider).toggleLikeNovedad(postId, sessionUser.id);
+                                        ref
+                                            .read(firestoreServiceProvider)
+                                            .toggleLikeNovedad(
+                                              postId,
+                                              sessionUser.id,
+                                            );
                                       },
                                       child: Row(
                                         children: [
                                           Icon(
-                                            hasLiked ? Icons.favorite : Icons.favorite_border,
+                                            hasLiked
+                                                ? Icons.favorite
+                                                : Icons.favorite_border,
                                             size: 18,
-                                            color: hasLiked ? context.colors.error : context.colors.textSecondary,
+                                            color: hasLiked
+                                                ? context.colors.error
+                                                : context.colors.textSecondary,
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
                                             likes.isEmpty
                                                 ? 'Me gusta'
                                                 : '${likes.length}',
-                                            style: context.typography.bodySmall.copyWith(
-                                              color: hasLiked ? context.colors.error : context.colors.textSecondary,
-                                              fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal,
-                                            ),
+                                            style: context.typography.bodySmall
+                                                .copyWith(
+                                                  color: hasLiked
+                                                      ? context.colors.error
+                                                      : context
+                                                            .colors
+                                                            .textSecondary,
+                                                  fontWeight: hasLiked
+                                                      ? FontWeight.bold
+                                                      : FontWeight.normal,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -1247,14 +1447,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             comments.isEmpty
                                                 ? 'Comentar'
                                                 : '${comments.length}',
-                                            style: context.typography.bodySmall.copyWith(
-                                              color: isExpanded
-                                                  ? context.colors.primary
-                                                  : context.colors.textSecondary,
-                                              fontWeight: isExpanded
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
-                                            ),
+                                            style: context.typography.bodySmall
+                                                .copyWith(
+                                                  color: isExpanded
+                                                      ? context.colors.primary
+                                                      : context
+                                                            .colors
+                                                            .textSecondary,
+                                                  fontWeight: isExpanded
+                                                      ? FontWeight.bold
+                                                      : FontWeight.normal,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -1309,13 +1512,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               ] else ...[
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8.0,
+                                  ),
                                   child: Text(
                                     'Los jugadores no pueden realizar comentarios.',
-                                    style: context.typography.bodySmall.copyWith(
-                                      color: context.colors.textTertiary,
-                                      fontStyle: FontStyle.italic,
-                                    ),
+                                    style: context.typography.bodySmall
+                                        .copyWith(
+                                          color: context.colors.textTertiary,
+                                          fontStyle: FontStyle.italic,
+                                        ),
                                   ),
                                 ),
                               ],
@@ -1348,7 +1554,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             child: Container(
                                               padding: const EdgeInsets.all(10),
                                               decoration: BoxDecoration(
-                                                color: context.colors.surfaceLight,
+                                                color:
+                                                    context.colors.surfaceLight,
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                               ),
@@ -1363,10 +1570,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                     children: [
                                                       Text(
                                                         '${comment['userName']} (${(comment['userRole'] ?? '').toUpperCase()})',
-                                                        style: context.typography
+                                                        style: context
+                                                            .typography
                                                             .labelSmall
                                                             .copyWith(
-                                                              color: context.colors
+                                                              color: context
+                                                                  .colors
                                                                   .accent,
                                                               fontWeight:
                                                                   FontWeight
@@ -1384,8 +1593,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                           child: Icon(
                                                             Icons
                                                                 .delete_outline,
-                                                            color:
-                                                                context.colors.error,
+                                                            color: context
+                                                                .colors
+                                                                .error,
                                                             size: 14,
                                                           ),
                                                         ),
@@ -1394,8 +1604,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                   const SizedBox(height: 4),
                                                   Text(
                                                     comment['text'] ?? '',
-                                                    style:
-                                                        context.typography.bodySmall,
+                                                    style: context
+                                                        .typography
+                                                        .bodySmall,
                                                   ),
                                                 ],
                                               ),
@@ -1551,18 +1762,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .addCommentToNovedad(postId, commentData);
   }
 
-  void _showNovedadViewsDialog(BuildContext context, List<Map<String, dynamic>> seenByList) {
+  void _showNovedadViewsDialog(
+    BuildContext context,
+    List<Map<String, dynamic>> seenByList,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: context.colors.surface,
-        title: Text('Visto por (${seenByList.length})', style: context.typography.titleMedium),
+        title: Text(
+          'Visto por (${seenByList.length})',
+          style: context.typography.titleMedium,
+        ),
         content: SizedBox(
           width: double.maxFinite,
           child: seenByList.isEmpty
               ? Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Text('Nadie ha visto esta publicación aún.', style: context.typography.bodyMedium),
+                  child: Text(
+                    'Nadie ha visto esta publicación aún.',
+                    style: context.typography.bodyMedium,
+                  ),
                 )
               : ListView.builder(
                   shrinkWrap: true,
@@ -1572,8 +1792,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: JNAvatar(name: view['userName'] ?? '', size: 36),
-                      title: Text(view['userName'] ?? '', style: context.typography.titleSmall),
-                      subtitle: Text((view['role'] ?? '').toUpperCase(), style: context.typography.bodySmall),
+                      title: Text(
+                        view['userName'] ?? '',
+                        style: context.typography.titleSmall,
+                      ),
+                      subtitle: Text(
+                        (view['role'] ?? '').toUpperCase(),
+                        style: context.typography.bodySmall,
+                      ),
                     );
                   },
                 ),
@@ -1741,4 +1967,91 @@ class _MiniStatCard extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildImagePreview(
+  String? localPath,
+  String? presetPath,
+  BuildContext context,
+) {
+  if (localPath != null) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.file(File(localPath), fit: BoxFit.cover),
+        Container(
+          color: Colors.black.withValues(alpha: 0.3),
+          child: const Center(
+            child: Icon(Icons.edit, color: Colors.white, size: 32),
+          ),
+        ),
+      ],
+    );
+  } else if (presetPath != null) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        CachedNetworkImage(
+          imageUrl: presetPath,
+          fit: BoxFit.cover,
+          placeholder: (context, url) =>
+              Container(color: context.colors.surfaceLight),
+          errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+        ),
+        Container(
+          color: Colors.black.withValues(alpha: 0.3),
+          child: const Center(
+            child: Icon(Icons.edit, color: Colors.white, size: 32),
+          ),
+        ),
+      ],
+    );
+  }
+  return Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.add_photo_alternate,
+          size: 40,
+          color: context.colors.primary,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Toca para subir imagen',
+          style: context.typography.bodyMedium.copyWith(
+            color: context.colors.primary,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildPostImage(String url, BuildContext context) {
+  if (!url.startsWith('http')) {
+    return Image.file(
+      File(url),
+      width: double.infinity,
+      height: 160,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => const SizedBox(
+        width: double.infinity,
+        height: 160,
+        child: Icon(Icons.broken_image, color: Colors.grey),
+      ),
+    );
+  }
+  return CachedNetworkImage(
+    imageUrl: url,
+    fit: BoxFit.cover,
+    width: double.infinity,
+    height: 160,
+    placeholder: (context, url) => Shimmer.fromColors(
+      baseColor: context.colors.surfaceLight,
+      highlightColor: context.colors.surface,
+      child: Container(color: context.colors.surfaceLight, height: 160),
+    ),
+    errorWidget: (context, url, error) => const SizedBox.shrink(),
+  );
 }
