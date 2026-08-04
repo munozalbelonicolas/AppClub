@@ -563,6 +563,25 @@ class AuthService {
       '${session.name} ${session.lastName}',
     );
   }
+
+  /// Deletes the current authenticated user account and updates Firestore user status.
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    final session = _ref.read(currentUserProvider);
+
+    if (session != null) {
+      await _db.collection('users').doc(session.id).update({
+        'status': 'deleted',
+        'deletedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (user != null) {
+      await user.delete();
+    }
+
+    await signOut();
+  }
 }
 
 final authServiceProvider = Provider<AuthService>((ref) {

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_button.dart';
+import '../../../settings/presentation/screens/privacy_policy_screen.dart';
 import '../../../settings/presentation/screens/terms_conditions_screen.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -289,30 +291,49 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const TermsConditionsScreen(),
-                            ),
-                          );
-                        },
-                        child: Text.rich(
-                          TextSpan(
-                            text: 'He leído y acepto los ',
-                            style: context.typography.bodySmall,
-                            children: [
-                              TextSpan(
-                                text: 'Términos y Condiciones.',
-                                style: context.typography.bodySmall.copyWith(
-                                  color: context.colors.primary,
-                                  fontWeight: FontWeight.bold,
-                                  decoration: TextDecoration.underline,
-                                ),
+                      child: Text.rich(
+                        TextSpan(
+                          text: 'He leído y acepto los ',
+                          style: context.typography.bodySmall,
+                          children: [
+                            TextSpan(
+                              text: 'Términos y Condiciones',
+                              style: context.typography.bodySmall.copyWith(
+                                color: context.colors.primary,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
                               ),
-                            ],
-                          ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const TermsConditionsScreen(),
+                                    ),
+                                  );
+                                },
+                            ),
+                            const TextSpan(text: ' y la '),
+                            TextSpan(
+                              text: 'Política de Privacidad.',
+                              style: context.typography.bodySmall.copyWith(
+                                color: context.colors.primary,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const PrivacyPolicyScreen(),
+                                    ),
+                                  );
+                                },
+                            ),
+                          ],
                         ),
                       ),
                     ),

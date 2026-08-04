@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
@@ -490,6 +491,11 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
+              _SettingNav(
+                icon: Icons.delete_forever_outlined,
+                label: 'Eliminar mi cuenta',
+                onTap: () => _confirmDeleteAccount(context, ref),
+              ),
             ],
           ).animate(delay: 300.ms).fadeIn(duration: 400.ms),
 
@@ -500,7 +506,7 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               children: [
                 Text('Jorge Newbery App', style: context.typography.bodySmall),
-                Text('v3.41', style: context.typography.labelSmall),
+                Text('v1.6.1', style: context.typography.labelSmall),
               ],
             ),
           ),
@@ -518,6 +524,49 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ctx.colors.surface,
+        title: const Text('¿Eliminar tu cuenta?'),
+        content: const Text(
+          'Esta acción eliminará tu cuenta y tus datos personales de la plataforma. '
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Eliminar',
+              style: TextStyle(color: ctx.colors.error, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await ref.read(authServiceProvider).deleteAccount();
+        onLogout();
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar la cuenta: $e'),
+              backgroundColor: context.colors.error,
+            ),
+          );
+        }
+      }
+    }
   }
 }
 

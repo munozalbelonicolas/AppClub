@@ -46,4 +46,7 @@ app.*.map.json
 
 # Android build outputs
 /android/build/
+/android/key.properties
+*.jks
+*.keystore
 
