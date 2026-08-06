@@ -423,164 +423,61 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   ),
                 ),
 
-              // Tactical Field
+              // Tactical Field as Background Graphic
               ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      height: 400,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Color(0xFF153d2f), // Pitch upper green
-                            Color(0xFF235c47), // Pitch middle green
-                            Color(0xFF1c4a39), // Pitch lower green
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  height: 180,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFF153d2f), // Pitch upper green
+                        Color(0xFF235c47), // Pitch middle green
+                        Color(0xFF1c4a39), // Pitch lower green
+                      ],
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      // Soccer pitch lines painter
+                      Positioned.fill(
+                        child: CustomPaint(painter: _SoccerPitchPainter()),
+                      ),
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Formación de Equipo',
+                              style: context.typography.headlineMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Categoría: ${_selectedCategory ?? ''}',
+                              style: TextStyle(
+                                color: context.colors.accent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      child: Stack(
-                        children: [
-                          // Soccer pitch lines painter
-                          Positioned.fill(
-                            child: CustomPaint(painter: _SoccerPitchPainter()),
-                          ),
-
-                          // Player circular positions
-                          ..._fieldPositions.map((pos) {
-                            final String key = pos['key'];
-                            final Alignment align = pos['align'];
-
-                            final String? assignedPlayerId = _positions[key];
-                            Map<String, dynamic>? playerDetails;
-                            if (assignedPlayerId != null) {
-                                playerDetails = allConvocadosList.firstWhere(
-                                (c) => c['playerId'] == assignedPlayerId,
-                                orElse: () => <String, dynamic>{},
-                              );
-                            }
-
-                            final bool hasPlayer =
-                                playerDetails != null &&
-                                playerDetails.isNotEmpty;
-
-                            return Align(
-                              alignment: align,
-                              child: GestureDetector(
-                                onTap: isCoach
-                                    ? () => _showPlayerSelector(
-                                        context,
-                                        key,
-                                        pos['fullName'],
-                                        allConvocadosList,
-                                      )
-                                    : null,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Token
-                                    AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 300,
-                                      ),
-                                      width: 44,
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                        color: hasPlayer
-                                            ? context.colors.primary
-                                            : Colors.black.withValues(
-                                                alpha: 0.3,
-                                              ),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: hasPlayer
-                                              ? Colors.white
-                                              : context.colors.primary.withValues(
-                                                  alpha: 0.4,
-                                                ),
-                                          width: 2,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.2,
-                                            ),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: hasPlayer
-                                            ? Text(
-                                                '${playerDetails['number']}',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              )
-                                            : Icon(
-                                                isCoach
-                                                    ? Icons.add
-                                                    : Icons.remove,
-                                                size: 14,
-                                                color: context.colors.primary
-                                                    .withValues(alpha: 0.8),
-                                              ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    // Label / Name
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 85,
-                                      ),
-                                      child: Text(
-                                        hasPlayer
-                                            ? (playerDetails['name'] as String)
-                                                  .split(' ')
-                                                  .last
-                                            : key,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  )
-                  .animate(delay: 100.ms)
-                  .fadeIn()
-                  .scale(begin: const Offset(0.98, 0.98)),
+                    ],
+                  ),
+                ),
+              ).animate(delay: 100.ms).fadeIn().scale(begin: const Offset(0.98, 0.98)),
 
               const SizedBox(height: 20),
 
               // Save alignment button for DT
               if (isCoach) ...[
                 JNButton(
-                  label: 'Guardar Formación Oficial',
+                  label: 'Guardar Alineación',
                   icon: Icons.save,
                   onPressed: () => _saveLineup(nextMatch),
                   isLoading: _isSaving,
@@ -589,47 +486,77 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 const SizedBox(height: 24),
               ],
 
-              // Starting List (Titulares)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Titulares (${starters.length})',
-                    style: context.typography.headlineSmall,
-                  ),
-                  const JNBadge(label: '11 TITULARES', type: JNBadgeType.info),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (starters.isEmpty)
+              // DYNAMIC DISPLAY: IF NO STARTERS -> Show ONLY "Jugadores Convocados"
+              if (starters.isEmpty) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Jugadores Convocados (${allConvocadosList.length})',
+                      style: context.typography.headlineSmall,
+                    ),
+                    const JNBadge(label: 'CONVOCATORIA', type: JNBadgeType.accent),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 Text(
-                  'El técnico aún no ha colocado jugadores en la cancha.',
+                  'Toca en ⭐ Titular para asignar los titulares del partido.',
                   style: context.typography.bodySmall,
-                )
-              else
+                ),
+                const SizedBox(height: 12),
+                if (allConvocadosList.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(
+                        'No hay jugadores convocados registrados.',
+                        style: context.typography.bodyMedium,
+                      ),
+                    ),
+                  )
+                else
+                  ...allConvocadosList.map((p) => _buildPlayerTile(p, false, isCoach)),
+              ] else ...[
+                // IF STARTERS ARE SELECTED -> Show TWO SEPARATE SECTIONS ("Titulares ⭐" and "Convocados / Suplentes")
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Titulares ⭐ (${starters.length})',
+                      style: context.typography.headlineSmall.copyWith(
+                        color: context.colors.accent,
+                      ),
+                    ),
+                    const JNBadge(label: 'CONFIRMADOS', type: JNBadgeType.accent),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 ...starters.map((p) => _buildPlayerTile(p, true, isCoach)),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Substitutes List (Suplentes)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Suplentes / Banquillo (${bench.length})',
-                    style: context.typography.headlineSmall,
-                  ),
-                  const JNBadge(label: 'BANCO'),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (bench.isEmpty)
-                Text(
-                  'Todos los convocados están en la alineación titular.',
-                  style: context.typography.bodySmall,
-                )
-              else
-                ...bench.map((p) => _buildPlayerTile(p, false, isCoach)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Convocados / Suplentes (${bench.length})',
+                      style: context.typography.headlineSmall,
+                    ),
+                    const JNBadge(label: 'SUPLENTES'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (bench.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Todos los convocados son titulares.',
+                      style: context.typography.bodySmall,
+                    ),
+                  )
+                else
+                  ...bench.map((p) => _buildPlayerTile(p, false, isCoach)),
+              ],
             ],
           );
         },

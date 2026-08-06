@@ -22,6 +22,7 @@ import '../../../../core/widgets/jn_section_header.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
+import '../../../results/presentation/screens/league_report_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
 import '../../../communications/presentation/screens/story_export_screen.dart';
 import '../widgets/sponsor_carousel.dart';
@@ -820,10 +821,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
-                      icon: Icons.sports_soccer,
-                      label: 'Formación',
+                      icon: Icons.article_outlined,
+                      label: 'Informe Liga',
                       color: context.colors.accent,
-                      onTap: () => widget.onNavigate(2),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LeagueReportScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(

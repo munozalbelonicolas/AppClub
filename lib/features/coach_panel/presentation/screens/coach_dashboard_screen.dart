@@ -12,6 +12,7 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_section_header.dart';
 import '../../../../core/widgets/jn_stat_card.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
+import '../../../lineup/presentation/screens/lineup_screen.dart';
 import '../../../player/presentation/screens/consolidated_roster_screen.dart';
 import '../../../results/presentation/screens/manage_scorers_screen.dart';
 import 'create_coach_report_screen.dart';
@@ -173,6 +174,32 @@ class CoachDashboardScreen extends ConsumerWidget {
                     children: [
                       Text('Consolidado de Jugadores', style: context.typography.titleMedium),
                       Text('Listado completo y exportación a Excel', style: context.typography.bodySmall),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: context.colors.textTertiary),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          JNCard(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LineupScreen()),
+              );
+            },
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.shield, color: context.colors.accent, size: 28),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Formación & Alineación de Equipo', style: context.typography.titleMedium),
+                      Text('Gestionar titulares y convocatoria para el próximo partido', style: context.typography.bodySmall),
                     ],
                   ),
                 ),
