@@ -16,7 +16,9 @@ import 'app_logger.dart';
 class AuthService {
   final Ref _ref;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: '173425300822-o1lc1t0e5prjbtmkb7n06se95cv07u7o.apps.googleusercontent.com',
+  );
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   StreamSubscription<DocumentSnapshot>? _userSubscription;
 
@@ -173,12 +175,12 @@ class AuthService {
         );
       }
     } catch (e) {
-      AppLogger.warning('Google Sign-In failed or not configured', tag: 'AuthService');
+      AppLogger.warning('Google Sign-In failed or not configured: $e', tag: 'AuthService');
       
       if (!context.mounted) return null;
 
       // Mostramos el selector falso para facilitar pruebas (Demo)
-      return await _showDemoGoogleSignInDialog(context);
+      return await _showDemoGoogleSignInDialog(context, errorDetails: e.toString());
     }
     return null;
   }
@@ -336,8 +338,9 @@ class AuthService {
 
   /// Displays a dialog simulating Google Sign-In with preset emails and typing field
   Future<UserSession?> _showDemoGoogleSignInDialog(
-    BuildContext context,
-  ) async {
+    BuildContext context, {
+    String? errorDetails,
+  }) async {
     final emailController = TextEditingController(
       text: 'munozalbelonicolas@gmail.com',
     );
@@ -378,6 +381,24 @@ class AuthService {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (errorDetails != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
+                          ),
+                          child: SelectableText(
+                            'Error técnico:\n$errorDetails',
+                            style: context.typography.bodySmall.copyWith(
+                              color: Colors.redAccent,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                       Text(
                         'No se detectó configuración SHA-1 o Google Play Services. Mostrando selector demo de cuenta Google.',
                         style: context.typography.bodySmall.copyWith(
