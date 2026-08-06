@@ -9,7 +9,6 @@ import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
-import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 
 class LineupScreen extends ConsumerStatefulWidget {
@@ -490,18 +489,6 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
               const SizedBox(height: 20),
 
-              // Save alignment button for DT
-              if (isCoach) ...[
-                JNButton(
-                  label: 'Guardar Alineación',
-                  icon: Icons.save,
-                  onPressed: () => _saveLineup(nextMatch),
-                  isLoading: _isSaving,
-                  fullWidth: true,
-                ).animate(delay: 200.ms).fadeIn(),
-                const SizedBox(height: 24),
-              ],
-
               // DYNAMIC DISPLAY: IF NO STARTERS -> Show ONLY "Jugadores Convocados"
               if (starters.isEmpty) ...[
                 Row(
@@ -531,7 +518,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                     ),
                   )
                 else
-                  ...allConvocadosList.map((p) => _buildPlayerTile(p, false, isCoach)),
+                  ...allConvocadosList.map((p) => _buildPlayerTile(p, false, isCoach, nextMatch)),
               ] else ...[
                 // IF STARTERS ARE SELECTED -> Show TWO SEPARATE SECTIONS ("Titulares ⭐" and "Convocados / Suplentes")
                 Row(
@@ -547,7 +534,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                ...starters.map((p) => _buildPlayerTile(p, true, isCoach)),
+                ...starters.map((p) => _buildPlayerTile(p, true, isCoach, nextMatch)),
 
                 const SizedBox(height: 24),
 
@@ -571,7 +558,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                     ),
                   )
                 else
-                  ...bench.map((p) => _buildPlayerTile(p, false, isCoach)),
+                  ...bench.map((p) => _buildPlayerTile(p, false, isCoach, nextMatch)),
               ],
             ],
           );
@@ -580,7 +567,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     );
   }
 
-  Widget _buildPlayerTile(Map<String, dynamic> player, bool isStarter, bool isCoach) {
+  Widget _buildPlayerTile(Map<String, dynamic> player, bool isStarter, bool isCoach, Map<String, dynamic>? nextMatch) {
     final playerId = player['playerId'] as String;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -630,6 +617,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                       _positions[unassignedKey] = playerId;
                     }
                   });
+                  _saveLineup(nextMatch);
                 },
                 icon: Icon(
                   Icons.star,
