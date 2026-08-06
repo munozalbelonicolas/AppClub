@@ -266,7 +266,15 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = ref.watch(currentUserProvider)!;
+    final currentUser = ref.watch(currentUserProvider);
+    if (currentUser == null) {
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        appBar: AppBar(title: const Text('Formación del Equipo'), elevation: 0),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final bool isAdmin = currentUser.isAdmin;
     final bool isCoach = currentUser.isCoach;
 
@@ -297,11 +305,23 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
     final nextMatch = allMatches.where((m) => m['category'] == _selectedCategory).firstOrNull;
     
+    final playersAsync = ref.watch(playersStreamProvider);
+    final allCategoryPlayers = (playersAsync.valueOrNull ?? [])
+        .where((p) => p['category'] == _selectedCategory)
+        .map((p) => <String, dynamic>{
+          'playerId': p['id'],
+          'name': '${p['name']} ${p['lastName']}',
+          'number': p['number'] ?? p['jerseyNumber'] ?? '',
+          'position': p['position'] ?? 'Jugador',
+        })
+        .toList();
+
     final convocatoriaAsync = nextMatch != null 
         ? ref.watch(convocatoriaStreamProvider(nextMatch['id']))
         : const AsyncValue.data(<Map<String, dynamic>>[]);
         
-    final allConvocadosList = convocatoriaAsync.valueOrNull ?? [];
+    final rawConvocados = convocatoriaAsync.valueOrNull ?? [];
+    final allConvocadosList = rawConvocados.isNotEmpty ? rawConvocados : allCategoryPlayers;
 
     return Scaffold(
       backgroundColor: context.colors.background,

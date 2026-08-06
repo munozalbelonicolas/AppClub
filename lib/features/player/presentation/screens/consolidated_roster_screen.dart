@@ -35,9 +35,9 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
     final isCoach = user.role == 'dt';
     final isAdmin = user.role == 'directivo' || user.role == 'secretario';
 
-    // If coach, force category
-    if (isCoach && _selectedCategory != user.category) {
-      _selectedCategory = user.category;
+    final dtAllowedCats = user.assignedCategories ?? (user.category != null ? [user.category!] : <String>[]);
+    if (isCoach && _selectedCategory != null && !dtAllowedCats.contains(_selectedCategory)) {
+      _selectedCategory = dtAllowedCats.isNotEmpty ? dtAllowedCats.first : null;
     }
 
     return Scaffold(

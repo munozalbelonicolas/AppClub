@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
@@ -79,6 +80,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sessionUser = ref.watch(currentUserProvider);
+    final isCoach = sessionUser?.role == 'dt';
+    final dtAllowedCats = isCoach
+        ? (sessionUser?.assignedCategories ?? (sessionUser?.category != null ? [sessionUser!.category!] : <String>[]))
+        : <String>[];
+
     final eventsAsync = ref.watch(calendarEventsStreamProvider);
     final matchesAsync = ref.watch(matchesStreamProvider);
     final playersAsync = ref.watch(playersStreamProvider);
@@ -141,6 +148,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           'category': p['category'] ?? '',
         });
       }
+    }
+
+    if (isCoach && dtAllowedCats.isNotEmpty) {
+      allEvents.removeWhere((e) {
+        final cat = e['category'] as String?;
+        if (cat == null || cat.isEmpty || cat == 'todos' || cat == 'deportivo' || cat == 'administrativo') return false;
+        return !dtAllowedCats.contains(cat);
+      });
     }
 
     final filteredEvents = _getFilteredEvents(allEvents);
