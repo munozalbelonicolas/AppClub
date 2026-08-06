@@ -296,7 +296,7 @@ class SettingsScreen extends ConsumerWidget {
                     );
                   },
                 ),
-                if (user.isDirector)
+                if (user.isAdmin)
                   _SettingNav(
                     icon: Icons.admin_panel_settings_outlined,
                     label: 'Consola del Director',
