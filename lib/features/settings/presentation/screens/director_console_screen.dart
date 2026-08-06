@@ -638,7 +638,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                           .animate(delay: (index * 40).ms)
                           .fadeIn(duration: 300.ms)
                           .slideY(begin: 0.05);
-                    }, childCount: docs.length),
+                    }, childCount: filteredDocs.length),
                   ),
                 ),
             ],
