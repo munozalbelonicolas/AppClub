@@ -281,26 +281,22 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     final matchesAsync = ref.watch(matchesStreamProvider);
     final allMatches = matchesAsync.valueOrNull ?? [];
 
-    final categories = ref.watch(appCategoriesProvider);
+    List<String> categories = ref.watch(appCategoriesProvider);
+    if (isCoach) {
+      final dtCats = currentUser.assignedCategories ?? [];
+      categories = dtCats.isNotEmpty ? dtCats : (currentUser.category != null ? [currentUser.category!] : []);
+    }
 
-    if (_selectedCategory == null) {
+    if (_selectedCategory == null || (isCoach && !categories.contains(_selectedCategory))) {
       if (isAdmin && categories.isNotEmpty) {
         _selectedCategory = categories.first;
-      } else if (isCoach) {
-        _selectedCategory = (currentUser.assignedCategories != null && currentUser.assignedCategories!.isNotEmpty)
-            ? currentUser.assignedCategories!.first
-            : currentUser.category;
-      } else {
+      } else if (isCoach && categories.isNotEmpty) {
+        _selectedCategory = categories.first;
+      } else if (currentUser.category != null) {
         _selectedCategory = currentUser.category;
-      }
-      
-      if (_selectedCategory == null && categories.isNotEmpty) {
+      } else if (categories.isNotEmpty) {
         _selectedCategory = categories.first;
       }
-    }
-    
-    if (_selectedCategory != null && categories.isNotEmpty && !categories.contains(_selectedCategory)) {
-      _selectedCategory = categories.first;
     }
 
     final nextMatch = allMatches.where((m) => m['category'] == _selectedCategory).firstOrNull;
