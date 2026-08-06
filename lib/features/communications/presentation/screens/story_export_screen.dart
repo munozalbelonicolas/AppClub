@@ -8,7 +8,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
-import '../../../../core/theme/app_typography.dart';
 
 class StoryExportScreen extends StatefulWidget {
   final Map<String, dynamic> announcement;

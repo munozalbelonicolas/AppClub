@@ -34,6 +34,7 @@ class UserSession {
 
   // For Coaches (DT) managing multiple categories
   final List<String>? assignedCategories;
+  final String? assignedCoachId;
 
   const UserSession({
     required this.id,
@@ -61,6 +62,7 @@ class UserSession {
     this.termsAcceptedAt,
     this.termsVersion,
     this.assignedCategories,
+    this.assignedCoachId,
   });
 
   UserSession copyWith({
@@ -89,6 +91,7 @@ class UserSession {
     DateTime? termsAcceptedAt,
     String? termsVersion,
     List<String>? assignedCategories,
+    String? assignedCoachId,
   }) {
     return UserSession(
       id: id ?? this.id,
@@ -116,10 +119,9 @@ class UserSession {
       termsAcceptedAt: termsAcceptedAt ?? this.termsAcceptedAt,
       termsVersion: termsVersion ?? this.termsVersion,
       assignedCategories: assignedCategories ?? this.assignedCategories,
+      assignedCoachId: assignedCoachId ?? this.assignedCoachId,
     );
   }
-
-
 
   /// Check if user has not completed registration (e.g. Google Sign In missing phones)
   bool get isRegistrationIncomplete {
@@ -235,6 +237,7 @@ class UserSession {
           : null,
       'termsVersion': termsVersion,
       'assignedCategories': assignedCategories,
+      'assignedCoachId': assignedCoachId,
     };
   }
 }

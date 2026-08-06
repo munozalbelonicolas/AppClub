@@ -607,7 +607,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   style: context.typography.bodySmall,
                 )
               else
-                ...starters.map((p) => _buildPlayerTile(p, true)),
+                ...starters.map((p) => _buildPlayerTile(p, true, isCoach)),
 
               const SizedBox(height: 24),
 
@@ -629,7 +629,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   style: context.typography.bodySmall,
                 )
               else
-                ...bench.map((p) => _buildPlayerTile(p, false)),
+                ...bench.map((p) => _buildPlayerTile(p, false, isCoach)),
             ],
           );
         },
@@ -637,7 +637,8 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     );
   }
 
-  Widget _buildPlayerTile(Map<String, dynamic> player, bool isStarter) {
+  Widget _buildPlayerTile(Map<String, dynamic> player, bool isStarter, bool isCoach) {
+    final playerId = player['playerId'] as String;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: JNCard(
@@ -648,7 +649,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               name: player['name'] as String,
               size: 36,
               borderColor: isStarter
-                  ? context.colors.success
+                  ? context.colors.accent
                   : context.colors.textTertiary,
               borderWidth: 1.5,
             ),
@@ -658,8 +659,11 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    player['name'] as String,
-                    style: context.typography.titleMedium,
+                    '${isStarter ? '⭐ ' : ''}${player['name']}',
+                    style: context.typography.titleMedium.copyWith(
+                      color: isStarter ? context.colors.accent : context.colors.textPrimary,
+                      fontWeight: isStarter ? FontWeight.bold : FontWeight.normal,
+                    ),
                   ),
                   Text(
                     '#${player['number']} · ${player['position']}',
@@ -668,9 +672,40 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 ],
               ),
             ),
+            if (isCoach) ...[
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    if (isStarter) {
+                      _positions.removeWhere((k, v) => v == playerId);
+                    } else {
+                      // Assign to next unassigned position or generic starter key
+                      final unassignedKey = _fieldPositions.firstWhere(
+                        (p) => !_positions.containsKey(p['key']),
+                        orElse: () => {'key': 'STARTER_$playerId'},
+                      )['key'] as String;
+                      _positions[unassignedKey] = playerId;
+                    }
+                  });
+                },
+                icon: Icon(
+                  Icons.star,
+                  size: 16,
+                  color: isStarter ? context.colors.accent : context.colors.textTertiary,
+                ),
+                label: Text(
+                  isStarter ? 'Quitar' : '⭐ Titular',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isStarter ? context.colors.accent : context.colors.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
             JNBadge(
               label: isStarter ? 'TITULAR' : 'SUPLENTE',
-              type: isStarter ? JNBadgeType.success : JNBadgeType.neutral,
+              type: isStarter ? JNBadgeType.accent : JNBadgeType.neutral,
             ),
           ],
         ),

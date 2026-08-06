@@ -59,7 +59,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     final bodyController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    String eventType = 'ninguno';
+    final bool isDT = sessionUser.role == 'dt';
+    String eventType = isDT ? 'partido' : 'ninguno';
     bool hasTransport = false;
     String? selectedOpponentId;
     DateTime? eventDate;
@@ -67,7 +68,6 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     String selectedCategory = 'deportivo';
     String selectedPriority = 'normal';
     bool commentsEnabled = true;
-    final bool isDT = sessionUser.role == 'dt';
     if (isDT && sessionUser.category != null) {
       selectedCategory = sessionUser.category!;
     }
@@ -122,7 +122,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                       const SizedBox(height: 12),
                       if (isDT) ...[
                         Text(
-                          'Categoría/Visibilidad: ${sessionUser.category}',
+                          'Categoría/Visibilidad: ${sessionUser.category ?? 'Asignada'} (Perfil DT)',
                           style: context.typography.bodyMedium.copyWith(color: context.colors.primary, fontWeight: FontWeight.bold),
                         ),
                       ] else ...[
@@ -175,30 +175,37 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         },
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        dropdownColor: context.colors.surface,
-                        initialValue: eventType,
-                        decoration: const InputDecoration(labelText: 'Tipo de Evento'),
-                        items: const [
-                          DropdownMenuItem(value: 'ninguno', child: Text('Ninguno (Comunicado normal)')),
-                          DropdownMenuItem(value: 'partido', child: Text('Partido')),
-                          DropdownMenuItem(value: 'evento', child: Text('Evento Especial')),
-                          DropdownMenuItem(value: 'jornada', child: Text('Jornada')),
-                          DropdownMenuItem(value: 'cuadrangular', child: Text('Cuadrangular')),
-                          DropdownMenuItem(value: 'torneo', child: Text('Torneo')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            setDialogState(() {
-                              eventType = val;
-                              if (eventType == 'ninguno') {
-                                hasTransport = false;
-                                selectedOpponentId = null;
-                              }
-                            });
-                          }
-                        },
-                      ),
+                      if (isDT) ...[
+                        Text(
+                          'Tipo de Evento: Partido (Fijo para Perfil DT)',
+                          style: context.typography.bodyMedium.copyWith(color: context.colors.accent, fontWeight: FontWeight.bold),
+                        ),
+                      ] else ...[
+                        DropdownButtonFormField<String>(
+                          dropdownColor: context.colors.surface,
+                          initialValue: eventType,
+                          decoration: const InputDecoration(labelText: 'Tipo de Evento'),
+                          items: const [
+                            DropdownMenuItem(value: 'ninguno', child: Text('Ninguno (Comunicado normal)')),
+                            DropdownMenuItem(value: 'partido', child: Text('Partido')),
+                            DropdownMenuItem(value: 'evento', child: Text('Evento Especial')),
+                            DropdownMenuItem(value: 'jornada', child: Text('Jornada')),
+                            DropdownMenuItem(value: 'cuadrangular', child: Text('Cuadrangular')),
+                            DropdownMenuItem(value: 'torneo', child: Text('Torneo')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                eventType = val;
+                                if (eventType == 'ninguno') {
+                                  hasTransport = false;
+                                  selectedOpponentId = null;
+                                }
+                              });
+                            }
+                          },
+                        ),
+                      ],
                       if (eventType != 'ninguno') ...[
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(

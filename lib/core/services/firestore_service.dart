@@ -67,15 +67,68 @@ class FirestoreService {
         .map((doc) => doc.exists ? {'id': doc.id, ...doc.data()!} : null);
   }
 
+  Stream<List<Map<String, dynamic>>> getAttendanceHistory(String category) {
+    return _db
+        .collection('attendance')
+        .where('category', isEqualTo: category)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+  }
+
   Future<void> saveAttendance(String dateStr, String category, String dtId, List<String> present, List<String> absent) async {
     await _db.collection('attendance').doc('$dateStr-$category').set({
       'dateStr': dateStr,
+      'date': dateStr,
       'category': category,
       'dtId': dtId,
       'present': present,
       'absent': absent,
+      'records': {
+        for (var p in present) p: 'present',
+        for (var a in absent) a: 'absent',
+      },
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> saveAttendanceDetailed({
+    required String dateStr,
+    required String formattedDate,
+    required String category,
+    required String dtId,
+    required Map<String, String> records,
+  }) async {
+    final present = records.entries.where((e) => e.value == 'present').map((e) => e.key).toList();
+    final absent = records.entries.where((e) => e.value == 'absent').map((e) => e.key).toList();
+
+    await _db.collection('attendance').doc('$dateStr-$category').set({
+      'dateStr': dateStr,
+      'date': dateStr,
+      'formattedDate': formattedDate,
+      'category': category,
+      'dtId': dtId,
+      'present': present,
+      'absent': absent,
+      'records': records,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  // ─── Training Schedule ────────────────────────────
+  Stream<Map<String, dynamic>?> getTrainingSchedule(String category) {
+    return _db.collection('training_schedules').doc(category).snapshots().map(
+          (doc) => doc.exists ? {'id': doc.id, ...doc.data()!} : null,
+        );
+  }
+
+  Future<void> saveTrainingSchedule(String category, List<String> days, String time, String location) async {
+    await _db.collection('training_schedules').doc(category).set({
+      'category': category,
+      'days': days,
+      'time': time,
+      'location': location,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Stream<Map<String, dynamic>?> getPlayerProfile(String playerId) {
@@ -243,4 +296,12 @@ final attendanceStreamProvider = StreamProvider.family<Map<String, dynamic>?, St
   final parts = param.split('|');
   if (parts.length != 2) return Stream.value(null);
   return ref.watch(firestoreServiceProvider).getAttendance(parts[0], parts[1]);
+});
+
+final attendanceHistoryStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, category) {
+  return ref.watch(firestoreServiceProvider).getAttendanceHistory(category);
+});
+
+final trainingScheduleStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, category) {
+  return ref.watch(firestoreServiceProvider).getTrainingSchedule(category);
 });

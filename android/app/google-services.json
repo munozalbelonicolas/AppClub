@@ -75,11 +75,43 @@
       },
       "oauth_client": [
         {
+          "client_id": "173425300822-2oeqqrrss1aoo05n8r5jtq5s3cl8kinb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jorgenewbery.jorge_newbery_app.beta",
+            "certificate_hash": "b26862a3d07103482f647ef059dfadd832555496"
+          }
+        },
+        {
+          "client_id": "173425300822-5an2l3i2ujuqbt0bvgb749561eprtb3k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jorgenewbery.jorge_newbery_app.beta",
+            "certificate_hash": "1888d2c61ae4fa9dea2713e529a8f35510d167ca"
+          }
+        },
+        {
           "client_id": "173425300822-7g1uavctte5sat9fnis6u3kitpuli62g.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.jorgenewbery.jorge_newbery_app.beta",
             "certificate_hash": "44d2880cfc5ade074c3f1071878eb922ca8a7c74"
+          }
+        },
+        {
+          "client_id": "173425300822-cekspk9aja142371q11c28ujj3ldsv9j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jorgenewbery.jorge_newbery_app.beta",
+            "certificate_hash": "8f4eda30a0367ddf9ec8bacc344f45cdc9ba8c10"
+          }
+        },
+        {
+          "client_id": "173425300822-f022e6invuf03qs7m13qf8p2v0s3kvir.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jorgenewbery.jorge_newbery_app.beta",
+            "certificate_hash": "6a30dd3193fdce29fb6768ef3182157006745834"
           }
         },
         {

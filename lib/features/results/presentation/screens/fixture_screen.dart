@@ -35,6 +35,13 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
       if (tutorCategories.isNotEmpty) {
         categories = tutorCategories;
       }
+    } else if (sessionUser.role == 'dt') {
+      final dtCats = sessionUser.assignedCategories ?? [];
+      if (dtCats.isNotEmpty) {
+        categories = dtCats;
+      } else if (sessionUser.category != null) {
+        categories = [sessionUser.category!];
+      }
     }
 
     // Set initial category from selected child if parent
@@ -42,6 +49,10 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
       if (_lastChildId != selectedChild['id']) {
         selectedCategory = selectedChild['category'] as String;
         _lastChildId = selectedChild['id'] as String?;
+      }
+    } else if (sessionUser.role == 'dt' && categories.isNotEmpty) {
+      if (!categories.contains(selectedCategory)) {
+        selectedCategory = categories.first;
       }
     }
 
@@ -60,7 +71,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
       appBar: AppBar(
         title: const Text('Fixture'),
         actions: [
-          if (sessionUser.isAdmin || sessionUser.role == 'dt')
+          if (sessionUser.isAdmin)
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: () => _showAddFixtureDialog(context, clubs),
@@ -100,7 +111,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                   itemCount: fixtures.length,
                   itemBuilder: (context, index) {
                     final fixture = fixtures[index];
-                    return _buildFixtureCard(fixture, clubs, sessionUser.isAdmin || sessionUser.role == 'dt');
+                    return _buildFixtureCard(fixture, clubs, sessionUser.isAdmin);
                   },
                 );
               },

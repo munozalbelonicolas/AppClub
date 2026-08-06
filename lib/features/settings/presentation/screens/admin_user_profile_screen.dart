@@ -89,6 +89,93 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
     }
   }
 
+  Future<void> _updateAssignedCoach(String? coachId, String userName) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({
+        'assignedCoachId': coachId,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Profe/DT asignado a $userName con éxito.'),
+            backgroundColor: context.colors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al asignar profe: $e'), backgroundColor: context.colors.error),
+        );
+      }
+    }
+  }
+
+  void _showAssignCoachDialog(Map<String, dynamic> data) async {
+    String? selectedCoachId = data['assignedCoachId'] as String?;
+
+    final dtSnapshots = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'dt')
+        .get();
+
+    final coaches = dtSnapshots.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: context.colors.surface,
+            title: const Text('Asignar Profe / DT'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (coaches.isEmpty)
+                  const Text('No hay profesores/DTs registrados en el sistema.')
+                else
+                  DropdownButtonFormField<String?>(
+                    initialValue: selectedCoachId,
+                    decoration: const InputDecoration(labelText: 'Profe / DT a cargo'),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Sin Profe Asignado'),
+                      ),
+                      ...coaches.map((c) {
+                        final cName = '${c['name']} ${c['lastName']} (${c['category'] ?? 'DT'})';
+                        return DropdownMenuItem<String?>(
+                          value: c['id'] as String,
+                          child: Text(cName),
+                        );
+                      }),
+                    ],
+                    onChanged: (val) {
+                      setState(() {
+                        selectedCoachId = val;
+                      });
+                    },
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _updateAssignedCoach(selectedCoachId, '${data['name']} ${data['lastName']}');
+                },
+                child: const Text('Guardar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _deleteLink(String linkId) async {
     try {
       await FirebaseFirestore.instance.collection('player_tutor_links').doc(linkId).delete();
@@ -447,6 +534,14 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                       onPressed: () => _showRoleDialog(data),
                       variant: JNButtonVariant.outline,
                     ),
+                    if (role == 'jugador') ...[
+                      const SizedBox(height: 12),
+                      JNButton(
+                        label: 'Asignar Profe / DT',
+                        onPressed: () => _showAssignCoachDialog(data),
+                        variant: JNButtonVariant.outline,
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     JNButton(
                       label: 'Eliminar Cuenta',

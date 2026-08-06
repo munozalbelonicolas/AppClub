@@ -175,6 +175,34 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                    email.contains(_searchQuery);
           }).toList();
 
+          filteredDocs.sort((a, b) {
+            final dataA = a.data() as Map<String, dynamic>;
+            final dataB = b.data() as Map<String, dynamic>;
+
+            String catA = dataA['category']?.toString() ?? '';
+            String catB = dataB['category']?.toString() ?? '';
+            
+            if (catA.isEmpty && dataA['birthDate'] != null) {
+              final dt = dataA['birthDate'] is Timestamp 
+                  ? (dataA['birthDate'] as Timestamp).toDate() 
+                  : DateTime.tryParse(dataA['birthDate'].toString());
+              if (dt != null) catA = dt.year.toString();
+            }
+            if (catB.isEmpty && dataB['birthDate'] != null) {
+              final dt = dataB['birthDate'] is Timestamp 
+                  ? (dataB['birthDate'] as Timestamp).toDate() 
+                  : DateTime.tryParse(dataB['birthDate'].toString());
+              if (dt != null) catB = dt.year.toString();
+            }
+
+            int catComp = catA.compareTo(catB);
+            if (catComp != 0) return catComp;
+
+            final nameA = '${dataA['name'] ?? ''} ${dataA['lastName'] ?? ''}'.trim().toLowerCase();
+            final nameB = '${dataB['name'] ?? ''} ${dataB['lastName'] ?? ''}'.trim().toLowerCase();
+            return nameA.compareTo(nameB);
+          });
+
           return CustomScrollView(
             slivers: [
               // Support Configuration Card (Visible only to Director/Directivos)

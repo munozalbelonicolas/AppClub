@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -85,6 +86,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final rawEvents = eventsAsync.valueOrNull ?? [];
     final rawMatches = matchesAsync.valueOrNull ?? [];
     final rawPlayers = playersAsync.valueOrNull ?? [];
+    final rawNovedades = ref.watch(allNovedadesStreamProvider).valueOrNull ?? [];
 
     final List<Map<String, dynamic>> allEvents = [];
 
@@ -94,6 +96,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         modifiedEvent['category'] = modifiedEvent['eventCategory'];
       }
       allEvents.add(modifiedEvent);
+    }
+
+    for (final n in rawNovedades) {
+      final String? date = n['eventDate'] ?? (n['createdAt'] is Timestamp ? DateFormat('yyyy-MM-dd').format((n['createdAt'] as Timestamp).toDate()) : null);
+      if (date != null && date.isNotEmpty) {
+        allEvents.add({
+          'title': n['title'] ?? 'Comunicado',
+          'type': n['eventType'] == 'partido' ? 'match' : 'event',
+          'date': date,
+          'time': n['eventTime'] ?? 'Ver Novedades',
+          'location': n['location'] ?? 'Club JN',
+          'category': n['category'] ?? n['eventCategory'] ?? '',
+        });
+      }
     }
 
     for (final m in rawMatches) {
