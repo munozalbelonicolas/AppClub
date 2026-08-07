@@ -83,6 +83,14 @@
           }
         },
         {
+          "client_id": "173425300822-3630uobibr56mft71i4v37qob19sh11c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jorgenewbery.jorge_newbery_app.beta",
+            "certificate_hash": "2726497f8eb76f987a6660ef9605a9d757ca47f6"
+          }
+        },
+        {
           "client_id": "173425300822-5an2l3i2ujuqbt0bvgb749561eprtb3k.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
