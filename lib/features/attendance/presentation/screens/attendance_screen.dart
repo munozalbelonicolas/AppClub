@@ -20,11 +20,9 @@ class AttendanceScreen extends ConsumerStatefulWidget {
 }
 
 class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
-  DateTime _selectedDate = DateTime.now();
   String? _selectedCategory;
-  
-  // Maps playerId to 'present' | 'absent' | 'justified' | 'late'
-  final Map<String, String> _attendanceState = {};
+  final Set<String> _customDateColumns = {};
+  String? _activeDateColumnForBulk;
   bool _isLoading = false;
 
   final List<String> _daysList = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -48,55 +46,317 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
   }
 
-  String get _dateStr => DateFormat('yyyy-MM-dd').format(_selectedDate);
-  String get _formattedDateDDMM => DateFormat('dd-MM').format(_selectedDate);
-
-  Future<void> _saveAttendance(List<Map<String, dynamic>> players) async {
-    if (_selectedCategory == null) return;
-    
-    setState(() => _isLoading = true);
-    try {
-      final sessionUser = ref.read(currentUserProvider)!;
-      final Map<String, String> records = {};
-
-      for (final p in players) {
-        final id = p['id'] as String;
-        records[id] = _attendanceState[id] ?? 'present';
-      }
-
-      await ref.read(firestoreServiceProvider).saveAttendanceDetailed(
-        dateStr: _dateStr,
-        formattedDate: _formattedDateDDMM,
-        category: _selectedCategory!,
-        dtId: sessionUser.id,
-        records: records,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Asistencia guardada para $_formattedDateDDMM'),
-            backgroundColor: context.colors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al guardar asistencia: $e'),
-            backgroundColor: context.colors.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+  Color _getStatusBgColor(String? status) {
+    switch (status) {
+      case 'present':
+      case 'P':
+        return const Color(0xFF15803D); // Green
+      case 'absent':
+      case 'A':
+        return const Color(0xFFB91C1C); // Red
+      case 'justified':
+      case 'J':
+        return const Color(0xFFD4AF37); // Gold
+      case 'late':
+      case 'T':
+        return const Color(0xFF0284C7); // Blue
+      default:
+        return Colors.transparent;
     }
+  }
+
+  Color _getStatusTextColor(String? status) {
+    switch (status) {
+      case 'justified':
+      case 'J':
+        return Colors.black;
+      case 'present':
+      case 'P':
+      case 'absent':
+      case 'A':
+      case 'late':
+      case 'T':
+        return Colors.white;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusLabel(String? status) {
+    switch (status) {
+      case 'present':
+        return 'P';
+      case 'absent':
+        return 'A';
+      case 'justified':
+        return 'J';
+      case 'late':
+        return 'T';
+      default:
+        return '-';
+    }
+  }
+
+  String _getNextStatus(String? current) {
+    switch (current) {
+      case 'present':
+      case 'P':
+        return 'absent';
+      case 'absent':
+      case 'A':
+        return 'justified';
+      case 'justified':
+      case 'J':
+        return 'late';
+      case 'late':
+      case 'T':
+        return '';
+      default:
+        return 'present';
+    }
+  }
+
+  Future<void> _updateCellStatus({
+    required String playerId,
+    required String dateStr,
+    required String newStatus,
+    required Map<String, String> existingRecordsForDate,
+  }) async {
+    if (_selectedCategory == null) return;
+    final sessionUser = ref.read(currentUserProvider)!;
+
+    final updatedRecords = Map<String, String>.from(existingRecordsForDate);
+    if (newStatus.isEmpty) {
+      updatedRecords.remove(playerId);
+    } else {
+      updatedRecords[playerId] = newStatus;
+    }
+
+    String formattedDate = dateStr;
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length == 3) {
+        formattedDate = '${parts[2]}/${parts[1]}';
+      }
+    } catch (_) {}
+
+    await ref.read(firestoreServiceProvider).saveAttendanceDetailed(
+      dateStr: dateStr,
+      formattedDate: formattedDate,
+      category: _selectedCategory!,
+      dtId: sessionUser.id,
+      records: updatedRecords,
+    );
+  }
+
+  Future<void> _markAllPresentForDate({
+    required String dateStr,
+    required List<Map<String, dynamic>> players,
+    required Map<String, String> existingRecordsForDate,
+  }) async {
+    if (_selectedCategory == null || players.isEmpty) return;
+    final sessionUser = ref.read(currentUserProvider)!;
+
+    final updatedRecords = Map<String, String>.from(existingRecordsForDate);
+    for (final p in players) {
+      final id = p['id'] as String;
+      updatedRecords[id] = 'present';
+    }
+
+    String formattedDate = dateStr;
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length == 3) {
+        formattedDate = '${parts[2]}/${parts[1]}';
+      }
+    } catch (_) {}
+
+    await ref.read(firestoreServiceProvider).saveAttendanceDetailed(
+      dateStr: dateStr,
+      formattedDate: formattedDate,
+      category: _selectedCategory!,
+      dtId: sessionUser.id,
+      records: updatedRecords,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Todos marcados como Presentes para $formattedDate'),
+          backgroundColor: context.colors.success,
+        ),
+      );
+    }
+  }
+
+  Future<void> _addNewDateColumn() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('es', 'ES'),
+    );
+
+    if (date != null) {
+      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      setState(() {
+        _customDateColumns.add(dateStr);
+        _activeDateColumnForBulk = dateStr;
+      });
+    }
+  }
+
+  void _showStatusPickerModal({
+    required String playerName,
+    required String dateStr,
+    required String currentStatus,
+    required Map<String, String> existingRecordsForDate,
+    required String playerId,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (modalContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Asistencia: $playerName',
+                  style: context.typography.titleMedium,
+                ),
+                Text(
+                  'Fecha: $dateStr',
+                  style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _buildModalStatusOption(
+                      label: 'P - Presente',
+                      statusKey: 'present',
+                      bgColor: const Color(0xFF15803D),
+                      textColor: Colors.white,
+                      onTap: () {
+                        Navigator.pop(modalContext);
+                        _updateCellStatus(
+                          playerId: playerId,
+                          dateStr: dateStr,
+                          newStatus: 'present',
+                          existingRecordsForDate: existingRecordsForDate,
+                        );
+                      },
+                    ),
+                    _buildModalStatusOption(
+                      label: 'A - Ausente',
+                      statusKey: 'absent',
+                      bgColor: const Color(0xFFB91C1C),
+                      textColor: Colors.white,
+                      onTap: () {
+                        Navigator.pop(modalContext);
+                        _updateCellStatus(
+                          playerId: playerId,
+                          dateStr: dateStr,
+                          newStatus: 'absent',
+                          existingRecordsForDate: existingRecordsForDate,
+                        );
+                      },
+                    ),
+                    _buildModalStatusOption(
+                      label: 'J - Justificado',
+                      statusKey: 'justified',
+                      bgColor: const Color(0xFFD4AF37),
+                      textColor: Colors.black,
+                      onTap: () {
+                        Navigator.pop(modalContext);
+                        _updateCellStatus(
+                          playerId: playerId,
+                          dateStr: dateStr,
+                          newStatus: 'justified',
+                          existingRecordsForDate: existingRecordsForDate,
+                        );
+                      },
+                    ),
+                    _buildModalStatusOption(
+                      label: 'T - Tardanza',
+                      statusKey: 'late',
+                      bgColor: const Color(0xFF0284C7),
+                      textColor: Colors.white,
+                      onTap: () {
+                        Navigator.pop(modalContext);
+                        _updateCellStatus(
+                          playerId: playerId,
+                          dateStr: dateStr,
+                          newStatus: 'late',
+                          existingRecordsForDate: existingRecordsForDate,
+                        );
+                      },
+                    ),
+                    _buildModalStatusOption(
+                      label: '- Sin marcar',
+                      statusKey: '',
+                      bgColor: context.colors.surfaceVariant,
+                      textColor: context.colors.textSecondary,
+                      onTap: () {
+                        Navigator.pop(modalContext);
+                        _updateCellStatus(
+                          playerId: playerId,
+                          dateStr: dateStr,
+                          newStatus: '',
+                          existingRecordsForDate: existingRecordsForDate,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildModalStatusOption({
+    required String label,
+    required String statusKey,
+    required Color bgColor,
+    required Color textColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
   }
 
   void _showScheduleModal(Map<String, dynamic>? currentSchedule) {
     if (_selectedCategory == null) return;
-    
+
     final daysSelected = List<String>.from(currentSchedule?['days'] ?? []);
     final timeController = TextEditingController(text: currentSchedule?['time'] ?? '18:00 - 19:30');
     final locationController = TextEditingController(text: currentSchedule?['location'] ?? 'Cancha Principal JN');
@@ -189,29 +449,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     );
   }
 
-  Widget _buildStatusButton({
-    required String label,
-    required String tooltip,
-    required Color activeColor,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? activeColor : context.colors.surfaceVariant,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-            color: isSelected ? Colors.white : context.colors.textSecondary,
-          ),
-        ),
+  Widget _buildReferenceChip(String label, Color bg, Color text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: text, fontWeight: FontWeight.bold, fontSize: 10),
       ),
     );
   }
@@ -258,74 +505,32 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
         children: [
-          // Control Panel Card
-          JNCard(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              children: [
-                // Date Selector
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Fecha de Clase:', style: context.typography.titleMedium),
-                    TextButton.icon(
-                      onPressed: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _selectedDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime.now(),
-                          locale: const Locale('es', 'ES'),
-                        );
-                        if (date != null) {
-                          setState(() {
-                            _selectedDate = date;
-                            _attendanceState.clear();
-                          });
-                        }
-                      },
-                      icon: const Icon(Icons.calendar_today, size: 18),
-                      label: Text(
-                        '${DateFormat('dd/MM/yyyy').format(_selectedDate)} ($_formattedDateDDMM)',
-                        style: context.typography.titleMedium.copyWith(color: context.colors.primary),
-                      ),
-                    ),
-                  ],
-                ),
-                
-                // Category Selector
-                if (categories.length > 1) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Categoría:', style: context.typography.titleMedium),
-                      DropdownButton<String>(
-                        value: _selectedCategory,
-                        items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _selectedCategory = val;
-                              _attendanceState.clear();
-                            });
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ] else if (_selectedCategory != null) ...[
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: JNBadge(label: 'CATEGORÍA $_selectedCategory', type: JNBadgeType.accent),
+          // Category Selector
+          if (categories.length > 1)
+            JNCard(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Seleccionar Categoría:', style: context.typography.titleMedium),
+                  DropdownButton<String>(
+                    value: _selectedCategory,
+                    items: categories.map((c) => DropdownMenuItem(value: c, child: Text('Categoría $c'))).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedCategory = val;
+                          _customDateColumns.clear();
+                          _activeDateColumnForBulk = null;
+                        });
+                      }
+                    },
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 16),
+          if (categories.length > 1) const SizedBox(height: 12),
 
           // Training Schedule Card
           if (_selectedCategory != null)
@@ -336,11 +541,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 final location = schedule?['location'] ?? 'Sin cancha';
 
                 return JNCard(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   child: Row(
                     children: [
-                      Icon(Icons.fitness_center, color: context.colors.primary, size: 28),
-                      const SizedBox(width: 14),
+                      Icon(Icons.fitness_center, color: context.colors.primary, size: 24),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,7 +558,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                       if (isAdmin || isCoach)
                         IconButton(
-                          icon: Icon(Icons.edit_calendar, color: context.colors.accent),
+                          icon: Icon(Icons.edit_calendar, color: context.colors.accent, size: 20),
                           onPressed: () => _showScheduleModal(schedule),
                         ),
                     ],
@@ -366,7 +571,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
           const SizedBox(height: 16),
 
-          // Player Attendance List
+          // ─── PLANILLA DE ASISTENCIA DIARIA (Spreadsheet Matrix Table) ───
           if (_selectedCategory == null)
             const Center(child: Text('Selecciona una categoría'))
           else
@@ -377,7 +582,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     .where((p) => p['role'] == null || p['role'] == 'jugador')
                     .where((p) => p['role'] != 'directivo' && p['role'] != 'secretario' && p['role'] != 'dt' && p['role'] != 'tutor' && p['role'] != 'socio')
                     .toList();
-                
+
                 if (players.isEmpty) {
                   return JNCard(
                     padding: const EdgeInsets.all(24),
@@ -386,189 +591,303 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                   );
                 }
-                
-                final attendanceRecordAsync = ref.watch(attendanceStreamProvider('$_dateStr|$_selectedCategory'));
-                
-                return attendanceRecordAsync.when(
-                  data: (record) {
-                    if (_attendanceState.isEmpty && record != null) {
-                      final Map<String, dynamic> rawRecords = record['records'] as Map<String, dynamic>? ?? {};
-                      rawRecords.forEach((key, val) {
-                        _attendanceState[key] = val.toString();
-                      });
 
-                      // Fallback for old present/absent arrays
-                      if (_attendanceState.isEmpty) {
-                        final present = List<String>.from(record['present'] ?? []);
-                        final absent = List<String>.from(record['absent'] ?? []);
-                        for (var p in present) {
-                          _attendanceState[p] = 'present';
-                        }
-                        for (var a in absent) {
-                          _attendanceState[a] = 'absent';
-                        }
+                return attendanceHistoryAsync.when(
+                  data: (historyList) {
+                    // Extract date columns from history + custom added date columns
+                    final Map<String, Map<String, String>> historyMapByDate = {};
+                    for (final doc in historyList) {
+                      final dateStr = doc['dateStr'] ?? doc['date'] ?? '';
+                      if (dateStr.isNotEmpty) {
+                        final records = Map<String, String>.from(
+                          (doc['records'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v.toString())) ?? {},
+                        );
+                        historyMapByDate[dateStr] = records;
                       }
                     }
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Planilla (${players.length} Jugadores)',
-                              style: context.typography.titleMedium,
-                            ),
-                            Text(
-                              'P=Presente, A=Ausente, J=Justificado, T=Tardanza',
-                              style: context.typography.labelSmall.copyWith(color: context.colors.textTertiary, fontSize: 10),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ...players.map((player) {
-                          final playerId = player['id'] as String;
-                          final name = '${player['name']} ${player['lastName']}';
-                          final currentStatus = _attendanceState[playerId] ?? 'present';
+                    final Set<String> allDateColsSet = {};
+                    allDateColsSet.addAll(historyMapByDate.keys);
+                    allDateColsSet.addAll(_customDateColumns);
 
-                          return JNCard(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    // Ensure today's date column is present if empty
+                    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                    if (allDateColsSet.isEmpty) {
+                      allDateColsSet.add(todayStr);
+                    }
+
+                    final List<String> sortedDateColumns = allDateColsSet.toList()
+                      ..sort((a, b) => b.compareTo(a)); // Newest first
+
+                    _activeDateColumnForBulk ??= sortedDateColumns.first;
+
+                    final String activeBulkDate = _activeDateColumnForBulk ?? sortedDateColumns.first;
+                    final Map<String, String> activeBulkRecords = historyMapByDate[activeBulkDate] ?? {};
+
+                    return JNCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header title & Controls
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle_outline, color: Color(0xFFD4AF37), size: 22),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'PLANILLA DE ASISTENCIA DIARIA ($_selectedCategory)',
+                                  style: context.typography.titleMedium.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Haz clic en cualquier celda para alternar estado (P: Presente, A: Ausente, J: Justificado, T: Tardanza).',
+                            style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary, fontSize: 11),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Controls: Add Date & Bulk All Present
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: context.colors.accent,
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                ),
+                                onPressed: _addNewDateColumn,
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Agregar Fecha', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                ),
+                                onPressed: () => _markAllPresentForDate(
+                                  dateStr: activeBulkDate,
+                                  players: players,
+                                  existingRecordsForDate: activeBulkRecords,
+                                ),
+                                icon: const Icon(Icons.check_circle, size: 16, color: Color(0xFF15803D)),
+                                label: Text(
+                                  'Todos Presentes (${activeBulkDate.split('-').length == 3 ? '${activeBulkDate.split('-')[2]}/${activeBulkDate.split('-')[1]}' : activeBulkDate})',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // References Bar
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
                             child: Row(
                               children: [
-                                JNAvatar(name: name, size: 36),
-                                const SizedBox(width: 12),
-                                Expanded(
+                                Text('Referencias:', style: context.typography.labelSmall.copyWith(fontWeight: FontWeight.bold, fontSize: 11)),
+                                const SizedBox(width: 6),
+                                _buildReferenceChip('P = Presente', const Color(0xFF15803D), Colors.white),
+                                const SizedBox(width: 4),
+                                _buildReferenceChip('A = Ausente', const Color(0xFFB91C1C), Colors.white),
+                                const SizedBox(width: 4),
+                                _buildReferenceChip('J = Justificado', const Color(0xFFD4AF37), Colors.black),
+                                const SizedBox(width: 4),
+                                _buildReferenceChip('T = Tardanza', const Color(0xFF0284C7), Colors.white),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // ─── Horizontally & Vertically Scrollable Spreadsheet Matrix Table ───
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: context.colors.border),
+                              color: context.colors.surfaceVariant.withValues(alpha: 0.3),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 1. Sticky Left Column: Player Names
+                                Container(
+                                  width: 140,
+                                  decoration: BoxDecoration(
+                                    border: Border(right: BorderSide(color: context.colors.border, width: 2)),
+                                  ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(name, style: context.typography.titleSmall),
-                                      Text('Posición: ${player['position'] ?? 'Jugador'}', style: context.typography.bodySmall),
+                                      // Left Header Cell
+                                      Container(
+                                        height: 40,
+                                        alignment: Alignment.centerLeft,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                                        color: context.colors.surface,
+                                        child: Text(
+                                          'Jugador',
+                                          style: context.typography.labelSmall.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: context.colors.textPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                      const Divider(height: 1, thickness: 1),
+                                      // Player Name Rows
+                                      ...players.map((p) {
+                                        final name = '${p['name'] ?? ''} ${p['lastName'] ?? ''}'.trim();
+                                        return Container(
+                                          height: 44,
+                                          alignment: Alignment.centerLeft,
+                                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                                          decoration: BoxDecoration(
+                                            border: Border(bottom: BorderSide(color: context.colors.border, width: 0.5)),
+                                          ),
+                                          child: Text(
+                                            name,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: context.typography.bodySmall.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        );
+                                      }),
                                     ],
                                   ),
                                 ),
-                                Wrap(
-                                  spacing: 4,
-                                  children: [
-                                    _buildStatusButton(
-                                      label: 'P',
-                                      tooltip: 'Presente',
-                                      activeColor: context.colors.success,
-                                      isSelected: currentStatus == 'present',
-                                      onTap: () => setState(() => _attendanceState[playerId] = 'present'),
+
+                                // 2. Scrollable Date Columns
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: sortedDateColumns.map((dateStr) {
+                                        final records = historyMapByDate[dateStr] ?? {};
+
+                                        String formattedDDMM = dateStr;
+                                        try {
+                                          final parts = dateStr.split('-');
+                                          if (parts.length == 3) {
+                                            formattedDDMM = '${parts[2]}/${parts[1]}';
+                                          }
+                                        } catch (_) {}
+
+                                        final isSelectedDate = dateStr == activeBulkDate;
+
+                                        return Container(
+                                          width: 68,
+                                          decoration: BoxDecoration(
+                                            border: Border(right: BorderSide(color: context.colors.border, width: 0.5)),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              // Date Header Cell
+                                              GestureDetector(
+                                                onTap: () {
+                                                  setState(() {
+                                                    _activeDateColumnForBulk = dateStr;
+                                                  });
+                                                },
+                                                child: Container(
+                                                  height: 40,
+                                                  alignment: Alignment.center,
+                                                  color: isSelectedDate
+                                                      ? context.colors.primary.withValues(alpha: 0.2)
+                                                      : context.colors.surface,
+                                                  child: Text(
+                                                    formattedDDMM,
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 11,
+                                                      color: context.colors.accent,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const Divider(height: 1, thickness: 1),
+                                              // Status Cells for each player
+                                              ...players.map((p) {
+                                                final playerId = p['id'] as String;
+                                                final playerName = '${p['name']} ${p['lastName']}';
+                                                final status = records[playerId];
+
+                                                final bgColor = _getStatusBgColor(status);
+                                                final textColor = _getStatusTextColor(status);
+                                                final label = _getStatusLabel(status);
+
+                                                return GestureDetector(
+                                                  onTap: () {
+                                                    final nextStatus = _getNextStatus(status);
+                                                    _updateCellStatus(
+                                                      playerId: playerId,
+                                                      dateStr: dateStr,
+                                                      newStatus: nextStatus,
+                                                      existingRecordsForDate: records,
+                                                    );
+                                                  },
+                                                  onLongPress: () {
+                                                    _showStatusPickerModal(
+                                                      playerName: playerName,
+                                                      dateStr: formattedDDMM,
+                                                      currentStatus: status ?? '',
+                                                      existingRecordsForDate: records,
+                                                      playerId: playerId,
+                                                    );
+                                                  },
+                                                  child: Container(
+                                                    height: 44,
+                                                    alignment: Alignment.center,
+                                                    margin: const EdgeInsets.all(3),
+                                                    decoration: BoxDecoration(
+                                                      color: bgColor,
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(
+                                                        color: status == null || status.isEmpty
+                                                            ? context.colors.border
+                                                            : Colors.transparent,
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      label,
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 13,
+                                                        color: textColor,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              }),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
                                     ),
-                                    _buildStatusButton(
-                                      label: 'A',
-                                      tooltip: 'Ausente',
-                                      activeColor: context.colors.error,
-                                      isSelected: currentStatus == 'absent',
-                                      onTap: () => setState(() => _attendanceState[playerId] = 'absent'),
-                                    ),
-                                    _buildStatusButton(
-                                      label: 'J',
-                                      tooltip: 'Justificado',
-                                      activeColor: context.colors.accent,
-                                      isSelected: currentStatus == 'justified',
-                                      onTap: () => setState(() => _attendanceState[playerId] = 'justified'),
-                                    ),
-                                    _buildStatusButton(
-                                      label: 'T',
-                                      tooltip: 'Tardanza',
-                                      activeColor: Colors.lightBlue,
-                                      isSelected: currentStatus == 'late',
-                                      onTap: () => setState(() => _attendanceState[playerId] = 'late'),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),
-                          );
-                        }),
-                        const SizedBox(height: 12),
-                        JNButton(
-                          label: 'Guardar Asistencia ($_formattedDateDDMM)',
-                          isLoading: _isLoading,
-                          onPressed: () => _saveAttendance(players),
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     );
                   },
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, _) => Center(child: Text('Error cargando asistencia: $err')),
+                  error: (err, _) => Center(child: Text('Error cargando planilla: $err')),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Center(child: Text('Error cargando jugadores: $err')),
-            ),
-
-          const SizedBox(height: 24),
-
-          // Attendance History Card
-          if (_selectedCategory != null)
-            attendanceHistoryAsync.when(
-              data: (historyList) {
-                if (historyList.isEmpty) return const SizedBox.shrink();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Histórico de Asistencias por Fecha ($_selectedCategory)', style: context.typography.titleMedium),
-                    const SizedBox(height: 8),
-                    ...historyList.map((att) {
-                      final dateStr = att['dateStr'] ?? att['date'] ?? '';
-                      final formattedDate = att['formattedDate'] ?? dateStr;
-                      final records = (att['records'] as Map<String, dynamic>?) ?? {};
-
-                      int pCount = 0;
-                      int aCount = 0;
-                      records.forEach((k, v) {
-                        if (v == 'present') pCount++;
-                        if (v == 'absent') aCount++;
-                      });
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: JNCard(
-                          onTap: () {
-                            try {
-                              final parsed = DateTime.parse(dateStr);
-                              setState(() {
-                                _selectedDate = parsed;
-                                _attendanceState.clear();
-                              });
-                            } catch (_) {}
-                          },
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.calendar_month, color: context.colors.accent, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text('Fecha: $formattedDate', style: context.typography.titleSmall),
-                                  const SizedBox(width: 8),
-                                  Text('($dateStr)', style: context.typography.bodySmall),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  Text('$pCount Presentes', style: TextStyle(color: context.colors.success, fontWeight: FontWeight.bold, fontSize: 12)),
-                                  const SizedBox(width: 8),
-                                  Text('$aCount Ausentes', style: TextStyle(color: context.colors.error, fontWeight: FontWeight.bold, fontSize: 12)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                );
-              },
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
             ),
         ],
       ),
