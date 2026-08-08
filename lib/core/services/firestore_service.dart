@@ -124,6 +124,12 @@ class FirestoreService {
         );
   }
 
+  Stream<List<Map<String, dynamic>>> getAllTrainingSchedules() {
+    return _db.collection('training_schedules').snapshots().map(
+          (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+        );
+  }
+
   Future<void> saveTrainingSchedule(String category, List<String> days, String time, String location) async {
     await _db.collection('training_schedules').doc(category).set({
       'category': category,
@@ -307,4 +313,8 @@ final attendanceHistoryStreamProvider = StreamProvider.family<List<Map<String, d
 
 final trainingScheduleStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, category) {
   return ref.watch(firestoreServiceProvider).getTrainingSchedule(category);
+});
+
+final allTrainingSchedulesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  return ref.watch(firestoreServiceProvider).getAllTrainingSchedules();
 });

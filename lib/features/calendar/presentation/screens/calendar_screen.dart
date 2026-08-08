@@ -64,6 +64,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
+  int _getDayCode(String d) {
+    final clean = d.toLowerCase().trim();
+    if (clean.startsWith('lun')) return DateTime.monday;
+    if (clean.startsWith('mar')) return DateTime.tuesday;
+    if (clean.startsWith('mié') || clean.startsWith('mie')) return DateTime.wednesday;
+    if (clean.startsWith('jue')) return DateTime.thursday;
+    if (clean.startsWith('vie')) return DateTime.friday;
+    if (clean.startsWith('sáb') || clean.startsWith('sab')) return DateTime.saturday;
+    if (clean.startsWith('dom')) return DateTime.sunday;
+    return -1;
+  }
+
   List<Map<String, dynamic>> _getFilteredEvents(List<Map<String, dynamic>> events) {
     final selectedDateStr = _formatDateString(_selectedDate);
     return events.where((e) {
@@ -89,11 +101,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final eventsAsync = ref.watch(calendarEventsStreamProvider);
     final matchesAsync = ref.watch(matchesStreamProvider);
     final playersAsync = ref.watch(playersStreamProvider);
+    final schedulesAsync = ref.watch(allTrainingSchedulesStreamProvider);
 
     final rawEvents = eventsAsync.valueOrNull ?? [];
     final rawMatches = matchesAsync.valueOrNull ?? [];
     final rawPlayers = playersAsync.valueOrNull ?? [];
     final rawNovedades = ref.watch(allNovedadesStreamProvider).valueOrNull ?? [];
+    final rawSchedules = schedulesAsync.valueOrNull ?? [];
 
     final List<Map<String, dynamic>> allEvents = [];
 
@@ -147,6 +161,37 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           'location': '',
           'category': p['category'] ?? '',
         });
+      }
+    }
+
+    // Dynamic training events from DT training schedules
+    final int daysInMonth = DateUtils.getDaysInMonth(_currentMonth.year, _currentMonth.month);
+    for (final schedule in rawSchedules) {
+      final category = schedule['category']?.toString() ?? '';
+      final time = schedule['time']?.toString() ?? '18:00 hs';
+      final location = schedule['location']?.toString() ?? 'Cancha Club';
+      final List<dynamic> days = schedule['days'] ?? [];
+
+      final Set<int> targetWeekdays = days
+          .map((d) => _getDayCode(d.toString()))
+          .where((w) => w != -1)
+          .toSet();
+
+      if (targetWeekdays.isEmpty) continue;
+
+      for (int day = 1; day <= daysInMonth; day++) {
+        final date = DateTime(_currentMonth.year, _currentMonth.month, day);
+        if (targetWeekdays.contains(date.weekday)) {
+          final dateStr = _formatDateString(date);
+          allEvents.add({
+            'title': 'Entrenamiento Categoría $category',
+            'type': 'training',
+            'date': dateStr,
+            'time': time,
+            'location': location,
+            'category': category,
+          });
+        }
       }
     }
 
