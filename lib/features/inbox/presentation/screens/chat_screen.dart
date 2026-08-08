@@ -289,39 +289,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildMessageInput(dynamic currentUser) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        border: Border(top: BorderSide(color: context.colors.border, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              style: context.typography.bodyMedium,
-              maxLines: null,
-              decoration: const InputDecoration(
-                hintText: 'Escribe un mensaje privado...',
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          border: Border(top: BorderSide(color: context.colors.border, width: 0.5)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                style: context.typography.bodyMedium,
+                maxLines: null,
+                decoration: const InputDecoration(
+                  hintText: 'Escribe un mensaje privado...',
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
+                onSubmitted: (_) => _sendMessage(currentUser),
               ),
-              onSubmitted: (_) => _sendMessage(currentUser),
             ),
-          ),
-          const SizedBox(width: 8),
-          CircleAvatar(
-            backgroundColor: context.colors.primary,
-            radius: 22,
-            child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white, size: 18),
-              onPressed: () => _sendMessage(currentUser),
+            const SizedBox(width: 8),
+            CircleAvatar(
+              backgroundColor: context.colors.primary,
+              radius: 22,
+              child: IconButton(
+                icon: const Icon(Icons.send, color: Colors.white, size: 18),
+                onPressed: () => _sendMessage(currentUser),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
