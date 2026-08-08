@@ -126,12 +126,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final matchesAsync = ref.watch(matchesStreamProvider);
     final playersAsync = ref.watch(playersStreamProvider);
     final schedulesAsync = ref.watch(allTrainingSchedulesStreamProvider);
+    final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
+    final clubsAsync = ref.watch(clubsStreamProvider);
 
     final rawEvents = eventsAsync.valueOrNull ?? [];
     final rawMatches = matchesAsync.valueOrNull ?? [];
     final rawPlayers = playersAsync.valueOrNull ?? [];
     final rawNovedades = ref.watch(allNovedadesStreamProvider).valueOrNull ?? [];
     final rawSchedules = schedulesAsync.valueOrNull ?? [];
+    final rawFixtures = fixturesAsync.valueOrNull ?? [];
+    final clubs = clubsAsync.valueOrNull ?? [];
 
     final List<Map<String, dynamic>> allEvents = [];
 
@@ -143,31 +147,75 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       allEvents.add(modifiedEvent);
     }
 
+    // 1. Partidos y Eventos creados desde Novedades/Comunicados por DT o Admin
     for (final n in rawNovedades) {
-      final String? date = n['eventDate'] ?? (n['createdAt'] is Timestamp ? DateFormat('yyyy-MM-dd').format((n['createdAt'] as Timestamp).toDate()) : null);
+      final String? date = n['eventDate'] ?? n['date'] ?? (n['createdAt'] is Timestamp ? DateFormat('yyyy-MM-dd').format((n['createdAt'] as Timestamp).toDate()) : null);
       if (date != null && date.isNotEmpty) {
+        final bool isMatch = n['eventType'] == 'partido' || n['isMatch'] == true;
+        String title = n['title'] ?? 'Comunicado';
+
+        if (isMatch) {
+          String awayTeam = 'Rival';
+          if (n['opponentClubId'] != null) {
+            final club = clubs.where((c) => c['id'] == n['opponentClubId']).firstOrNull;
+            if (club != null && club['name'] != null) {
+              awayTeam = club['name'] as String;
+            }
+          }
+          if (awayTeam == 'Rival' && n['title'] != null && n['title'].toString().isNotEmpty) {
+            awayTeam = n['title'] as String;
+          }
+          title = 'Partido Amistoso: Jorge Newbery vs $awayTeam';
+        }
+
         allEvents.add({
-          'title': n['title'] ?? 'Comunicado',
-          'type': n['eventType'] == 'partido' ? 'match' : 'event',
+          'title': title,
+          'type': isMatch ? 'match' : 'event',
           'date': date,
-          'time': n['eventTime'] ?? 'Ver Novedades',
+          'time': n['eventTime'] ?? n['time'] ?? 'A confirmar',
           'location': n['location'] ?? 'Club JN',
           'category': n['category'] ?? n['eventCategory'] ?? '',
         });
       }
     }
 
+    // 2. Partidos de la colección 'matches'
     for (final m in rawMatches) {
       final date = m['date'] as String?;
-      if (date == null) continue;
+      if (date == null || date.isEmpty) continue;
       allEvents.add({
-        'title': '${m['homeTeam']} vs ${m['awayTeam']}',
+        'title': 'Partido: ${m['homeTeam']} vs ${m['awayTeam']}',
         'type': 'match',
         'date': date,
-        'time': m['time'] ?? '',
-        'location': m['location'] ?? 'Cancha',
+        'time': m['time'] ?? 'A confirmar',
+        'location': m['venue'] ?? m['location'] ?? 'Cancha Club',
         'category': m['category'] ?? '',
       });
+    }
+
+    // 3. Partidos cargados por el ADMIN en el Fixture
+    for (final f in rawFixtures) {
+      final matchesList = List<Map<String, dynamic>>.from(f['matches'] ?? []);
+      final cat = f['category']?.toString() ?? 'all';
+
+      for (final m in matchesList) {
+        final date = m['date'] as String?;
+        if (date == null || date.isEmpty) continue;
+
+        final homeClub = clubs.where((c) => c['id'] == m['homeClubId']).firstOrNull;
+        final awayClub = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
+        final homeName = homeClub?['name'] ?? 'Jorge Newbery';
+        final awayName = awayClub?['name'] ?? 'Rival';
+
+        allEvents.add({
+          'title': 'Partido (${f['name'] ?? 'Fixture'}): $homeName vs $awayName',
+          'type': 'match',
+          'date': date,
+          'time': m['time'] ?? 'A confirmar',
+          'location': m['venue'] ?? m['location'] ?? 'Cancha Club',
+          'category': cat,
+        });
+      }
     }
 
     for (final p in rawPlayers) {
