@@ -50,7 +50,7 @@ class MatchService {
 
   // ─── Fixtures ──────────────────────────────────────
   Stream<List<Map<String, dynamic>>> getFixtures(String category) {
-    return _db.collection('fixtures').where('category', isEqualTo: category).orderBy('createdAt').limit(20).snapshots().map(
+    return _db.collection('fixtures').orderBy('createdAt').snapshots().map(
       (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
     );
   }

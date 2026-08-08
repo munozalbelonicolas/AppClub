@@ -279,7 +279,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                     if (nameController.text.isNotEmpty && newMatches.isNotEmpty) {
                       await ref.read(firestoreServiceProvider).addFixture({
                         'name': nameController.text.trim(),
-                        'category': selectedCategory,
+                        'category': 'all',
                         'matches': newMatches,
                       });
                       if (context.mounted) Navigator.pop(context);
