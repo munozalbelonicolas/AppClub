@@ -54,7 +54,10 @@ class FirestoreService {
   // ─── Players ──────────────────────────────────────
   Stream<List<Map<String, dynamic>>> getPlayers() {
     return _db.collection('users').where('role', isEqualTo: 'jugador').snapshots().map(
-          (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+          (snapshot) => snapshot.docs
+              .map((doc) => {'id': doc.id, ...doc.data()})
+              .where((p) => p['role'] == 'jugador')
+              .toList(),
         );
   }
 

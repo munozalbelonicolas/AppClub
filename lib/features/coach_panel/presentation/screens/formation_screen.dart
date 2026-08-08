@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/app_logger.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -300,14 +301,31 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sessionUser = ref.watch(currentUserProvider);
+    final isCoach = sessionUser?.role == 'dt';
+    final isAdmin = sessionUser?.isAdmin ?? false;
+
     final playersAsync = ref.watch(playersStreamProvider);
-    final allPlayers = playersAsync.valueOrNull ?? [];
+    final rawPlayers = (playersAsync.valueOrNull ?? [])
+        .where((p) => p['role'] == null || p['role'] == 'jugador')
+        .where((p) => p['role'] != 'directivo' && p['role'] != 'secretario' && p['role'] != 'dt' && p['role'] != 'tutor' && p['role'] != 'socio')
+        .toList();
+
+    final List<String> dtCategories = isCoach
+        ? (sessionUser?.assignedCategories ?? (sessionUser?.category != null ? [sessionUser!.category!] : <String>[]))
+        : [];
+
+    final allPlayers = (isCoach && !isAdmin && dtCategories.isNotEmpty)
+        ? rawPlayers.where((p) => dtCategories.contains(p['category'])).toList()
+        : rawPlayers;
 
     final appCategories = ref.watch(appCategoriesProvider);
-    final categories = ['Todas', ...appCategories];
+    final categories = (isCoach && !isAdmin && dtCategories.isNotEmpty)
+        ? dtCategories
+        : ['Todas', ...appCategories];
 
     if (!categories.contains(_selectedCategoryFilter)) {
-      _selectedCategoryFilter = 'Todas';
+      _selectedCategoryFilter = categories.first;
     }
 
     final players = _selectedCategoryFilter == 'Todas'

@@ -127,7 +127,16 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
                   );
                 }
 
-                var docs = snapshot.data?.docs ?? [];
+                var docs = (snapshot.data?.docs ?? []).where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final role = data['role'];
+                  return (role == null || role == 'jugador') &&
+                      role != 'directivo' &&
+                      role != 'secretario' &&
+                      role != 'dt' &&
+                      role != 'tutor' &&
+                      role != 'socio';
+                }).toList();
                 
                 // Filter by category if selected
                 List<String>? allowedCategories;
@@ -256,7 +265,16 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
           .where('role', isEqualTo: 'jugador')
           .get();
 
-      var docs = querySnapshot.docs;
+      var docs = querySnapshot.docs.where((doc) {
+        final data = doc.data();
+        final role = data['role'];
+        return (role == null || role == 'jugador') &&
+            role != 'directivo' &&
+            role != 'secretario' &&
+            role != 'dt' &&
+            role != 'tutor' &&
+            role != 'socio';
+      }).toList();
       
       if (categoryFilter != null) {
         docs = docs.where((doc) {

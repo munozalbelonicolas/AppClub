@@ -371,7 +371,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           else
             allPlayersAsync.when(
               data: (allPlayers) {
-                final players = allPlayers.where((p) => p['category'] == _selectedCategory).toList();
+                final players = allPlayers
+                    .where((p) => p['category'] == _selectedCategory)
+                    .where((p) => p['role'] == null || p['role'] == 'jugador')
+                    .where((p) => p['role'] != 'directivo' && p['role'] != 'secretario' && p['role'] != 'dt' && p['role'] != 'tutor' && p['role'] != 'socio')
+                    .toList();
                 
                 if (players.isEmpty) {
                   return JNCard(

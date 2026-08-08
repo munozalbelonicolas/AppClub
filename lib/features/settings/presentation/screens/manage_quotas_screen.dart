@@ -196,6 +196,9 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
               data: (players) {
                 // Filter by category and status
                 final filteredPlayers = players.where((p) {
+                  final role = p['role'];
+                  if (role != null && role != 'jugador') return false;
+
                   // Category Filter
                   if (_selectedCategory != 'Todas' && p['category'] != _selectedCategory) {
                     return false;

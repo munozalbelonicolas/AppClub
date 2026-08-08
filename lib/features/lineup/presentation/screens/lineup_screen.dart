@@ -19,111 +19,72 @@ class LineupScreen extends ConsumerStatefulWidget {
 }
 
 class _LineupScreenState extends ConsumerState<LineupScreen> {
-  // Local state for assignments: positionKey -> playerId
+  // Local state for starter assignments: positionKey -> playerId
   final Map<String, String> _positions = {};
+  // Set of playerIds marked as convocado for this match
+  final Set<String> _convocadosIds = {};
   bool _isSaving = false;
   String? _selectedCategory;
-
-  final List<Map<String, dynamic>> _fieldPositions = [
-    {
-      'key': 'GK',
-      'label': 'ARQ',
-      'fullName': 'Arquero',
-      'align': const Alignment(0, 0.83),
-    },
-    {
-      'key': 'LDF',
-      'label': '3',
-      'fullName': 'Defensa Izquierdo',
-      'align': const Alignment(-0.72, 0.50),
-    },
-    {
-      'key': 'CDF1',
-      'label': '6',
-      'fullName': 'Central Izquierdo',
-      'align': const Alignment(-0.25, 0.55),
-    },
-    {
-      'key': 'CDF2',
-      'label': '2',
-      'fullName': 'Central Derecho',
-      'align': const Alignment(0.25, 0.55),
-    },
-    {
-      'key': 'RDF',
-      'label': '4',
-      'fullName': 'Defensa Derecho',
-      'align': const Alignment(0.72, 0.50),
-    },
-    {
-      'key': 'LMF',
-      'label': '11',
-      'fullName': 'Mediocampista Izquierdo',
-      'align': const Alignment(-0.72, 0.08),
-    },
-    {
-      'key': 'CMF1',
-      'label': '5',
-      'fullName': 'Mediocampista Central L',
-      'align': const Alignment(-0.25, 0.12),
-    },
-    {
-      'key': 'CMF2',
-      'label': '8',
-      'fullName': 'Mediocampista Central R',
-      'align': const Alignment(0.25, 0.12),
-    },
-    {
-      'key': 'RMF',
-      'label': '7',
-      'fullName': 'Mediocampista Derecho',
-      'align': const Alignment(0.72, 0.08),
-    },
-    {
-      'key': 'LFW',
-      'label': '9',
-      'fullName': 'Delantero Izquierdo',
-      'align': const Alignment(-0.35, -0.52),
-    },
-    {
-      'key': 'RFW',
-      'label': '10',
-      'fullName': 'Delantero Derecho',
-      'align': const Alignment(0.35, -0.52),
-    },
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDefaultMockLineup();
-  }
-
-  // Pre-populate with typical setup so field is never empty initially
-  void _loadDefaultMockLineup() {
-    // Left empty for production, will fetch from Firestore
-  }
 
   Future<void> _saveLineup(Map<String, dynamic>? nextMatch) async {
     setState(() {
       _isSaving = true;
     });
 
+    final docId = nextMatch?['id'] ?? 'next_match_${_selectedCategory ?? 'all'}';
+
     try {
-      await FirebaseFirestore.instance
-          .collection('match_lineups')
-          .doc(nextMatch?['id'] ?? 'next_match')
-          .set({
-            'matchId': nextMatch?['id'] ?? 'next_match',
-            'updatedAt': FieldValue.serverTimestamp(),
-            'positions': _positions,
-          });
+      final matchRef = FirebaseFirestore.instance.collection('match_lineups').doc(docId);
+      await matchRef.set({
+        'matchId': docId,
+        'category': _selectedCategory,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'positions': _positions,
+        'convocadosIds': _convocadosIds.toList(),
+      }, SetOptions(merge: true));
+
+      if (nextMatch != null) {
+        final convocatoriaRef = FirebaseFirestore.instance
+            .collection('matches')
+            .doc(nextMatch['id'])
+            .collection('convocatoria');
+
+        final snapshot = await convocatoriaRef.get();
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+
+        final playersAsync = ref.read(playersStreamProvider);
+        final categoryPlayers = (playersAsync.valueOrNull ?? [])
+            .where((p) => p['category'] == _selectedCategory)
+            .toList();
+
+        for (var p in categoryPlayers) {
+          if (_convocadosIds.contains(p['id'])) {
+            final isStarter = _positions.values.contains(p['id']);
+            final cDoc = convocatoriaRef.doc(p['id']);
+            batch.set(cDoc, {
+              'playerId': p['id'],
+              'name': '${p['name']} ${p['lastName']}',
+              'number': p['number'] ?? p['jerseyNumber'] ?? '',
+              'position': p['position'] ?? 'Jugador',
+              'category': p['category'],
+              'role': p['role'] ?? 'jugador',
+              'isStarter': isStarter,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+        await batch.commit();
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Alineación guardada correctamente en Firestore.'),
+            content: const Text('Convocatoria guardada correctamente.'),
             backgroundColor: context.colors.success,
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -131,7 +92,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al guardar alineación: $e'),
+            content: Text('Error al guardar: $e'),
             backgroundColor: context.colors.error,
           ),
         );
@@ -145,119 +106,144 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     }
   }
 
-  void _showPlayerSelector(
+  void _toggleConvocado(String playerId, Map<String, dynamic>? nextMatch) {
+    setState(() {
+      if (_convocadosIds.contains(playerId)) {
+        _convocadosIds.remove(playerId);
+        _positions.removeWhere((k, v) => v == playerId);
+      } else {
+        _convocadosIds.add(playerId);
+      }
+    });
+    _saveLineup(nextMatch);
+  }
+
+  void _toggleTitular(String playerId, Map<String, dynamic>? nextMatch) {
+    setState(() {
+      final isAlreadyStarter = _positions.values.contains(playerId);
+      if (isAlreadyStarter) {
+        _positions.removeWhere((k, v) => v == playerId);
+      } else {
+        if (!_convocadosIds.contains(playerId)) {
+          _convocadosIds.add(playerId);
+        }
+        final starterKey = 'STARTER_$playerId';
+        _positions[starterKey] = playerId;
+      }
+    });
+    _saveLineup(nextMatch);
+  }
+
+  void _showConvocatoriaManager(
     BuildContext context,
-    String posKey,
-    String posName,
-    List<Map<String, dynamic>> allConvocadosList,
+    List<Map<String, dynamic>> allCategoryPlayers,
+    Map<String, dynamic>? nextMatch,
   ) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: context.colors.background,
+      isScrollControlled: true,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final int countConvocados = allCategoryPlayers.where((p) => _convocadosIds.contains(p['playerId'])).length;
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Asignar Posición: $posName',
-                    style: context.typography.headlineSmall,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Gestionar Convocados', style: context.typography.headlineSmall),
+                          Text('$countConvocados de ${allCategoryPlayers.length} jugadores convocados', style: context.typography.bodySmall),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _convocadosIds.clear();
+                              _convocadosIds.addAll(allCategoryPlayers.map((p) => p['playerId'] as String));
+                            });
+                            setModalState(() {});
+                            _saveLineup(nextMatch);
+                          },
+                          icon: const Icon(Icons.select_all, size: 16),
+                          label: const Text('Convocar Todos', style: TextStyle(fontSize: 12)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _convocadosIds.clear();
+                              _positions.clear();
+                            });
+                            setModalState(() {});
+                            _saveLineup(nextMatch);
+                          },
+                          icon: const Icon(Icons.deselect, size: 16),
+                          label: const Text('Desconvocar Todos', style: TextStyle(fontSize: 12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 20),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: allCategoryPlayers.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, idx) {
+                        final player = allCategoryPlayers[idx];
+                        final playerId = player['playerId'] as String;
+                        final isConvocado = _convocadosIds.contains(playerId);
+
+                        return SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          secondary: JNAvatar(name: player['name'] as String, size: 36),
+                          title: Text(player['name'] as String, style: context.typography.titleMedium),
+                          subtitle: Text('#${player['number']} · ${player['position']}', style: context.typography.bodySmall),
+                          value: isConvocado,
+                          activeColor: context.colors.primary,
+                          onChanged: (val) {
+                            setState(() {
+                              if (val) {
+                                _convocadosIds.add(playerId);
+                              } else {
+                                _convocadosIds.remove(playerId);
+                                _positions.removeWhere((k, v) => v == playerId);
+                              }
+                            });
+                            setModalState(() {});
+                            _saveLineup(nextMatch);
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
-              const Divider(),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: context.colors.textTertiary),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.remove,
-                    size: 18,
-                    color: context.colors.textTertiary,
-                  ),
-                ),
-                title: const Text(
-                  'Vacante / Sin Asignar',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                onTap: () {
-                  setState(() {
-                    _positions.remove(posKey);
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: allConvocadosList.length,
-                  separatorBuilder: (context, index) =>
-                      Divider(height: 1, color: context.colors.divider),
-                  itemBuilder: (context, idx) {
-                    final player = allConvocadosList[idx];
-                    final playerId = player['playerId'] as String;
-
-                    // Check if player is already assigned somewhere else
-                    String? assignedPos;
-                    _positions.forEach((k, v) {
-                      if (v == playerId) assignedPos = k;
-                    });
-
-                    final isAlreadyAssigned = assignedPos != null;
-
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: JNAvatar(
-                        name: player['name'] as String,
-                        size: 38,
-                      ),
-                      title: Text(
-                        player['name'] as String,
-                        style: context.typography.titleMedium,
-                      ),
-                      subtitle: Text(
-                        '#${player['number']} · ${player['position']}',
-                        style: context.typography.bodySmall,
-                      ),
-                      trailing: isAlreadyAssigned
-                          ? Text(
-                              'Asignado en $assignedPos',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.colors.accent,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
-                      enabled: !isAlreadyAssigned || assignedPos == posKey,
-                      onTap: () {
-                        setState(() {
-                          _positions[posKey] = playerId;
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -266,57 +252,43 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
-    if (currentUser == null) {
-      return Scaffold(
-        backgroundColor: context.colors.background,
-        appBar: AppBar(title: const Text('Formación del Equipo'), elevation: 0),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
+    if (currentUser == null) return const SizedBox.shrink();
 
-    final bool isAdmin = currentUser.isAdmin;
-    final bool isCoach = currentUser.isCoach;
+    final isCoach = currentUser.role == 'dt';
+    final isAdmin = currentUser.isAdmin;
+
+    final appCategories = ref.watch(appCategoriesProvider);
+
+    final categories = isCoach
+        ? (currentUser.assignedCategories ?? (currentUser.category != null ? [currentUser.category!] : <String>[]))
+        : (isAdmin ? appCategories : (currentUser.category != null ? [currentUser.category!] : <String>[]));
+
+    if (_selectedCategory == null && categories.isNotEmpty) {
+      _selectedCategory = categories.first;
+    } else if (_selectedCategory != null && !categories.contains(_selectedCategory) && categories.isNotEmpty) {
+      _selectedCategory = categories.first;
+    }
 
     final matchesAsync = ref.watch(matchesStreamProvider);
     final allMatches = matchesAsync.valueOrNull ?? [];
 
-    List<String> categories = ref.watch(appCategoriesProvider);
-    if (isCoach) {
-      final dtCats = currentUser.assignedCategories ?? [];
-      categories = dtCats.isNotEmpty ? dtCats : (currentUser.category != null ? [currentUser.category!] : []);
-    }
-
-    if (_selectedCategory == null || (isCoach && !categories.contains(_selectedCategory))) {
-      if (isAdmin && categories.isNotEmpty) {
-        _selectedCategory = categories.first;
-      } else if (isCoach && categories.isNotEmpty) {
-        _selectedCategory = categories.first;
-      } else if (currentUser.category != null) {
-        _selectedCategory = currentUser.category;
-      } else if (categories.isNotEmpty) {
-        _selectedCategory = categories.first;
-      }
-    }
-
     final nextMatch = allMatches.where((m) => m['category'] == _selectedCategory).firstOrNull;
-    
+
     final playersAsync = ref.watch(playersStreamProvider);
     final allCategoryPlayers = (playersAsync.valueOrNull ?? [])
         .where((p) => p['category'] == _selectedCategory)
+        .where((p) => p['role'] == null || p['role'] == 'jugador')
+        .where((p) => p['role'] != 'directivo' && p['role'] != 'secretario' && p['role'] != 'dt' && p['role'] != 'tutor' && p['role'] != 'socio')
         .map((p) => <String, dynamic>{
           'playerId': p['id'],
           'name': '${p['name']} ${p['lastName']}',
           'number': p['number'] ?? p['jerseyNumber'] ?? '',
           'position': p['position'] ?? 'Jugador',
+          'role': p['role'] ?? 'jugador',
         })
         .toList();
 
-    final convocatoriaAsync = nextMatch != null 
-        ? ref.watch(convocatoriaStreamProvider(nextMatch['id']))
-        : const AsyncValue.data(<Map<String, dynamic>>[]);
-        
-    final rawConvocados = convocatoriaAsync.valueOrNull ?? [];
-    final allConvocadosList = rawConvocados.isNotEmpty ? rawConvocados : allCategoryPlayers;
+    final docId = nextMatch?['id'] ?? 'next_match_${_selectedCategory ?? 'all'}';
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -324,34 +296,35 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('match_lineups')
-            .doc(nextMatch?['id'] ?? 'next_match')
+            .doc(docId)
             .snapshots(),
         builder: (context, snapshot) {
-          // If we received data from Firestore, sync our local positions state
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
-            if (data != null && data['positions'] != null && !_isSaving) {
-              final rawPositions = data['positions'] as Map<String, dynamic>;
-              _positions.clear();
-              rawPositions.forEach((k, v) {
-                _positions[k] = v.toString();
-              });
+            if (data != null && !_isSaving) {
+              if (data['convocadosIds'] != null) {
+                final List<dynamic> rawIds = data['convocadosIds'];
+                _convocadosIds.clear();
+                _convocadosIds.addAll(rawIds.map((e) => e.toString()));
+              }
+              if (data['positions'] != null) {
+                final rawPositions = data['positions'] as Map<String, dynamic>;
+                _positions.clear();
+                rawPositions.forEach((k, v) {
+                  _positions[k] = v.toString();
+                });
+              }
             }
           }
 
-          // Build lists for starting XI and bench
-          final List<Map<String, dynamic>> starters = [];
-          final List<Map<String, dynamic>> bench = [];
+          // Convocados vs No Convocados
+          final List<Map<String, dynamic>> convocados = allCategoryPlayers
+              .where((p) => _convocadosIds.contains(p['playerId']))
+              .toList();
 
-          for (final player in allConvocadosList) {
-            final playerId = player['playerId'] as String;
-            final isAssigned = _positions.values.contains(playerId);
-            if (isAssigned) {
-              starters.add(player);
-            } else {
-              bench.add(player);
-            }
-          }
+          final List<Map<String, dynamic>> noConvocados = allCategoryPlayers
+              .where((p) => !_convocadosIds.contains(p['playerId']))
+              .toList();
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
@@ -372,11 +345,13 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                         setState(() {
                           _selectedCategory = val;
                           _positions.clear();
+                          _convocadosIds.clear();
                         });
                       }
                     },
                   ),
                 ),
+
               // Next Match Info Banner
               if (nextMatch != null)
                 JNCard(
@@ -394,7 +369,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${nextMatch['awayTeam']} vs ${nextMatch['homeTeam']}',
+                              '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
                               style: context.typography.titleMedium,
                             ),
                             Text(
@@ -404,53 +379,93 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                           ],
                         ),
                       ),
-                      const JNBadge(
-                        label: 'CONVOCATORIA',
-                        type: JNBadgeType.accent,
-                      ),
+                      if (isCoach)
+                        TextButton.icon(
+                          onPressed: () => _showConvocatoriaManager(context, allCategoryPlayers, nextMatch),
+                          icon: const Icon(Icons.playlist_add_check, size: 18),
+                          label: const Text('Convocatoria', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        )
+                      else
+                        const JNBadge(
+                          label: 'CONVOCATORIA',
+                          type: JNBadgeType.accent,
+                        ),
                     ],
                   ),
-                ).animate().fadeIn(duration: 400.ms),
-
-              if (nextMatch != null) const SizedBox(height: 16),
-
-              if (nextMatch == null)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.sports_soccer,
-                          size: 48,
-                          color: context.colors.textTertiary,
+                ).animate().fadeIn(duration: 400.ms)
+              else
+                JNCard(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.sports_soccer, size: 20, color: context.colors.textTertiary),
+                          const SizedBox(width: 10),
+                          Text('Sin próximo partido agendado', style: context.typography.bodyMedium),
+                        ],
+                      ),
+                      if (isCoach)
+                        TextButton.icon(
+                          onPressed: () => _showConvocatoriaManager(context, allCategoryPlayers, nextMatch),
+                          icon: const Icon(Icons.playlist_add_check, size: 16),
+                          label: const Text('Convocar', style: TextStyle(fontSize: 12)),
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No hay próximo partido',
-                          style: context.typography.titleMedium.copyWith(
-                            color: context.colors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
 
-              // Tactical Field as Background Graphic
+              const SizedBox(height: 16),
+
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Plantel Convocado (${convocados.length}/${allCategoryPlayers.length})',
+                        style: context.typography.headlineSmall,
+                      ),
+                      Text(
+                        convocados.isEmpty
+                            ? 'No hay jugadores convocados aún.'
+                            : '${convocados.length} jugadores convocados para el partido.',
+                        style: context.typography.bodySmall,
+                      ),
+                    ],
+                  ),
+                  if (isCoach)
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: context.colors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onPressed: () => _showConvocatoriaManager(context, allCategoryPlayers, nextMatch),
+                      icon: const Icon(Icons.person_add_alt_1, size: 16),
+                      label: const Text('Gestionar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // ─── GREEN PITCH DISPLAYING ONLY CONVOCADOS (NO-CONVOCADOS NEVER APPEAR HERE) ───
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  height: 180,
+                  constraints: const BoxConstraints(minHeight: 200),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color(0xFF153d2f), // Pitch upper green
-                        Color(0xFF235c47), // Pitch middle green
-                        Color(0xFF1c4a39), // Pitch lower green
+                        Color(0xFF153d2f),
+                        Color(0xFF235c47),
+                        Color(0xFF1c4a39),
                       ],
                     ),
                   ),
@@ -460,25 +475,124 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                       Positioned.fill(
                         child: CustomPaint(painter: _SoccerPitchPainter()),
                       ),
-                      Center(
+
+                      // Player Names OVER the Pitch (ONLY CONVOCADOS)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              'Formación de Equipo',
-                              style: context.typography.headlineMedium.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Convocatoria Categoría ${_selectedCategory ?? ''}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: context.colors.accent.withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: context.colors.accent),
+                                  ),
+                                  child: Text(
+                                    '${convocados.length} CONVOCADOS',
+                                    style: TextStyle(
+                                      color: context.colors.accent,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Categoría: ${_selectedCategory ?? ''}',
-                              style: TextStyle(
-                                color: context.colors.accent,
-                                fontWeight: FontWeight.w600,
+                            const SizedBox(height: 14),
+
+                            if (convocados.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 28),
+                                child: Center(
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.person_add_disabled, color: Colors.white54, size: 28),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'No hay jugadores convocados aún.',
+                                        style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Toca "+ Convocar" en la lista de abajo para sumar jugadores.',
+                                        style: TextStyle(color: Colors.white54, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: convocados.map((player) {
+                                  final playerId = player['playerId'] as String;
+                                  final isStarter = _positions.values.contains(playerId);
+                                  final number = player['number']?.toString() ?? '';
+
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: isStarter
+                                          ? context.colors.accent
+                                          : Colors.white.withValues(alpha: 0.22),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isStarter ? Colors.white : Colors.white38,
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.3),
+                                          blurRadius: 3,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (isStarter) ...[
+                                          const Icon(Icons.star, size: 14, color: Colors.black),
+                                          const SizedBox(width: 4),
+                                        ],
+                                        Text(
+                                          player['name'] as String,
+                                          style: TextStyle(
+                                            color: isStarter ? Colors.black : Colors.white,
+                                            fontWeight: isStarter ? FontWeight.bold : FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        if (number.isNotEmpty) ...[
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '#$number',
+                                            style: TextStyle(
+                                              color: isStarter ? Colors.black87 : Colors.white70,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -487,78 +601,54 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 ),
               ).animate(delay: 100.ms).fadeIn().scale(begin: const Offset(0.98, 0.98)),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // DYNAMIC DISPLAY: IF NO STARTERS -> Show ONLY "Jugadores Convocados"
-              if (starters.isEmpty) ...[
+              // ─── ROSTER SELECTION LIST (CONVOCADOS / NO CONVOCADOS) ───
+              Text('Plantel de la Categoría (${allCategoryPlayers.length})', style: context.typography.headlineSmall),
+              Text('Toca "+ Convocar" para convocar jugadores al partido:', style: context.typography.bodySmall),
+              const SizedBox(height: 12),
+
+              if (convocados.isNotEmpty) ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Jugadores Convocados (${allConvocadosList.length})',
-                      style: context.typography.headlineSmall,
+                      'Jugadores Convocados (${convocados.length})',
+                      style: context.typography.titleMedium.copyWith(color: context.colors.primary),
                     ),
-                    const JNBadge(label: 'CONVOCATORIA', type: JNBadgeType.accent),
+                    const JNBadge(label: 'CONVOCADO', type: JNBadgeType.success),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Toca en ⭐ Titular para asignar los titulares del partido.',
-                  style: context.typography.bodySmall,
-                ),
-                const SizedBox(height: 12),
-                if (allConvocadosList.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: Text(
-                        'No hay jugadores convocados registrados.',
-                        style: context.typography.bodyMedium,
-                      ),
-                    ),
-                  )
-                else
-                  ...allConvocadosList.map((p) => _buildPlayerTile(p, false, isCoach, nextMatch)),
-              ] else ...[
-                // IF STARTERS ARE SELECTED -> Show TWO SEPARATE SECTIONS ("Titulares ⭐" and "Convocados / Suplentes")
+                const SizedBox(height: 8),
+                ...convocados.map((p) => _buildPlayerCard(
+                  player: p,
+                  isConvocado: true,
+                  isStarter: _positions.values.contains(p['playerId']),
+                  isCoach: isCoach,
+                  nextMatch: nextMatch,
+                )),
+                const SizedBox(height: 16),
+              ],
+
+              if (noConvocados.isNotEmpty) ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Titulares ⭐ (${starters.length})',
-                      style: context.typography.headlineSmall.copyWith(
-                        color: context.colors.accent,
-                      ),
+                      'Sin Convocar (${noConvocados.length})',
+                      style: context.typography.titleMedium.copyWith(color: context.colors.textSecondary),
                     ),
-                    const JNBadge(label: 'CONFIRMADOS', type: JNBadgeType.accent),
+                    const JNBadge(label: 'NO CONVOCADO', type: JNBadgeType.neutral),
                   ],
                 ),
-                const SizedBox(height: 12),
-                ...starters.map((p) => _buildPlayerTile(p, true, isCoach, nextMatch)),
-
-                const SizedBox(height: 24),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Convocados / Suplentes (${bench.length})',
-                      style: context.typography.headlineSmall,
-                    ),
-                    const JNBadge(label: 'SUPLENTES'),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (bench.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      'Todos los convocados son titulares.',
-                      style: context.typography.bodySmall,
-                    ),
-                  )
-                else
-                  ...bench.map((p) => _buildPlayerTile(p, false, isCoach, nextMatch)),
+                const SizedBox(height: 8),
+                ...noConvocados.map((p) => _buildPlayerCard(
+                  player: p,
+                  isConvocado: false,
+                  isStarter: false,
+                  isCoach: isCoach,
+                  nextMatch: nextMatch,
+                )),
               ],
             ],
           );
@@ -567,8 +657,15 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     );
   }
 
-  Widget _buildPlayerTile(Map<String, dynamic> player, bool isStarter, bool isCoach, Map<String, dynamic>? nextMatch) {
+  Widget _buildPlayerCard({
+    required Map<String, dynamic> player,
+    required bool isConvocado,
+    required bool isStarter,
+    required bool isCoach,
+    required Map<String, dynamic>? nextMatch,
+  }) {
     final playerId = player['playerId'] as String;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: JNCard(
@@ -577,10 +674,10 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
           children: [
             JNAvatar(
               name: player['name'] as String,
-              size: 36,
+              size: 40,
               borderColor: isStarter
                   ? context.colors.accent
-                  : context.colors.textTertiary,
+                  : (isConvocado ? context.colors.primary : context.colors.textTertiary),
               borderWidth: 1.5,
             ),
             const SizedBox(width: 12),
@@ -603,41 +700,49 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               ),
             ),
             if (isCoach) ...[
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    if (isStarter) {
-                      _positions.removeWhere((k, v) => v == playerId);
-                    } else {
-                      // Assign to next unassigned position or generic starter key
-                      final unassignedKey = _fieldPositions.firstWhere(
-                        (p) => !_positions.containsKey(p['key']),
-                        orElse: () => {'key': 'STARTER_$playerId'},
-                      )['key'] as String;
-                      _positions[unassignedKey] = playerId;
-                    }
-                  });
-                  _saveLineup(nextMatch);
-                },
+              // Button to Convocar / Desconvocar
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isConvocado
+                      ? context.colors.primary.withValues(alpha: 0.15)
+                      : context.colors.surface,
+                  foregroundColor: isConvocado
+                      ? context.colors.primary
+                      : context.colors.textSecondary,
+                  elevation: 0,
+                  side: BorderSide(
+                    color: isConvocado ? context.colors.primary : context.colors.divider,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                ),
+                onPressed: () => _toggleConvocado(playerId, nextMatch),
                 icon: Icon(
-                  Icons.star,
+                  isConvocado ? Icons.check_circle : Icons.add_circle_outline,
                   size: 16,
-                  color: isStarter ? context.colors.accent : context.colors.textTertiary,
+                  color: isConvocado ? context.colors.primary : context.colors.textSecondary,
                 ),
                 label: Text(
-                  isStarter ? 'Quitar' : '⭐ Titular',
+                  isConvocado ? 'Convocado' : '+ Convocar',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isStarter ? context.colors.accent : context.colors.textSecondary,
+                    fontWeight: isConvocado ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ),
               const SizedBox(width: 6),
+
+              // Optional Starter Toggle Button (only when convocado)
+              if (isConvocado)
+                IconButton(
+                  tooltip: isStarter ? 'Quitar Titular' : 'Marcar Titular ⭐',
+                  icon: Icon(
+                    Icons.star,
+                    color: isStarter ? context.colors.accent : context.colors.textTertiary,
+                    size: 20,
+                  ),
+                  onPressed: () => _toggleTitular(playerId, nextMatch),
+                ),
             ],
-            JNBadge(
-              label: isStarter ? 'TITULAR' : 'SUPLENTE',
-              type: isStarter ? JNBadgeType.accent : JNBadgeType.neutral,
-            ),
           ],
         ),
       ),
@@ -653,15 +758,12 @@ class _SoccerPitchPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
-    // Pitch borders
     final rect = Rect.fromLTWH(8, 8, size.width - 16, size.height - 16);
     canvas.drawRect(rect, paint);
 
-    // Center line
     final midY = size.height / 2;
     canvas.drawLine(Offset(8, midY), Offset(size.width - 8, midY), paint);
 
-    // Center Circle
     canvas.drawCircle(Offset(size.width / 2, midY), 45, paint);
     canvas.drawCircle(
       Offset(size.width / 2, midY),
@@ -669,7 +771,6 @@ class _SoccerPitchPainter extends CustomPainter {
       Paint()..color = Colors.white.withValues(alpha: 0.22),
     );
 
-    // Penalty box - top side (away)
     final topPenalty = Rect.fromLTWH(
       size.width * 0.18,
       8,
@@ -677,7 +778,6 @@ class _SoccerPitchPainter extends CustomPainter {
       size.height * 0.18,
     );
     canvas.drawRect(topPenalty, paint);
-    // top penalty arc
     canvas.drawArc(
       Rect.fromCenter(
         center: Offset(size.width / 2, size.height * 0.18 + 8),
@@ -690,7 +790,6 @@ class _SoccerPitchPainter extends CustomPainter {
       paint,
     );
 
-    // Penalty box - bottom side (home)
     final bottomPenalty = Rect.fromLTWH(
       size.width * 0.18,
       size.height * 0.82 - 8,
@@ -698,7 +797,6 @@ class _SoccerPitchPainter extends CustomPainter {
       size.height * 0.18,
     );
     canvas.drawRect(bottomPenalty, paint);
-    // bottom penalty arc
     canvas.drawArc(
       Rect.fromCenter(
         center: Offset(size.width / 2, size.height * 0.82 - 8),
@@ -711,7 +809,6 @@ class _SoccerPitchPainter extends CustomPainter {
       paint,
     );
 
-    // Goal boxes
     final topGoal = Rect.fromLTWH(
       size.width * 0.35,
       8,

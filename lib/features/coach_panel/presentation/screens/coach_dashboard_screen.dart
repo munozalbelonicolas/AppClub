@@ -26,7 +26,10 @@ class CoachDashboardScreen extends ConsumerWidget {
     final sessionUser = ref.watch(currentUserProvider)!;
 
     final playersAsync = ref.watch(playersStreamProvider);
-    final List<Map<String, dynamic>> allPlayers = playersAsync.valueOrNull ?? [];
+    final List<Map<String, dynamic>> allPlayers = (playersAsync.valueOrNull ?? [])
+        .where((p) => p['role'] == null || p['role'] == 'jugador')
+        .where((p) => p['role'] != 'directivo' && p['role'] != 'secretario' && p['role'] != 'dt' && p['role'] != 'tutor' && p['role'] != 'socio')
+        .toList();
     
     // Filter players by assignedCategories or category
     final List<Map<String, dynamic>> players = allPlayers.where((p) {
