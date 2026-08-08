@@ -147,16 +147,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String? selectedImagePath;
     String? selectedPresetImage;
 
-    String eventType = 'ninguno';
-    bool hasTransport = false;
-    String? selectedOpponentId;
-
     // Default category configuration
     String selectedCategory = 'all';
     final bool isDT = sessionUser.role == 'dt';
     if (isDT && sessionUser.category != null) {
       selectedCategory = sessionUser.category!;
     }
+
+    String eventType = isDT ? 'partido' : 'ninguno';
+    bool hasTransport = false;
+    String? selectedOpponentId;
 
     final appCategories = ref.read(appCategoriesProvider);
     final List<String> categories = ['all', ...appCategories];
@@ -335,50 +335,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ],
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        dropdownColor: context.colors.surface,
-                        initialValue: eventType,
-                        decoration: const InputDecoration(
-                          labelText: 'Tipo de Evento',
+                      if (isDT) ...[
+                        Text(
+                          'Tipo de Evento: Partido (Fijo para Perfil DT)',
+                          style: context.typography.bodyMedium.copyWith(
+                            color: context.colors.accent,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'ninguno',
-                            child: Text('Ninguno (Publicación normal)'),
+                      ] else ...[
+                        DropdownButtonFormField<String>(
+                          dropdownColor: context.colors.surface,
+                          initialValue: eventType,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo de Evento',
                           ),
-                          DropdownMenuItem(
-                            value: 'partido',
-                            child: Text('Partido'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'evento',
-                            child: Text('Evento Especial'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'jornada',
-                            child: Text('Jornada'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'cuadrangular',
-                            child: Text('Cuadrangular'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'torneo',
-                            child: Text('Torneo'),
-                          ),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            setDialogState(() {
-                              eventType = val;
-                              if (eventType == 'ninguno') {
-                                hasTransport = false;
-                                selectedOpponentId = null;
-                              }
-                            });
-                          }
-                        },
-                      ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'ninguno',
+                              child: Text('Ninguno (Publicación normal)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'partido',
+                              child: Text('Partido'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'evento',
+                              child: Text('Evento Especial'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'jornada',
+                              child: Text('Jornada'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'cuadrangular',
+                              child: Text('Cuadrangular'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'torneo',
+                              child: Text('Torneo'),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                eventType = val;
+                                if (eventType == 'ninguno') {
+                                  hasTransport = false;
+                                  selectedOpponentId = null;
+                                }
+                              });
+                            }
+                          },
+                        ),
+                      ],
                       if (eventType != 'ninguno') ...[
                         const SizedBox(height: 12),
                         SwitchListTile(
