@@ -792,12 +792,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: JNMatchCard(
                             homeTeam: nextMatch['homeTeam'] as String,
                             awayTeam: nextMatch['awayTeam'] as String,
+                            homeLogoUrl: nextMatch['homeLogoUrl'] as String?,
+                            awayLogoUrl: nextMatch['awayLogoUrl'] as String?,
                             homeScore: nextMatch['homeScore'] as int?,
                             awayScore: nextMatch['awayScore'] as int?,
                             date: _formatDate(nextMatch['date'] as String),
                             time: nextMatch['time'] as String,
                             venue: nextMatch['venue'] as String,
-                            status: nextMatch['status'] as String,
+                            status: nextMatch['status'] as String? ?? 'upcoming',
                             isHero: true,
                             onTap: () => widget.onNavigate(
                               4,

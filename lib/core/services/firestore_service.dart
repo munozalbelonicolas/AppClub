@@ -331,17 +331,25 @@ final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, c
   for (final m in matches) {
     final cat = m['category']?.toString();
     if (cat == null || cat == 'all' || cat == 'todos' || cat == category || category.isEmpty) {
+      final homeTeamName = m['homeTeam'] ?? 'Jorge Newbery';
+      final awayTeamName = m['awayTeam'] ?? 'Rival';
+
+      final homeClub = clubs.where((c) => c['name'] == homeTeamName || c['id'] == m['homeClubId']).firstOrNull;
+      final awayClub = clubs.where((c) => c['name'] == awayTeamName || c['id'] == m['awayClubId']).firstOrNull;
+
       candidates.add({
         'id': m['id'],
-        'homeTeam': m['homeTeam'] ?? 'Jorge Newbery',
-        'awayTeam': m['awayTeam'] ?? 'Rival',
+        'homeTeam': homeTeamName,
+        'awayTeam': awayTeamName,
+        'homeLogoUrl': homeClub?['logoUrl'] ?? homeClub?['logo'] ?? homeClub?['imageUrl'],
+        'awayLogoUrl': awayClub?['logoUrl'] ?? awayClub?['logo'] ?? awayClub?['imageUrl'],
         'homeScore': m['homeScore'],
         'awayScore': m['awayScore'],
         'category': cat ?? category,
         'venue': m['venue'] ?? m['location'] ?? 'Cancha Principal JN',
         'date': m['date'] ?? '',
         'time': m['time'] ?? 'A confirmar',
-        'status': m['status'] ?? 'programado',
+        'status': 'upcoming',
         'source': 'matches',
       });
     }
@@ -362,13 +370,15 @@ final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, c
           'id': '${f['id']}_${m['homeClubId']}_${m['awayClubId']}',
           'homeTeam': homeName,
           'awayTeam': awayName,
+          'homeLogoUrl': homeClub?['logoUrl'] ?? homeClub?['logo'] ?? homeClub?['imageUrl'],
+          'awayLogoUrl': awayClub?['logoUrl'] ?? awayClub?['logo'] ?? awayClub?['imageUrl'],
           'homeScore': m['homeScore'],
           'awayScore': m['awayScore'],
           'category': cat ?? category,
           'venue': m['venue'] ?? m['location'] ?? 'Cancha Principal JN',
           'date': m['date'] ?? '',
           'time': m['time'] ?? 'A confirmar',
-          'status': m['status'] ?? 'programado',
+          'status': 'upcoming',
           'source': 'fixture',
           'fixtureName': f['name'] ?? 'Fecha Fixture',
         });
@@ -384,27 +394,39 @@ final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, c
     final cat = n['category']?.toString() ?? n['eventCategory']?.toString();
     if (cat == null || cat == 'all' || cat == 'todos' || cat == category || category.isEmpty) {
       String awayTeam = 'Rival';
+      String? awayLogoUrl;
+
       if (n['opponentClubId'] != null) {
         final club = clubs.where((c) => c['id'] == n['opponentClubId']).firstOrNull;
         if (club != null && club['name'] != null) {
           awayTeam = club['name'] as String;
+          awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
         }
       }
       if (awayTeam == 'Rival' && n['title'] != null && n['title'].toString().isNotEmpty) {
         awayTeam = n['title'] as String;
+        final club = clubs.where((c) => c['name'] == awayTeam).firstOrNull;
+        if (club != null) {
+          awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+        }
       }
+
+      final homeClub = clubs.where((c) => (c['name'] as String?)?.contains('Newbery') == true).firstOrNull;
+      final String? homeLogoUrl = homeClub?['logoUrl'] ?? homeClub?['logo'] ?? homeClub?['imageUrl'];
 
       candidates.add({
         'id': n['id'],
         'homeTeam': 'Jorge Newbery',
         'awayTeam': awayTeam,
+        'homeLogoUrl': homeLogoUrl,
+        'awayLogoUrl': awayLogoUrl,
         'homeScore': null,
         'awayScore': null,
         'category': cat ?? category,
         'venue': n['location'] ?? 'Cancha Principal JN',
         'date': n['eventDate'] ?? n['date'] ?? '',
         'time': n['eventTime'] ?? n['time'] ?? 'A confirmar',
-        'status': 'programado',
+        'status': 'upcoming',
         'source': 'novedad',
         'title': n['title'] ?? 'Partido Amistoso',
       });

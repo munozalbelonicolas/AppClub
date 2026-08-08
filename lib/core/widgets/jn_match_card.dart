@@ -15,7 +15,9 @@ class JNMatchCard extends StatelessWidget {
   final String date;
   final String time;
   final String venue;
-  final String status; // 'played', 'upcoming', 'live'
+  final String? homeLogoUrl;
+  final String? awayLogoUrl;
+  final String status; // 'played', 'upcoming', 'live', 'programado'
   final VoidCallback? onTap;
   final bool isHero;
 
@@ -23,6 +25,8 @@ class JNMatchCard extends StatelessWidget {
     super.key,
     required this.homeTeam,
     required this.awayTeam,
+    this.homeLogoUrl,
+    this.awayLogoUrl,
     this.homeScore,
     this.awayScore,
     required this.date,
@@ -35,6 +39,11 @@ class JNMatchCard extends StatelessWidget {
 
   bool get _isClubHome => homeTeam.contains('Newbery');
   bool get _isClubAway => awayTeam.contains('Newbery');
+
+  bool get _isUpcoming =>
+      status == 'upcoming' ||
+      status == 'programado' ||
+      (status != 'played' && status != 'finalizado');
 
   String get _result {
     if (status != 'played' || homeScore == null) return '';
@@ -82,15 +91,15 @@ class JNMatchCard extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: status == 'upcoming'
+                  color: _isUpcoming
                       ? context.colors.primary.withValues(alpha: 0.15)
                       : context.colors.success.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
                 child: Text(
-                  status == 'upcoming' ? 'PRÓXIMO PARTIDO' : 'FINALIZADO',
+                  _isUpcoming ? 'PRÓXIMO PARTIDO' : 'FINALIZADO',
                   style: context.typography.badge.copyWith(
-                    color: status == 'upcoming'
+                    color: _isUpcoming
                         ? context.colors.primary
                         : context.colors.success,
                   ),
@@ -108,7 +117,7 @@ class JNMatchCard extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    _buildTeamIcon(context, homeTeam),
+                    _buildTeamIcon(context, homeTeam, homeLogoUrl),
                     const SizedBox(height: 8),
                     Text(
                       homeTeam,
@@ -170,7 +179,7 @@ class JNMatchCard extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    _buildTeamIcon(context, awayTeam),
+                    _buildTeamIcon(context, awayTeam, awayLogoUrl),
                     const SizedBox(height: 8),
                     Text(
                       awayTeam,
@@ -288,8 +297,12 @@ class JNMatchCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTeamIcon(BuildContext context, String team) {
+  Widget _buildTeamIcon(BuildContext context, String team, String? logoUrl) {
     final isClub = team.contains('Newbery');
+    final String displayInitials = isClub
+        ? 'JN'
+        : (team.length >= 2 ? team.substring(0, 2).toUpperCase() : team.toUpperCase());
+
     return Container(
       width: 52,
       height: 52,
@@ -305,14 +318,32 @@ class JNMatchCard extends StatelessWidget {
               )
             : null,
       ),
-      child: Center(
-        child: Text(
-          isClub ? 'JN' : team.substring(0, 2).toUpperCase(),
-          style: context.typography.titleLarge.copyWith(
-            color: isClub ? context.colors.primary : context.colors.textSecondary,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
+      child: ClipOval(
+        child: logoUrl != null && logoUrl.isNotEmpty
+            ? Image.network(
+                logoUrl,
+                width: 52,
+                height: 52,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Center(
+                  child: Text(
+                    displayInitials,
+                    style: context.typography.titleLarge.copyWith(
+                      color: isClub ? context.colors.primary : context.colors.textSecondary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              )
+            : Center(
+                child: Text(
+                  displayInitials,
+                  style: context.typography.titleLarge.copyWith(
+                    color: isClub ? context.colors.primary : context.colors.textSecondary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
       ),
     );
   }
