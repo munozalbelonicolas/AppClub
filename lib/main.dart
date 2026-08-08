@@ -28,7 +28,13 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   
-  await FirebaseAppCheck.instance.activate();
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.playIntegrity,
+    );
+  } catch (e) {
+    // Silently continue if App Check is not configured for release build
+  }
 
   final prefs = await SharedPreferences.getInstance();
   final keepSession = prefs.getBool('keep_session') ?? true;

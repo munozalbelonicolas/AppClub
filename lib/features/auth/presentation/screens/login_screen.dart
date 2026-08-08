@@ -35,37 +35,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final authService = ref.read(authServiceProvider);
-      await authService.signInWithEmailAndPassword(
+      final session = await authService.signInWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('keep_session', _keepSession);
 
-      // Wait for provider update
       if (mounted) {
-        widget.onLogin();
+        if (session != null) {
+          widget.onLogin();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Error al cargar perfil de usuario. Intenta nuevamente.'),
+              backgroundColor: context.colors.error,
+            ),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
+        String msg = 'Credenciales incorrectas o error de red.';
         if (e.code == 'too-many-requests') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Cuenta bloqueada por múltiples intentos fallidos. Restablece tu contraseña o intenta más tarde.'),
-              backgroundColor: context.colors.error,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Credenciales incorrectas o error de red.')),
-          );
+          msg = 'Cuenta bloqueada por múltiples intentos fallidos. Restablece tu contraseña o intenta más tarde.';
+        } else if (e.code == 'user-not-found') {
+          msg = 'No existe una cuenta registrada con este correo.';
+        } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          msg = 'Contraseña o correo incorrectos.';
+        } else if (e.code == 'invalid-email') {
+          msg = 'El correo electrónico ingresado no es válido.';
+        } else if (e.code == 'user-disabled') {
+          msg = 'Esta cuenta se encuentra deshabilitada.';
+        } else if (e.message != null && e.message!.isNotEmpty) {
+          msg = e.message!;
         }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: context.colors.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Credenciales incorrectas o error de red.')),
+          SnackBar(
+            content: Text('Error al iniciar sesión: $e'),
+            backgroundColor: context.colors.error,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     } finally {
