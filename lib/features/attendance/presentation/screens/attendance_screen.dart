@@ -275,6 +275,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                           initialDate: _selectedDate,
                           firstDate: DateTime(2020),
                           lastDate: DateTime.now(),
+                          locale: const Locale('es', 'ES'),
                         );
                         if (date != null) {
                           setState(() {

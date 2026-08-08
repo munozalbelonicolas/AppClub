@@ -548,6 +548,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                     ),
                                 firstDate: DateTime(1900),
                                 lastDate: DateTime.now().subtract(const Duration(days: 1)),
+                                locale: const Locale('es', 'ES'),
                               );
                               if (date != null) {
                                 setState(() => _birthDate = date);

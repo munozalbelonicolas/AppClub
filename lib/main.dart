@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'app/app_shell.dart';
 import 'core/providers/session_provider.dart';
 import 'core/providers/theme_provider.dart';
@@ -56,6 +58,17 @@ class JorgeNewberyApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'AR'),
+        Locale('es', 'ES'),
+        Locale('es', ''),
+      ],
+      locale: const Locale('es', 'AR'),
       home: const _AppNavigator(),
     );
   }

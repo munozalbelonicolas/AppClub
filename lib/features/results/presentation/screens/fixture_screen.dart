@@ -342,6 +342,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                                 initialDate: matchDate ?? DateTime.now(),
                                 firstDate: DateTime(2000),
                                 lastDate: DateTime(2100),
+                                locale: const Locale('es', 'ES'),
                               );
                               if (date != null) {
                                 setDialogState(() => matchDate = date);

@@ -271,6 +271,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                               initialDate: eventDate ?? DateTime.now(),
                               firstDate: DateTime.now().subtract(const Duration(days: 30)),
                               lastDate: DateTime.now().add(const Duration(days: 365)),
+                              locale: const Locale('es', 'ES'),
                             );
                             if (date != null) {
                               setDialogState(() => eventDate = date);
