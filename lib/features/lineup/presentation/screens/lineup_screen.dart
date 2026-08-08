@@ -269,10 +269,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
       _selectedCategory = categories.first;
     }
 
-    final matchesAsync = ref.watch(matchesStreamProvider);
-    final allMatches = matchesAsync.valueOrNull ?? [];
-
-    final nextMatch = allMatches.where((m) => m['category'] == _selectedCategory).firstOrNull;
+    final nextMatch = ref.watch(nextMatchProvider(_selectedCategory ?? ''));
 
     final playersAsync = ref.watch(playersStreamProvider);
     final allCategoryPlayers = (playersAsync.valueOrNull ?? [])

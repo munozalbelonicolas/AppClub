@@ -39,15 +39,10 @@ class CoachDashboardScreen extends ConsumerWidget {
       return p['category'] == sessionUser.category;
     }).toList();
     
-    final matchesAsync = ref.watch(matchesStreamProvider);
-    final List<Map<String, dynamic>> allMatches = matchesAsync.valueOrNull ?? [];
-    final Map<String, dynamic>? nextMatch = allMatches.where((m) {
-      final matchCat = m['category'];
-      if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
-        return sessionUser.assignedCategories!.contains(matchCat);
-      }
-      return matchCat == sessionUser.category;
-    }).firstOrNull;
+    final String activeCat = (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty)
+        ? sessionUser.assignedCategories!.first
+        : (sessionUser.category ?? '');
+    final Map<String, dynamic>? nextMatch = ref.watch(nextMatchProvider(activeCat));
 
     return Scaffold(
       backgroundColor: context.colors.background,

@@ -318,3 +318,118 @@ final trainingScheduleStreamProvider = StreamProvider.family<Map<String, dynamic
 final allTrainingSchedulesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return ref.watch(firestoreServiceProvider).getAllTrainingSchedules();
 });
+
+final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, category) {
+  final matches = ref.watch(matchesStreamProvider).valueOrNull ?? [];
+  final fixtures = ref.watch(fixturesStreamProvider(category)).valueOrNull ?? [];
+  final novedades = ref.watch(allNovedadesStreamProvider).valueOrNull ?? [];
+  final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
+
+  final List<Map<String, dynamic>> candidates = [];
+
+  // 1. From 'matches' collection
+  for (final m in matches) {
+    final cat = m['category']?.toString();
+    if (cat == null || cat == 'all' || cat == 'todos' || cat == category || category.isEmpty) {
+      candidates.add({
+        'id': m['id'],
+        'homeTeam': m['homeTeam'] ?? 'Jorge Newbery',
+        'awayTeam': m['awayTeam'] ?? 'Rival',
+        'homeScore': m['homeScore'],
+        'awayScore': m['awayScore'],
+        'category': cat ?? category,
+        'venue': m['venue'] ?? m['location'] ?? 'Cancha Principal JN',
+        'date': m['date'] ?? '',
+        'time': m['time'] ?? 'A confirmar',
+        'status': m['status'] ?? 'programado',
+        'source': 'matches',
+      });
+    }
+  }
+
+  // 2. From 'fixtures' collection
+  for (final f in fixtures) {
+    final cat = f['category']?.toString();
+    if (cat == null || cat == 'all' || cat == 'todos' || cat == category || category.isEmpty) {
+      final matchesList = List<Map<String, dynamic>>.from(f['matches'] ?? []);
+      for (final m in matchesList) {
+        final homeClub = clubs.where((c) => c['id'] == m['homeClubId']).firstOrNull;
+        final awayClub = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
+        final homeName = homeClub?['name'] ?? 'Jorge Newbery';
+        final awayName = awayClub?['name'] ?? 'Rival';
+
+        candidates.add({
+          'id': '${f['id']}_${m['homeClubId']}_${m['awayClubId']}',
+          'homeTeam': homeName,
+          'awayTeam': awayName,
+          'homeScore': m['homeScore'],
+          'awayScore': m['awayScore'],
+          'category': cat ?? category,
+          'venue': m['venue'] ?? m['location'] ?? 'Cancha Principal JN',
+          'date': m['date'] ?? '',
+          'time': m['time'] ?? 'A confirmar',
+          'status': m['status'] ?? 'programado',
+          'source': 'fixture',
+          'fixtureName': f['name'] ?? 'Fecha Fixture',
+        });
+      }
+    }
+  }
+
+  // 3. From 'novedades' collection (partidos / amistosos creados por DT o ADMIN)
+  for (final n in novedades) {
+    final bool isMatch = n['isMatch'] == true || n['eventType'] == 'partido';
+    if (!isMatch) continue;
+
+    final cat = n['category']?.toString() ?? n['eventCategory']?.toString();
+    if (cat == null || cat == 'all' || cat == 'todos' || cat == category || category.isEmpty) {
+      String awayTeam = 'Rival';
+      if (n['opponentClubId'] != null) {
+        final club = clubs.where((c) => c['id'] == n['opponentClubId']).firstOrNull;
+        if (club != null && club['name'] != null) {
+          awayTeam = club['name'] as String;
+        }
+      }
+      if (awayTeam == 'Rival' && n['title'] != null && n['title'].toString().isNotEmpty) {
+        awayTeam = n['title'] as String;
+      }
+
+      candidates.add({
+        'id': n['id'],
+        'homeTeam': 'Jorge Newbery',
+        'awayTeam': awayTeam,
+        'homeScore': null,
+        'awayScore': null,
+        'category': cat ?? category,
+        'venue': n['location'] ?? 'Cancha Principal JN',
+        'date': n['eventDate'] ?? n['date'] ?? '',
+        'time': n['eventTime'] ?? n['time'] ?? 'A confirmar',
+        'status': 'programado',
+        'source': 'novedad',
+        'title': n['title'] ?? 'Partido Amistoso',
+      });
+    }
+  }
+
+  if (candidates.isEmpty) return null;
+
+  final now = DateTime.now();
+  final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+  candidates.sort((a, b) {
+    final dateA = a['date']?.toString() ?? '';
+    final dateB = b['date']?.toString() ?? '';
+    return dateA.compareTo(dateB);
+  });
+
+  final upcoming = candidates.where((c) {
+    final dateStr = c['date']?.toString() ?? '';
+    return dateStr.isEmpty || dateStr.compareTo(todayStr) >= 0;
+  }).toList();
+
+  if (upcoming.isNotEmpty) {
+    return upcoming.first;
+  }
+
+  return candidates.last;
+});

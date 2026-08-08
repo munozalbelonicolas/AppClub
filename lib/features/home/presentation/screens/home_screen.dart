@@ -530,13 +530,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     }
 
-    // In production, these will come from streams or futures.
-    // For now, we set them to empty to ensure the app doesn't crash without MockData.
-    const Map<String, dynamic>? player = null; // To be fetched from Firestore
-    const Map<String, dynamic>? nextMatch =
-        null; // To be fetched from Firestore
-    const Map<String, dynamic>? pendingPayment =
-        null; // To be fetched from Firestore
+    String activeCategory = sessionUser.assignedCategories?.isNotEmpty == true
+        ? sessionUser.assignedCategories!.first
+        : (sessionUser.category ?? '');
+
+    if (sessionUser.role == 'tutor' &&
+        selectedChild != null &&
+        selectedChild['category'] != null) {
+      activeCategory = selectedChild['category'] as String;
+    }
+
+    final nextMatch = ref.watch(nextMatchProvider(activeCategory));
+    const Map<String, dynamic>? player = null;
+    const Map<String, dynamic>? pendingPayment = null;
 
     String categoriesStr = sessionUser.assignedCategories?.isNotEmpty == true
         ? sessionUser.assignedCategories!.join(',')
