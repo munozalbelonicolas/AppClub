@@ -93,10 +93,34 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final sessionUser = ref.watch(currentUserProvider);
-    final isCoach = sessionUser?.role == 'dt';
-    final dtAllowedCats = isCoach
-        ? (sessionUser?.assignedCategories ?? (sessionUser?.category != null ? [sessionUser!.category!] : <String>[]))
-        : <String>[];
+    final bool isAdmin = sessionUser?.isAdmin ?? false;
+    final Set<String> allowedCategories = {};
+
+    if (!isAdmin && sessionUser != null) {
+      if (sessionUser.role == 'dt') {
+        if (sessionUser.assignedCategories != null) {
+          allowedCategories.addAll(sessionUser.assignedCategories!);
+        }
+        if (sessionUser.category != null) {
+          allowedCategories.add(sessionUser.category!);
+        }
+      } else if (sessionUser.role == 'jugador') {
+        if (sessionUser.category != null) {
+          allowedCategories.add(sessionUser.category!);
+        }
+      } else if (sessionUser.role == 'tutor' || sessionUser.role == 'padre') {
+        if (sessionUser.category != null) {
+          allowedCategories.add(sessionUser.category!);
+        }
+        final tutorChildren = ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ?? [];
+        for (final child in tutorChildren) {
+          final cat = child['category']?.toString();
+          if (cat != null && cat.isNotEmpty) {
+            allowedCategories.add(cat);
+          }
+        }
+      }
+    }
 
     final eventsAsync = ref.watch(calendarEventsStreamProvider);
     final matchesAsync = ref.watch(matchesStreamProvider);
@@ -195,11 +219,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       }
     }
 
-    if (isCoach && dtAllowedCats.isNotEmpty) {
+    if (!isAdmin) {
       allEvents.removeWhere((e) {
         final cat = e['category'] as String?;
         if (cat == null || cat.isEmpty || cat == 'todos' || cat == 'deportivo' || cat == 'administrativo') return false;
-        return !dtAllowedCats.contains(cat);
+        return !allowedCategories.contains(cat);
       });
     }
 
