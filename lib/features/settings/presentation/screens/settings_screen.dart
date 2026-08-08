@@ -343,18 +343,19 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             _SettingsGroup(
               items: [
-                _SettingNav(
-                  icon: Icons.shield,
-                  label: 'Gestión de Clubes',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ClubManagementScreen(),
-                      ),
-                    );
-                  },
-                ),
+                if (user.isAdmin)
+                  _SettingNav(
+                    icon: Icons.shield,
+                    label: 'Gestión de Clubes',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ClubManagementScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 _SettingNav(
                   icon: Icons.sports_soccer,
                   label: 'Gestión de Goleadores',
