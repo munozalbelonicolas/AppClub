@@ -432,9 +432,13 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                       final doc = filteredDocs[index];
                       final data = doc.data() as Map<String, dynamic>;
                       final String userId = doc.id;
-                      final String name = data['name'] ?? '';
-                      final String lastName = data['lastName'] ?? '';
-                      final String email = data['email'] ?? '';
+                      final String rawName = data['name']?.toString().trim() ?? '';
+                      final String rawLastName = data['lastName']?.toString().trim() ?? '';
+                      final String email = data['email']?.toString().trim() ?? '';
+                      final String displayName = '$rawName $rawLastName'.trim();
+                      final String finalDisplayName = displayName.isNotEmpty
+                          ? displayName
+                          : (email.isNotEmpty ? email : 'Usuario');
                       final String role = data['role'] ?? 'tutor';
                       final String? category = data['category'];
                       final String status = data['status'] ?? 'active';
@@ -474,7 +478,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                                 child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  JNAvatar(name: '$name $lastName', size: 40),
+                                  JNAvatar(name: finalDisplayName, size: 40),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
@@ -482,7 +486,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          '$name $lastName',
+                                          finalDisplayName,
                                           style: context.typography.titleMedium,
                                         ),
                                         Text(
@@ -561,7 +565,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                                           onPressed: () => _approveUser(
                                             context,
                                             userId,
-                                            '$name $lastName',
+                                            finalDisplayName,
                                           ),
                                         ),
                                       // Delete user button
@@ -593,7 +597,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                                           backgroundColor: context.colors.surface,
                                           title: const Text('Eliminar Usuario'),
                                           content: Text(
-                                            '¿Estás seguro de que deseas eliminar a "$name $lastName" de la base de datos?',
+                                            '¿Estás seguro de que deseas eliminar a "$finalDisplayName" de la base de datos?',
                                           ),
                                           actions: [
                                             TextButton(
@@ -613,7 +617,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                                                 _deleteUser(
                                                   context,
                                                   userId,
-                                                  '$name $lastName',
+                                                  finalDisplayName,
                                                 );
                                               },
                                               child: Text(

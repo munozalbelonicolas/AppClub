@@ -73,10 +73,27 @@ class JNAvatar extends StatelessWidget {
   }
 
   Widget _buildInitials(BuildContext context) {
-    final parts = name.trim().split(' ');
-    final initials = parts.length >= 2
-        ? '${parts[0][0]}${parts[1][0]}'
-        : parts[0].substring(0, parts[0].length >= 2 ? 2 : 1);
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) {
+      return Center(
+        child: Text(
+          '?',
+          style: TextStyle(
+            color: context.colors.textPrimary,
+            fontSize: size * 0.35,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
+        ),
+      );
+    }
+    final parts = cleanName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    String initials = '?';
+    if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
+      initials = '${parts[0][0]}${parts[1][0]}';
+    } else if (parts.isNotEmpty && parts[0].isNotEmpty) {
+      initials = parts[0].substring(0, parts[0].length >= 2 ? 2 : 1);
+    }
 
     return Center(
       child: Text(
