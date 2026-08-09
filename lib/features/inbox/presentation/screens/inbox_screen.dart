@@ -496,10 +496,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(otherName, style: context.typography.titleMedium),
-                              const SizedBox(width: 8),
                               JNBadge(
                                 label: otherRole.toUpperCase(),
                                 type: otherRole == 'directivo'
@@ -512,13 +514,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                 small: true,
                               ),
                               if (otherCategory.isNotEmpty &&
-                                  otherCategory != 'Todos') ...[
-                                const SizedBox(width: 4),
+                                  otherCategory != 'Todos')
                                 JNBadge(
                                   label: otherCategory,
                                   small: true,
                                 ),
-                              ],
                             ],
                           ),
                           const SizedBox(height: 4),

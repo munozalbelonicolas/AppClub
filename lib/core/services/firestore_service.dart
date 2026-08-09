@@ -438,20 +438,29 @@ final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, c
   final now = DateTime.now();
   final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
+  // Sort candidates by date. Non-empty valid dates come first.
   candidates.sort((a, b) {
     final dateA = a['date']?.toString() ?? '';
     final dateB = b['date']?.toString() ?? '';
+    if (dateA.isEmpty && dateB.isEmpty) return 0;
+    if (dateA.isEmpty) return 1;
+    if (dateB.isEmpty) return -1;
     return dateA.compareTo(dateB);
   });
 
-  final upcoming = candidates.where((c) {
+  // Upcoming matches on or after today with valid date
+  final upcomingWithDate = candidates.where((c) {
     final dateStr = c['date']?.toString() ?? '';
-    return dateStr.isEmpty || dateStr.compareTo(todayStr) >= 0;
+    return dateStr.isNotEmpty && dateStr.compareTo(todayStr) >= 0;
   }).toList();
 
-  if (upcoming.isNotEmpty) {
-    return upcoming.first;
+  if (upcomingWithDate.isNotEmpty) {
+    return upcomingWithDate.first;
   }
 
-  return candidates.last;
+  // Fallback: any candidate with a date, or first candidate
+  return candidates.firstWhere(
+    (c) => (c['date']?.toString() ?? '').isNotEmpty,
+    orElse: () => candidates.first,
+  );
 });

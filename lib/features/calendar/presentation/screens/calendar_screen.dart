@@ -173,7 +173,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           'type': isMatch ? 'match' : 'event',
           'date': date,
           'time': n['eventTime'] ?? n['time'] ?? 'A confirmar',
-          'location': n['location'] ?? 'Club JN',
+          'location': n['location'] ?? n['venue'] ?? 'Cancha Principal JN',
           'category': n['category'] ?? n['eventCategory'] ?? '',
         });
       }

@@ -15,54 +15,10 @@ class FixtureScreen extends ConsumerStatefulWidget {
 }
 
 class _FixtureScreenState extends ConsumerState<FixtureScreen> {
-  String selectedCategory = 'Primera';
-  String? _lastChildId;
-
   @override
   Widget build(BuildContext context) {
     final sessionUser = ref.watch(currentUserProvider)!;
-    List<String> categories = ref.watch(appCategoriesProvider);
-    final selectedChild = ref.watch(selectedChildProvider);
-
-    if (sessionUser.role == 'tutor') {
-      final players = ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ?? [];
-      final tutorCategories = players
-          .map((p) => p['category'] as String?)
-          .where((c) => c != null && c.isNotEmpty)
-          .cast<String>()
-          .toSet()
-          .toList();
-      if (tutorCategories.isNotEmpty) {
-        categories = tutorCategories;
-      }
-    } else if (sessionUser.role == 'dt') {
-      final dtCats = sessionUser.assignedCategories ?? [];
-      if (dtCats.isNotEmpty) {
-        categories = dtCats;
-      } else if (sessionUser.category != null) {
-        categories = [sessionUser.category!];
-      }
-    }
-
-    // Set initial category from selected child if parent
-    if (sessionUser.role == 'tutor' && selectedChild != null && selectedChild['category'] != null) {
-      if (_lastChildId != selectedChild['id']) {
-        selectedCategory = selectedChild['category'] as String;
-        _lastChildId = selectedChild['id'] as String?;
-      }
-    } else if (sessionUser.role == 'dt' && categories.isNotEmpty) {
-      if (!categories.contains(selectedCategory)) {
-        selectedCategory = categories.first;
-      }
-    }
-
-    if (!categories.contains(selectedCategory) && categories.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() => selectedCategory = categories.first);
-      });
-    }
-
-    final fixturesAsync = ref.watch(fixturesStreamProvider(selectedCategory));
+    final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
     final clubsAsync = ref.watch(clubsStreamProvider);
     final clubs = clubsAsync.value ?? [];
 
@@ -78,48 +34,27 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
             ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: DropdownButtonFormField<String>(
-              dropdownColor: context.colors.surface,
-              initialValue: categories.contains(selectedCategory) ? selectedCategory : null,
-              decoration: const InputDecoration(labelText: 'Categoría'),
-              items: categories.map((cat) {
-                return DropdownMenuItem(value: cat, child: Text(cat, style: context.typography.bodyLarge));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => selectedCategory = val);
-                }
-              },
-            ),
-          ),
-          Expanded(
-            child: fixturesAsync.when(
-              data: (fixtures) {
-                if (fixtures.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No hay fechas en el fixture.',
-                      style: context.typography.bodyMedium.copyWith(color: context.colors.textSecondary),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  itemCount: fixtures.length,
-                  itemBuilder: (context, index) {
-                    final fixture = fixtures[index];
-                    return _buildFixtureCard(fixture, clubs, sessionUser.isAdmin);
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Error: $err', style: TextStyle(color: context.colors.error))),
-            ),
-          ),
-        ],
+      body: fixturesAsync.when(
+        data: (fixtures) {
+          if (fixtures.isEmpty) {
+            return Center(
+              child: Text(
+                'No hay fechas en el fixture.',
+                style: context.typography.bodyMedium.copyWith(color: context.colors.textSecondary),
+              ),
+            );
+          }
+          return ListView.builder(
+            itemCount: fixtures.length,
+            padding: const EdgeInsets.only(top: 8, bottom: 24),
+            itemBuilder: (context, index) {
+              final fixture = fixtures[index];
+              return _buildFixtureCard(fixture, clubs, sessionUser.isAdmin);
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Error: $err', style: TextStyle(color: context.colors.error))),
       ),
     );
   }

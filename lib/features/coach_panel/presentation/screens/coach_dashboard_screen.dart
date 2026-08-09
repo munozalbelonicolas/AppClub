@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
@@ -43,12 +44,18 @@ class CoachDashboardScreen extends ConsumerWidget {
         ? sessionUser.assignedCategories!.first
         : (sessionUser.category ?? '');
     final Map<String, dynamic>? nextMatch = ref.watch(nextMatchProvider(activeCat));
+    final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(
         title: const Text('Panel DT'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline, size: 24),
+            tooltip: 'Programar Partido',
+            onPressed: () => _showCreateMatchDialog(context, ref, sessionUser, clubs),
+          ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined, size: 22),
             onPressed: () {},
@@ -208,9 +215,14 @@ class CoachDashboardScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // ─── Next Match Actions ───────────────────
+          JNSectionHeader(
+            title: 'Próximo partido',
+            actionLabel: '+ Programar Partido',
+            onAction: () => _showCreateMatchDialog(context, ref, sessionUser, clubs),
+            padding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 12),
           if (nextMatch != null) ...[
-            const JNSectionHeader(title: 'Próximo partido', padding: EdgeInsets.zero),
-            const SizedBox(height: 12),
             JNCard(
               padding: const EdgeInsets.all(16),
               border: Border.all(
@@ -279,9 +291,30 @@ class CoachDashboardScreen extends ConsumerWidget {
                 ],
               ),
             ).animate(delay: 200.ms).fadeIn(duration: 400.ms),
-
-            const SizedBox(height: 24),
+          ] else ...[
+            JNCard(
+              padding: const EdgeInsets.all(16),
+              onTap: () => _showCreateMatchDialog(context, ref, sessionUser, clubs),
+              child: Row(
+                children: [
+                  Icon(Icons.add_circle_outline, color: context.colors.primary, size: 28),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Sin partido programado', style: context.typography.titleMedium),
+                        Text('Toca aquí para definir la fecha del próximo partido', style: context.typography.bodySmall),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: context.colors.textTertiary),
+                ],
+              ),
+            ),
           ],
+
+          const SizedBox(height: 24),
 
           // ─── Squad ────────────────────────────────
           JNSectionHeader(
@@ -512,4 +545,240 @@ class _ActionButton extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showCreateMatchDialog(
+  BuildContext context,
+  WidgetRef ref,
+  dynamic sessionUser,
+  List<Map<String, dynamic>> clubs,
+) {
+  final titleController = TextEditingController(text: 'Partido Amistoso');
+  final bodyController = TextEditingController(text: 'Convocatoria y detalles del partido');
+  final venueController = TextEditingController(text: 'Cancha Principal JN');
+  final formKey = GlobalKey<FormState>();
+
+  DateTime? eventDate;
+  TimeOfDay? eventTime;
+  bool hasTransport = false;
+  String? selectedOpponentId;
+  String selectedCategory = (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty)
+      ? sessionUser.assignedCategories!.first
+      : (sessionUser.category ?? 'Sub-12');
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: context.colors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              side: BorderSide(color: context.colors.border, width: 0.5),
+            ),
+            title: Text(
+              'Programar Nuevo Partido',
+              style: context.typography.titleLarge,
+            ),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: titleController,
+                      style: context.typography.bodyLarge,
+                      decoration: const InputDecoration(
+                        labelText: 'Título de la novedad',
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Ingresa un título'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: bodyController,
+                      maxLines: 2,
+                      style: context.typography.bodyLarge,
+                      decoration: const InputDecoration(
+                        labelText: 'Detalles / Descripción',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Fecha del Partido
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: eventDate ?? DateTime.now(),
+                          firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            eventDate = picked;
+                          });
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Fecha del Partido *',
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          eventDate != null
+                              ? '${eventDate!.day.toString().padLeft(2, '0')}/${eventDate!.month.toString().padLeft(2, '0')}/${eventDate!.year}'
+                              : 'Seleccionar Fecha',
+                          style: context.typography.bodyLarge.copyWith(
+                            color: eventDate != null ? null : context.colors.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Hora del Partido
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: eventTime ?? TimeOfDay.now(),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            eventTime = picked;
+                          });
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Hora del Partido',
+                          prefixIcon: Icon(Icons.access_time),
+                        ),
+                        child: Text(
+                          eventTime != null
+                              ? '${eventTime!.hour.toString().padLeft(2, '0')}:${eventTime!.minute.toString().padLeft(2, '0')} hs'
+                              : 'Seleccionar Hora',
+                          style: context.typography.bodyLarge.copyWith(
+                            color: eventTime != null ? null : context.colors.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: venueController,
+                      style: context.typography.bodyLarge,
+                      decoration: const InputDecoration(
+                        labelText: 'Lugar / Cancha',
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      dropdownColor: context.colors.surface,
+                      initialValue: selectedOpponentId,
+                      decoration: const InputDecoration(
+                        labelText: 'Club Rival (Opcional)',
+                      ),
+                      items: clubs.where((c) => c['isLocal'] != true).map((club) {
+                        return DropdownMenuItem<String>(
+                          value: club['id'],
+                          child: Text(club['name'], style: context.typography.bodyLarge),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setDialogState(() {
+                          selectedOpponentId = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Row(
+                        children: [
+                          Icon(Icons.directions_bus, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Text('Traslado Incluido'),
+                        ],
+                      ),
+                      value: hasTransport,
+                      activeThumbColor: Colors.orange,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (val) {
+                        setDialogState(() {
+                          hasTransport = val;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: context.colors.primary,
+                ),
+                onPressed: () async {
+                  if (formKey.currentState!.validate()) {
+                    if (eventDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Por favor selecciona la fecha del partido')),
+                      );
+                      return;
+                    }
+                    final firestoreService = ref.read(firestoreServiceProvider);
+                    final dateStr = '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}';
+                    final timeStr = eventTime != null
+                        ? '${eventTime!.hour.toString().padLeft(2, '0')}:${eventTime!.minute.toString().padLeft(2, '0')} hs'
+                        : 'A confirmar';
+                    final venueStr = venueController.text.trim().isNotEmpty
+                        ? venueController.text.trim()
+                        : 'Cancha Principal JN';
+
+                    await firestoreService.addNovedad({
+                      'title': titleController.text.trim(),
+                      'body': bodyController.text.trim(),
+                      'category': selectedCategory,
+                      'authorId': sessionUser.id,
+                      'authorName': '${sessionUser.name} ${sessionUser.lastName}',
+                      'authorRole': sessionUser.role,
+                      'isMatch': true,
+                      'eventType': 'partido',
+                      'hasTransport': hasTransport,
+                      'opponentClubId': selectedOpponentId,
+                      'eventDate': dateStr,
+                      'date': dateStr,
+                      'eventTime': timeStr,
+                      'time': timeStr,
+                      'location': venueStr,
+                      'venue': venueStr,
+                    });
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Partido programado con éxito!'),
+                          backgroundColor: context.colors.success,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Programar'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
 }

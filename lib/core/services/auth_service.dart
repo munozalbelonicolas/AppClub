@@ -12,6 +12,7 @@ import '../providers/session_provider.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_logger.dart';
+import 'notification_service.dart';
 
 class AuthService {
   final Ref _ref;
@@ -332,6 +333,9 @@ class AuthService {
         _ref.read(currentUserProvider.notifier).state = updatedSession;
       }
     });
+
+    // Save or update FCM Token for device push notifications
+    NotificationService().saveTokenUser(uid);
 
     return session;
   }

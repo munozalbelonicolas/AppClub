@@ -35,6 +35,8 @@ dependencies:
   firebase_core: ^4.10.0
   cloud_firestore: ^6.5.0
   firebase_auth: ^6.5.2
+  firebase_messaging: ^16.4.3
+  flutter_local_notifications: ^18.0.1
   google_sign_in: ^6.2.1
   image_picker: ^1.1.2
   path_provider: ^2.1.6

@@ -214,7 +214,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           decoration: const InputDecoration(labelText: 'Categoría del Evento/Partido'),
                           items: (isDT 
                             ? (sessionUser.assignedCategories ?? (sessionUser.category != null ? [sessionUser.category!] : <String>[])) 
-                            : appCategories).map((cat) {
+                            : appCategories).map<DropdownMenuItem<String>>((cat) {
                             return DropdownMenuItem<String>(
                               value: cat,
                               child: Text(cat.toString().toUpperCase(), style: context.typography.bodyLarge),
@@ -330,6 +330,13 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         'eventDate': eventDate != null
                             ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
                             : null,
+                        'date': eventDate != null
+                            ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
+                            : dateStr,
+                        'eventTime': 'A confirmar',
+                        'time': 'A confirmar',
+                        'location': 'Cancha Principal JN',
+                        'venue': 'Cancha Principal JN',
                       });
                       if (context.mounted) {
                         Navigator.pop(context);

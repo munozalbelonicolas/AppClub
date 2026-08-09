@@ -22,6 +22,7 @@ import '../../../../core/widgets/jn_section_header.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
+import '../../../results/presentation/screens/fixture_screen.dart';
 import '../../../results/presentation/screens/league_report_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
 import '../../../communications/presentation/screens/story_export_screen.dart';
@@ -146,6 +147,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     String? selectedImagePath;
     String? selectedPresetImage;
+    DateTime? eventDate;
+    TimeOfDay? eventTime;
+    final venueController = TextEditingController(text: 'Cancha Principal JN');
 
     // Default category configuration
     String selectedCategory = 'all';
@@ -391,6 +395,77 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                       if (eventType != 'ninguno') ...[
                         const SizedBox(height: 12),
+                        // Fecha del Partido / Evento
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: eventDate ?? DateTime.now(),
+                              firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                eventDate = picked;
+                              });
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                              labelText: 'Fecha del Partido / Evento *',
+                              prefixIcon: Icon(Icons.calendar_today),
+                            ),
+                            child: Text(
+                              eventDate != null
+                                  ? '${eventDate!.day.toString().padLeft(2, '0')}/${eventDate!.month.toString().padLeft(2, '0')}/${eventDate!.year}'
+                                  : 'Seleccionar Fecha',
+                              style: context.typography.bodyLarge.copyWith(
+                                color: eventDate != null ? null : context.colors.textTertiary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Hora del Partido / Evento
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: eventTime ?? TimeOfDay.now(),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                eventTime = picked;
+                              });
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                              labelText: 'Hora del Partido / Evento',
+                              prefixIcon: Icon(Icons.access_time),
+                            ),
+                            child: Text(
+                              eventTime != null
+                                  ? '${eventTime!.hour.toString().padLeft(2, '0')}:${eventTime!.minute.toString().padLeft(2, '0')} hs'
+                                  : 'Seleccionar Hora',
+                              style: context.typography.bodyLarge.copyWith(
+                                color: eventTime != null ? null : context.colors.textTertiary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Lugar / Cancha
+                        TextFormField(
+                          controller: venueController,
+                          style: context.typography.bodyLarge,
+                          decoration: const InputDecoration(
+                            labelText: 'Lugar / Cancha',
+                            hintText: 'Cancha Principal JN',
+                            prefixIcon: Icon(Icons.location_on),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         SwitchListTile(
                           title: const Row(
                             children: [
@@ -460,6 +535,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       final firestoreService = ref.read(
                         firestoreServiceProvider,
                       );
+                      final dateStr = eventDate != null
+                          ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
+                          : null;
+                      final timeStr = eventTime != null
+                          ? '${eventTime!.hour.toString().padLeft(2, '0')}:${eventTime!.minute.toString().padLeft(2, '0')} hs'
+                          : 'A confirmar';
+                      final venueStr = venueController.text.trim().isNotEmpty
+                          ? venueController.text.trim()
+                          : 'Cancha Principal JN';
+
                       await firestoreService.addNovedad({
                         'title': titleController.text.trim(),
                         'body': bodyController.text.trim(),
@@ -479,6 +564,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         'opponentClubId': (eventType != 'ninguno')
                             ? selectedOpponentId
                             : null,
+                        'eventDate': dateStr,
+                        'date': dateStr,
+                        'eventTime': timeStr,
+                        'time': timeStr,
+                        'location': venueStr,
+                        'venue': venueStr,
                       });
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -801,9 +892,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             venue: nextMatch['venue'] as String,
                             status: nextMatch['status'] as String? ?? 'upcoming',
                             isHero: true,
-                            onTap: () => widget.onNavigate(
-                              4,
-                            ), // Results tab is index 4 now
+                            onTap: () => widget.onNavigate(2), // Formación tab index
                           ),
                         )
                         .animate(delay: 100.ms)
@@ -1316,67 +1405,163 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 32,
-                                  horizontal: 16,
+                                  vertical: 24,
+                                  horizontal: 20,
                                 ),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(
-                                    AppSpacing.radiusMd,
+                                    AppSpacing.radiusLg,
                                   ),
-                                  gradient: LinearGradient(
+                                  gradient: const LinearGradient(
                                     colors: [
-                                      context.colors.primary,
-                                      context.colors.accent,
+                                      Color(0xFFD32F2F), // Rojo River
+                                      Color(0xFF8B0000), // Rojo Oscuro
+                                      Color(0xFF121212), // Negro
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
+                                  border: Border.all(
+                                    color: const Color(0xFFD32F2F),
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
                                 ),
                                 child: Column(
                                   children: [
-                                    const Text(
-                                      '🎉',
-                                      style: TextStyle(fontSize: 48),
+                                    // Club Emblem / Logo
+                                    Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.4,
+                                            ),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const CircleAvatar(
+                                        radius: 38,
+                                        backgroundColor: Colors.white,
+                                        backgroundImage: AssetImage(
+                                          'assets/images/app_logo.jpg',
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(height: 16),
-                                    Text(
-                                      post['title'] ?? '¡Feliz Cumpleaños!',
-                                      style: context.typography.headlineMedium
-                                          .copyWith(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
+                                    // High-Legibility Card Container
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(18),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.95,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.2,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
                                           ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      post['body'] ?? '',
-                                      style: context.typography.bodyLarge
-                                          .copyWith(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.9,
+                                        ],
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          // Header Badge
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFD32F2F),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: const Text(
+                                              '¡FELIZ CUMPLEAÑOS!',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                letterSpacing: 1.2,
+                                              ),
                                             ),
                                           ),
-                                      textAlign: TextAlign.center,
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            post['title'] ??
+                                                '¡Feliz Cumpleaños!',
+                                            style: context.typography
+                                                .headlineMedium
+                                                .copyWith(
+                                                  color: Colors.black,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            post['body'] ?? '',
+                                            style: context.typography.bodyLarge
+                                                .copyWith(
+                                                  color: const Color(
+                                                    0xFF222222,
+                                                  ),
+                                                  fontWeight: FontWeight.w500,
+                                                  height: 1.4,
+                                                ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    const SizedBox(height: 24),
-                                    const Row(
+                                    const SizedBox(height: 18),
+                                    // Footer
+                                    Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: [
-                                        Text(
-                                          '🎂',
-                                          style: TextStyle(fontSize: 24),
+                                        Container(
+                                          width: 30,
+                                          height: 2,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.6,
+                                          ),
                                         ),
-                                        SizedBox(width: 8),
+                                        const SizedBox(width: 10),
                                         Text(
-                                          '🎈',
-                                          style: TextStyle(fontSize: 24),
+                                          'CLUB JORGE NEWBERY',
+                                          style: context.typography.labelSmall
+                                              .copyWith(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 1.2,
+                                              ),
                                         ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          '🎁',
-                                          style: TextStyle(fontSize: 24),
+                                        const SizedBox(width: 10),
+                                        Container(
+                                          width: 30,
+                                          height: 2,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.6,
+                                          ),
                                         ),
                                       ],
                                     ),

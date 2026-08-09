@@ -50,11 +50,22 @@ class JNButton extends StatelessWidget {
   double get _fontSize {
     switch (size) {
       case JNButtonSize.small:
-        return 12;
+        return 13;
       case JNButtonSize.medium:
         return 14;
       case JNButtonSize.large:
         return 16;
+    }
+  }
+
+  EdgeInsetsGeometry get _padding {
+    switch (size) {
+      case JNButtonSize.small:
+        return const EdgeInsets.symmetric(horizontal: 16, vertical: 0);
+      case JNButtonSize.medium:
+        return const EdgeInsets.symmetric(horizontal: 20, vertical: 0);
+      case JNButtonSize.large:
+        return const EdgeInsets.symmetric(horizontal: 24, vertical: 0);
     }
   }
 
@@ -64,6 +75,7 @@ class JNButton extends StatelessWidget {
         return ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
+            padding: _padding,
             backgroundColor: context.colors.primary,
             foregroundColor: context.colors.onPrimary,
             disabledBackgroundColor: context.colors.primaryDark.withValues(
@@ -84,6 +96,7 @@ class JNButton extends StatelessWidget {
         return ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
+            padding: _padding,
             backgroundColor: context.colors.accent,
             foregroundColor: Colors.black,
             shape: RoundedRectangleBorder(
@@ -101,6 +114,7 @@ class JNButton extends StatelessWidget {
         return OutlinedButton(
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
+            padding: _padding,
             foregroundColor: context.colors.textPrimary,
             side: BorderSide(color: context.colors.border),
             shape: RoundedRectangleBorder(
@@ -118,6 +132,7 @@ class JNButton extends StatelessWidget {
         return TextButton(
           onPressed: isLoading ? null : onPressed,
           style: TextButton.styleFrom(
+            padding: _padding,
             foregroundColor: context.colors.textSecondary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -133,6 +148,7 @@ class JNButton extends StatelessWidget {
         return ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
+            padding: _padding,
             backgroundColor: context.colors.error,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
@@ -150,6 +166,7 @@ class JNButton extends StatelessWidget {
         return ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
+            padding: _padding,
             backgroundColor: context.colors.success,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(

@@ -617,11 +617,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     }
 
                     final List<String> sortedDateColumns = allDateColsSet.toList()
-                      ..sort((a, b) => b.compareTo(a)); // Newest first
+                      ..sort((a, b) => a.compareTo(b)); // Chronological: Oldest left, Newest right
 
-                    _activeDateColumnForBulk ??= sortedDateColumns.first;
+                    _activeDateColumnForBulk ??= sortedDateColumns.last;
 
-                    final String activeBulkDate = _activeDateColumnForBulk ?? sortedDateColumns.first;
+                    final String activeBulkDate = _activeDateColumnForBulk ?? sortedDateColumns.last;
                     final Map<String, String> activeBulkRecords = historyMapByDate[activeBulkDate] ?? {};
 
                     return JNCard(

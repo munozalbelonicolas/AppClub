@@ -1,7 +1,9 @@
 import * as admin from 'firebase-admin';
 
-admin.initializeApp();
-
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 export * from './socialExport';
 export * from './authHooks';
+export * from './notifications';
