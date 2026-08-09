@@ -86,31 +86,29 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final docRef = db.collection('inbox_threads').doc(threadId);
     final docSnap = await docRef.get();
 
-    if (!docSnap.exists) {
-      await docRef.set({
-        'id': threadId,
-        'participants': participants,
-        'lastMessageText': 'Conversación iniciada',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        'unreadByAdmin': currentUser.isNormalUser,
-        'unreadByUser': !currentUser.isNormalUser,
-        // Store meta for listing easily
-        'user1Id': participants[0],
-        'user2Id': participants[1],
-        'userNames': {
-          currentUser.id: '${currentUser.name} ${currentUser.lastName}',
-          otherUser['id']: '${otherUser['name']} ${otherUser['lastName']}',
-        },
-        'userRoles': {
-          currentUser.id: currentUser.role,
-          otherUser['id']: otherUser['role'],
-        },
-        'userCategories': {
-          currentUser.id: currentUser.category ?? 'Todos',
-          otherUser['id']: otherUser['category'] ?? 'Todos',
-        },
-      });
-    }
+    await docRef.set({
+      'id': threadId,
+      'participants': participants,
+      if (!docSnap.exists) 'lastMessageText': 'Conversación iniciada',
+      if (!docSnap.exists) 'lastMessageTime': FieldValue.serverTimestamp(),
+      if (!docSnap.exists) 'unreadByAdmin': currentUser.isNormalUser,
+      if (!docSnap.exists) 'unreadByUser': !currentUser.isNormalUser,
+      'user1Id': participants[0],
+      'user2Id': participants[1],
+      'userNames': {
+        currentUser.id: '${currentUser.name} ${currentUser.lastName}'.trim(),
+        if (otherUser['name'] != null)
+          otherUser['id']: '${otherUser['name']} ${otherUser['lastName']}'.trim(),
+      },
+      'userRoles': {
+        currentUser.id: currentUser.role,
+        if (otherUser['role'] != null) otherUser['id']: otherUser['role'],
+      },
+      'userCategories': {
+        currentUser.id: currentUser.category ?? 'Todos',
+        if (otherUser['category'] != null) otherUser['id']: otherUser['category'],
+      },
+    }, SetOptions(merge: true));
 
     return threadId;
   }
