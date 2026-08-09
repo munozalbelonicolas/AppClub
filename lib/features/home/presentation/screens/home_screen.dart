@@ -288,13 +288,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Wrap(
                         spacing: 8,
                         children: imagePresets.map((preset) {
-                          return ActionChip(
+                          final bool isSelected =
+                              selectedPresetImage == preset['url'];
+                          return ChoiceChip(
+                            selected: isSelected,
                             label: Text(preset['label']!),
                             labelStyle: context.typography.labelSmall.copyWith(
-                              color: Colors.white,
+                              color: isSelected
+                                  ? Colors.white
+                                  : context.colors.textPrimary,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
                             ),
-                            backgroundColor: context.colors.surfaceLight,
-                            onPressed: () {
+                            selectedColor: context.colors.primary,
+                            backgroundColor: context.colors.surface,
+                            side: BorderSide(
+                              color: isSelected
+                                  ? context.colors.primary
+                                  : context.colors.border,
+                            ),
+                            onSelected: (selected) {
                               setDialogState(() {
                                 selectedPresetImage = preset['url']!;
                                 selectedImagePath = null; // Clear local image
