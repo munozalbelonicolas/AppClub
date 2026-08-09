@@ -34,7 +34,13 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider)!;
+    final user = ref.watch(currentUserProvider);
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     // We will query children from Firestore using a StreamBuilder below instead of a single mock variable.
 
     return Scaffold(
@@ -86,7 +92,7 @@ class SettingsScreen extends ConsumerWidget {
 
           // ─── Hijos asociados (Tutor) ────────────────────────
           if (user.role != 'jugador') ...[
-            Text('Mis Hijos (Jugadores)', style: context.typography.labelMedium),
+            Text('Mis Hijos', style: context.typography.labelMedium),
             const SizedBox(height: 8),
             StreamBuilder<List<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance

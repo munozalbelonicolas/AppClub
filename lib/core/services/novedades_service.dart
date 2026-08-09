@@ -90,14 +90,29 @@ class NovedadesService {
   }
 
   Future<void> markNovedadAsSeen(String novedadId, dynamic user) async {
-    final viewData = {
-      'userId': user.id,
-      'userName': '${user.name} ${user.lastName}',
-      'role': user.role,
-      'seenAt': FieldValue.serverTimestamp(),
-    };
     try {
-      await _db.collection('novedades').doc(novedadId).update({
+      final docRef = _db.collection('novedades').doc(novedadId);
+      final docSnap = await docRef.get();
+      if (!docSnap.exists) return;
+
+      final data = docSnap.data()!;
+      final seenByList = List<Map<String, dynamic>>.from(
+        (data['seenBy'] as List? ?? []).map(
+          (e) => Map<String, dynamic>.from(e as Map),
+        ),
+      );
+
+      final bool alreadySeen = seenByList.any((e) => e['userId'] == user.id);
+      if (alreadySeen) return;
+
+      final viewData = {
+        'userId': user.id,
+        'userName': '${user.name} ${user.lastName}'.trim(),
+        'role': user.role,
+        'seenAt': Timestamp.now(),
+      };
+
+      await docRef.update({
         'seenBy': FieldValue.arrayUnion([viewData]),
       });
     } catch (_) {}

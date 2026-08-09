@@ -41,31 +41,42 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (modalContext) {
         return _NewChatUserSelector(
           currentUserId: currentUser.id,
           currentUserRole: currentUser.role,
           currentUserCategory: currentUser.category,
           currentUserAssignedCategories: currentUser.assignedCategories,
           onUserSelected: (selectedUser) async {
-            Navigator.pop(context);
-            // Create or get thread
-            final threadId = await _getOrCreateThread(
-              currentUser,
-              selectedUser,
-            );
-            if (context.mounted) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatScreen(
-                    threadId: threadId,
-                    otherUserName:
-                        '${selectedUser['name']} ${selectedUser['lastName']}',
-                    otherUserRole: selectedUser['role'],
-                  ),
-                ),
+            Navigator.pop(modalContext);
+            try {
+              final threadId = await _getOrCreateThread(
+                currentUser,
+                selectedUser,
               );
+              if (mounted) {
+                final otherName =
+                    '${selectedUser['name'] ?? ''} ${selectedUser['lastName'] ?? ''}'.trim();
+                Navigator.push(
+                  this.context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      threadId: threadId,
+                      otherUserName: otherName.isNotEmpty ? otherName : 'Usuario',
+                      otherUserRole: selectedUser['role'] ?? 'tutor',
+                    ),
+                  ),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error al abrir conversación: $e'),
+                    backgroundColor: Theme.of(this.context).colorScheme.error,
+                  ),
+                );
+              }
             }
           },
         );
@@ -98,7 +109,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       'userNames': {
         currentUser.id: '${currentUser.name} ${currentUser.lastName}'.trim(),
         if (otherUser['name'] != null)
-          otherUser['id']: '${otherUser['name']} ${otherUser['lastName']}'.trim(),
+          otherUser['id']:
+              '${otherUser['name'] ?? ''} ${otherUser['lastName'] ?? ''}'
+                  .trim(),
       },
       'userRoles': {
         currentUser.id: currentUser.role,
@@ -115,7 +128,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = ref.watch(currentUserProvider)!;
+    final currentUser = ref.watch(currentUserProvider);
+    if (currentUser == null) {
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     final isStaff = !currentUser.isNormalUser;
     final categories = ref.watch(appCategoriesProvider);
     final filterOptions = ['Todas', ...categories, 'Tutores', 'DTs'];
@@ -380,35 +399,51 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   ),
                   if (currentUser.isNormalUser) ...[
                     const SizedBox(height: 24),
-                    JNButton(
-                      label: 'Escribir a la Secretaría',
-                      onPressed: () async {
-                        // Start chat with secretary
-                        final secUser = {
-                          'id': 'usr_sec_01',
-                          'name': 'Jorge',
-                          'lastName': 'Newbery',
-                          'role': 'secretario',
-                          'category': 'Todos',
-                        };
-                        final threadId = await _getOrCreateThread(
-                          currentUser,
-                          secUser,
-                        );
-                        if (context.mounted) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(
-                                threadId: threadId,
-                                otherUserName: 'Secretaría Jorge Newbery',
-                                otherUserRole: 'secretario',
-                              ),
-                            ),
+                      JNButton(
+                        label: 'Escribir a la Secretaría',
+                        onPressed: () async {
+                          // Find actual secretary/admin user in Firestore
+                          final secSnap = await FirebaseFirestore.instance
+                              .collection('users')
+                              .where('role', whereIn: ['secretario', 'directivo'])
+                              .limit(1)
+                              .get();
+
+                          Map<String, dynamic> secUser;
+                          if (secSnap.docs.isNotEmpty) {
+                            final doc = secSnap.docs.first;
+                            secUser = {'id': doc.id, ...doc.data()};
+                          } else {
+                            secUser = {
+                              'id': 'admin_general',
+                              'name': 'Secretaría',
+                              'lastName': 'Club',
+                              'role': 'secretario',
+                              'category': 'Todos',
+                            };
+                          }
+
+                          final threadId = await _getOrCreateThread(
+                            currentUser,
+                            secUser,
                           );
-                        }
-                      },
-                    ),
+                          if (context.mounted) {
+                            final secName = secUser['name'] != null
+                                ? '${secUser['name']} ${secUser['lastName'] ?? ''}'.trim()
+                                : 'Secretaría Club';
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatScreen(
+                                  threadId: threadId,
+                                  otherUserName: secName,
+                                  otherUserRole: secUser['role'] ?? 'secretario',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
                   ],
                 ],
               ),

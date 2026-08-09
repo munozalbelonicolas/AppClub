@@ -269,7 +269,7 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
         'phone1': phone1,
         'phone2': phone2,
-        'dni': ?dni,
+        if (dni != null) 'dni': dni,
         'termsAcceptedAt':
             isNewRegistration ? FieldValue.serverTimestamp() : null,
         'termsVersion': isNewRegistration ? '1.0' : null,
@@ -330,17 +330,16 @@ class AuthService {
               : null,
           termsVersion: snapshotData['termsVersion'],
         );
+        // Only update session state — do NOT call saveTokenUser or startNotificationStream
+        // here to avoid a feedback loop (saving token updates 'updatedAt' which triggers
+        // this listener again, causing infinite Firestore writes).
         _ref.read(currentUserProvider.notifier).state = updatedSession;
-        NotificationService().saveTokenUser(uid);
-        NotificationService().startNotificationStream(uid, userCategory: updatedSession.category);
       }
     });
 
+    // Save FCM token and start notification stream exactly once at login
     NotificationService().saveTokenUser(uid);
     NotificationService().startNotificationStream(uid, userCategory: session.category);
-
-    // Save or update FCM Token for device push notifications
-    NotificationService().saveTokenUser(uid);
 
     return session;
   }

@@ -606,7 +606,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Jugadores Registrados (Hijos)',
+                          'Mis Hijos',
                           style: context.typography.labelMedium,
                         ),
                         TextButton.icon(
@@ -639,7 +639,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             padding: const EdgeInsets.all(20),
                             child: Center(
                               child: Text(
-                                'No tienes hijos/jugadores vinculados.',
+                                'No tienes hijos vinculados.',
                                 style: context.typography.bodySmall.copyWith(
                                   color: context.colors.textTertiary,
                                 ),

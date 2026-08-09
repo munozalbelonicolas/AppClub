@@ -163,36 +163,44 @@ class NotificationService {
         .collection('notifications')
         .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(_sessionStartTime))
         .snapshots()
-        .listen((snapshot) {
-      for (final change in snapshot.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          final data = change.doc.data() as Map<String, dynamic>?;
-          if (data == null) continue;
+        .listen(
+      (snapshot) {
+        for (final change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            final data = change.doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
 
-          final authorId = data['authorId']?.toString() ?? '';
-          if (authorId == currentUserId) continue; // Don't notify self
+            final authorId = data['authorId']?.toString() ?? '';
+            if (authorId == currentUserId) continue; // Don't notify self
 
-          final targetUserId = data['targetUserId']?.toString() ?? 'all';
-          final targetCategory = data['targetCategory']?.toString() ?? 'all';
+            final targetUserId = data['targetUserId']?.toString() ?? 'all';
+            final targetCategory = data['targetCategory']?.toString() ?? 'all';
 
-          bool isForMe = targetUserId == 'all' || targetUserId == currentUserId;
-          if (!isForMe && userCategory != null && userCategory.isNotEmpty) {
-            isForMe = targetCategory == 'all' || targetCategory == 'todos' || targetCategory == userCategory;
-          }
+            bool isForMe = targetUserId == 'all' || targetUserId == currentUserId;
+            if (!isForMe && userCategory != null && userCategory.isNotEmpty) {
+              isForMe = targetCategory == 'all' || targetCategory == 'todos' || targetCategory == userCategory;
+            }
 
-          if (isForMe) {
-            final title = data['title']?.toString() ?? 'Nueva Notificación';
-            final body = data['body']?.toString() ?? data['message']?.toString() ?? '';
+            if (isForMe) {
+              final title = data['title']?.toString() ?? 'Nueva Notificación';
+              final body = data['body']?.toString() ?? data['message']?.toString() ?? '';
 
-            showLocalNotification(
-              id: change.doc.id.hashCode,
-              title: title,
-              body: body,
-            );
+              showLocalNotification(
+                id: change.doc.id.hashCode,
+                title: title,
+                body: body,
+              );
+            }
           }
         }
-      }
-    });
+      },
+      onError: (error) {
+        if (kDebugMode) {
+          print('Notification stream error (non-fatal): $error');
+        }
+        // Do NOT rethrow - errors here must not affect other Firestore streams
+      },
+    );
   }
 
   /// Displays a local banner notification with sound

@@ -204,7 +204,13 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sessionUser = ref.watch(currentUserProvider)!;
+    final sessionUser = ref.watch(currentUserProvider);
+    if (sessionUser == null) {
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     final playersAsync = ref.watch(tutorPlayersStreamProvider(sessionUser.id));
 
     return Scaffold(
@@ -266,7 +272,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'Paga las cuotas cooperadoras de tus jugadores vinculados desde aquí.',
+                        'Paga las cuotas cooperadoras de tus hijos vinculados desde aquí.',
                         style: context.typography.bodyMedium.copyWith(color: Colors.white70),
                       ),
                     ],
@@ -276,7 +282,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 const SizedBox(height: 24),
 
                 // ─── Players List ──────────────────────────
-                Text('Mis Jugadores', style: context.typography.headlineSmall),
+                Text('Mis Hijos', style: context.typography.headlineSmall),
                 const SizedBox(height: 12),
                 playersAsync.when(
                   data: (players) {
@@ -284,7 +290,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                       return JNCard(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'No tienes jugadores vinculados.',
+                          'No tienes hijos vinculados.',
                           style: context.typography.bodyMedium,
                         ),
                       );

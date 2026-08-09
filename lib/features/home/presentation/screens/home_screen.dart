@@ -22,7 +22,6 @@ import '../../../../core/widgets/jn_section_header.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
-import '../../../results/presentation/screens/fixture_screen.dart';
 import '../../../results/presentation/screens/league_report_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
 import '../../../communications/presentation/screens/story_export_screen.dart';
@@ -38,6 +37,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Set<String> _expandedPostIds = {};
+  final Set<String> _markedSeenPostIds = {};
   final Map<String, TextEditingController> _commentControllers = {};
 
   @override
@@ -579,7 +579,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ? selectedOpponentId
                             : null,
                         'eventDate': dateStr,
-                        'date': dateStr,
+                        'read': false,
                         'eventTime': timeStr,
                         'time': timeStr,
                         'location': venueStr,
@@ -608,7 +608,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sessionUser = ref.watch(currentUserProvider)!;
+    final sessionUser = ref.watch(currentUserProvider);
+    if (sessionUser == null) {
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     final isNormalUser = sessionUser.isNormalUser;
     final clubs = ref.watch(clubsStreamProvider).value ?? [];
     final hasPlayer =
@@ -1193,7 +1199,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       (e) => e['userId'] == sessionUser.id,
                     );
 
-                    if (!hasSeen) {
+                    if (!hasSeen && !_markedSeenPostIds.contains(postId)) {
+                      _markedSeenPostIds.add(postId);
                       Future.microtask(() {
                         ref
                             .read(firestoreServiceProvider)

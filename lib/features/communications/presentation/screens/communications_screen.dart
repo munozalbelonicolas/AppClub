@@ -317,7 +317,6 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         'category': selectedCategory,
                         'eventCategory': selectedEventCategory,
                         'priority': selectedPriority,
-                        'date': dateStr,
                         'read': false,
                         'authorId': sessionUser.id,
                         'authorName': '${sessionUser.name} ${sessionUser.lastName}',

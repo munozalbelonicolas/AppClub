@@ -77,23 +77,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
       } catch (_) {}
 
-      batch.update(threadRef, {
+      batch.set(threadRef, {
         'lastMessageText': text,
         'lastMessageTime': FieldValue.serverTimestamp(),
         'unreadByAdmin': currentUser.isNormalUser,
         'unreadByUser': !currentUser.isNormalUser,
         if (otherUserId.isNotEmpty) 'unreadBy': [otherUserId],
-      });
+      }, SetOptions(merge: true));
 
       await batch.commit();
 
       if (otherUserId.isNotEmpty) {
-        NotificationService().sendNotification(
-          title: 'Mensaje de ${currentUser.name} ${currentUser.lastName}'.trim(),
-          body: text,
-          authorId: currentUser.id,
-          targetUserId: otherUserId,
-        );
+        try {
+          NotificationService().sendNotification(
+            title: 'Mensaje de ${currentUser.name} ${currentUser.lastName}'.trim(),
+            body: text,
+            authorId: currentUser.id,
+            targetUserId: otherUserId,
+          );
+        } catch (_) {
+          // Notification failure must NOT block message delivery
+        }
       }
 
       // Scroll to bottom
@@ -118,7 +122,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = ref.watch(currentUserProvider)!;
+    final currentUser = ref.watch(currentUserProvider);
+    if (currentUser == null) {
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: context.colors.background,

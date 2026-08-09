@@ -88,9 +88,12 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                   onPressed: () => Navigator.pop(ctx),
                   child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
                 ),
-                TextButton(
+                 TextButton(
                   onPressed: () async {
                     Navigator.pop(ctx);
+                    // Capture colors before the async gap
+                    final successColor = context.colors.success;
+                    final errorColor = context.colors.error;
                     try {
                       await FirebaseFirestore.instance.collection('users').doc(player['id']).update({
                         'paidQuotas': currentPaidQuotas,
@@ -98,13 +101,13 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                       });
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
-                          SnackBar(content: const Text('Cuotas actualizadas'), backgroundColor: context.colors.success),
+                          SnackBar(content: const Text('Cuotas actualizadas'), backgroundColor: successColor),
                         );
                       }
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
-                          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
+                          SnackBar(content: Text('Error: $e'), backgroundColor: errorColor),
                         );
                       }
                     }

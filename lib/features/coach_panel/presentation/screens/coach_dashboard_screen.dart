@@ -24,7 +24,13 @@ class CoachDashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sessionUser = ref.watch(currentUserProvider)!;
+    final sessionUser = ref.watch(currentUserProvider);
+    if (sessionUser == null) {
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     final playersAsync = ref.watch(playersStreamProvider);
     final List<Map<String, dynamic>> allPlayers = (playersAsync.valueOrNull ?? [])
