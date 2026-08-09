@@ -331,8 +331,13 @@ class AuthService {
           termsVersion: snapshotData['termsVersion'],
         );
         _ref.read(currentUserProvider.notifier).state = updatedSession;
+        NotificationService().saveTokenUser(uid);
+        NotificationService().startNotificationStream(uid, userCategory: updatedSession.category);
       }
     });
+
+    NotificationService().saveTokenUser(uid);
+    NotificationService().startNotificationStream(uid, userCategory: session.category);
 
     // Save or update FCM Token for device push notifications
     NotificationService().saveTokenUser(uid);

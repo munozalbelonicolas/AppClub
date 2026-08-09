@@ -150,4 +150,102 @@ class NotificationService {
       }
     }
   }
+
+  StreamSubscription<QuerySnapshot>? _notificationSubscription;
+  DateTime _sessionStartTime = DateTime.now();
+
+  /// Listens to real-time notifications in Firestore and displays local notifications
+  void startNotificationStream(String currentUserId, {String? userCategory}) {
+    _notificationSubscription?.cancel();
+    _sessionStartTime = DateTime.now().subtract(const Duration(seconds: 5));
+
+    _notificationSubscription = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(_sessionStartTime))
+        .snapshots()
+        .listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data() as Map<String, dynamic>?;
+          if (data == null) continue;
+
+          final authorId = data['authorId']?.toString() ?? '';
+          if (authorId == currentUserId) continue; // Don't notify self
+
+          final targetUserId = data['targetUserId']?.toString() ?? 'all';
+          final targetCategory = data['targetCategory']?.toString() ?? 'all';
+
+          bool isForMe = targetUserId == 'all' || targetUserId == currentUserId;
+          if (!isForMe && userCategory != null && userCategory.isNotEmpty) {
+            isForMe = targetCategory == 'all' || targetCategory == 'todos' || targetCategory == userCategory;
+          }
+
+          if (isForMe) {
+            final title = data['title']?.toString() ?? 'Nueva Notificación';
+            final body = data['body']?.toString() ?? data['message']?.toString() ?? '';
+
+            showLocalNotification(
+              id: change.doc.id.hashCode,
+              title: title,
+              body: body,
+            );
+          }
+        }
+      }
+    });
+  }
+
+  /// Displays a local banner notification with sound
+  Future<void> showLocalNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _localNotifications.show(
+      id,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channel.id,
+          _channel.name,
+          channelDescription: _channel.description,
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: payload,
+    );
+  }
+
+  /// Helper to push a new notification document to Firestore (triggers instant in-app/local push)
+  Future<void> sendNotification({
+    required String title,
+    required String body,
+    required String authorId,
+    String targetUserId = 'all',
+    String targetCategory = 'all',
+  }) async {
+    try {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': title,
+        'body': body,
+        'authorId': authorId,
+        'targetUserId': targetUserId,
+        'targetCategory': targetCategory,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error sending notification doc: $e');
+      }
+    }
+  }
 }

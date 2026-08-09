@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
@@ -85,6 +86,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       });
 
       await batch.commit();
+
+      if (otherUserId.isNotEmpty) {
+        NotificationService().sendNotification(
+          title: 'Mensaje de ${currentUser.name} ${currentUser.lastName}'.trim(),
+          body: text,
+          authorId: currentUser.id,
+          targetUserId: otherUserId,
+        );
+      }
 
       // Scroll to bottom
       if (_scrollController.hasClients) {
