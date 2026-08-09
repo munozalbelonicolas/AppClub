@@ -156,3 +156,100 @@ export const sendPushOnNotificationCreated = functions.firestore
 
     return null;
   });
+
+/**
+ * Cloud Function triggered when a new chat message is created in 'inbox_threads/{threadId}/messages/{messageId}'.
+ * Sends a real-time FCM Push Notification to the message recipient.
+ */
+export const sendPushOnChatMessageCreated = functions.firestore
+  .document('inbox_threads/{threadId}/messages/{messageId}')
+  .onCreate(async (snapshot, context) => {
+    const data = snapshot.data();
+    if (!data) return null;
+
+    const senderId: string = String(data.senderId || '');
+    const senderName: string = String(data.senderName || 'Un usuario');
+    const text: string = String(data.text || 'Te ha enviado un mensaje.');
+    const threadId: string = String(context.params.threadId || '');
+
+    if (!threadId || !senderId) return null;
+
+    // 1. Get thread participants to locate the recipient
+    const threadDoc = await admin.firestore().collection('inbox_threads').doc(threadId).get();
+    if (!threadDoc.exists) return null;
+
+    const threadData = threadDoc.data();
+    const participants: string[] = Array.isArray(threadData?.participants)
+      ? threadData!.participants
+      : [];
+
+    const recipientIds = participants.filter((id) => id !== senderId);
+    if (recipientIds.length === 0) return null;
+
+    // 2. Fetch recipient tokens
+    const tokens: string[] = [];
+    for (const recipientId of recipientIds) {
+      const userDoc = await admin.firestore().collection('users').doc(recipientId).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        if (userData?.fcmToken && typeof userData.fcmToken === 'string') {
+          tokens.push(userData.fcmToken);
+        }
+        if (Array.isArray(userData?.fcmTokens)) {
+          userData!.fcmTokens.forEach((t: unknown) => {
+            if (typeof t === 'string' && t.trim().length > 0 && !tokens.includes(t)) {
+              tokens.push(t);
+            }
+          });
+        }
+      }
+    }
+
+    if (tokens.length === 0) {
+      console.log('No FCM tokens found for chat message recipients:', recipientIds);
+      return null;
+    }
+
+    const uniqueTokens = Array.from(new Set(tokens));
+
+    // 3. Prepare FCM Push Message
+    const message: admin.messaging.MulticastMessage = {
+      tokens: uniqueTokens,
+      notification: {
+        title: `Mensaje de ${senderName}`,
+        body: text,
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          channelId: 'high_importance_channel',
+          priority: 'high',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+      data: {
+        threadId: threadId,
+        type: 'chat_message',
+        click_action: 'FLUTTER_NOTIFICATION_CLICK',
+      },
+    };
+
+    try {
+      const response = await admin.messaging().sendEachForMulticast(message);
+      console.log(
+        `Successfully sent chat push notification to ${response.successCount} devices.`
+      );
+    } catch (error) {
+      console.error('Error sending chat push notification:', error);
+    }
+
+    return null;
+  });
