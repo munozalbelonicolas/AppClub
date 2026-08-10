@@ -1521,7 +1521,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                   BorderRadius.circular(12),
                                             ),
                                             child: const Text(
-                                              '¡FELIZ CUMPLEAÑOS!',
+                                              '🎂 CUMPLEAÑOS DEL DÍA',
                                               style: TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.bold,
