@@ -111,8 +111,8 @@ class _AppNavigatorState extends ConsumerState<_AppNavigator> {
     setState(() => _splashFinished = true);
   }
 
-  void _goToSplashThenLogin() {
-    ref.read(currentUserProvider.notifier).state = null;
+  void _goToSplashThenLogin() async {
+    await ref.read(authServiceProvider).signOut();
   }
 
   void _forceRefresh() {
