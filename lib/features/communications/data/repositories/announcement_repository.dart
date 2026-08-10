@@ -101,13 +101,22 @@ class AnnouncementRepository {
     String announcementId,
     dynamic sessionUser,
   ) async {
+    final docRef = _db.collection('announcements').doc(announcementId);
+    final docSnap = await docRef.get();
+    if (!docSnap.exists) return;
+
+    final seenBy = List<Map<String, dynamic>>.from(
+      (docSnap.data()?['seenBy'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+    if (seenBy.any((e) => e['userId'] == sessionUser.id)) return;
+
     final viewData = {
       'userId': sessionUser.id,
       'userName': '${sessionUser.name} ${sessionUser.lastName}',
       'userRole': sessionUser.role,
       'timestamp': Timestamp.now(),
     };
-    await _db.collection('announcements').doc(announcementId).update({
+    await docRef.update({
       'seenBy': FieldValue.arrayUnion([viewData]),
     });
   }

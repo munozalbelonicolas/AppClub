@@ -26,6 +26,7 @@ class CommunicationsScreen extends ConsumerStatefulWidget {
 class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final Set<String> _expandedAnnIds = {};
+  final Set<String> _markedSeenIds = {};
   final Map<String, TextEditingController> _commentControllers = {};
 
   @override
@@ -541,7 +542,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
         );
         final hasSeen = seenByList.any((e) => e['userId'] == sessionUser.id);
 
-        if (!hasSeen) {
+        if (!hasSeen && !_markedSeenIds.contains(annId)) {
+          _markedSeenIds.add(annId);
           Future.microtask(() {
             ref.read(announcementRepositoryProvider).markAnnouncementAsSeen(annId, sessionUser);
           });
