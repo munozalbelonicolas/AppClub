@@ -704,16 +704,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       );
                                     }
 
-                                    // Set default selected child if null
-                                    if (selectedChild == null) {
-                                      Future.microtask(() {
-                                        ref
-                                            .read(
-                                              selectedChildProvider.notifier,
-                                            )
-                                            .state = players
-                                            .first;
-                                      });
+                                    if (selectedChild == null ||
+                                        !players.any(
+                                          (p) => p['id'] == selectedChild['id'],
+                                        )) {
+                                      final firstPlayer = players.first;
+                                      if (selectedChild?['id'] !=
+                                          firstPlayer['id']) {
+                                        Future.microtask(() {
+                                          ref
+                                              .read(
+                                                selectedChildProvider.notifier,
+                                              )
+                                              .state = firstPlayer;
+                                        });
+                                      }
                                     }
 
                                     return DropdownButtonHideUnderline(
