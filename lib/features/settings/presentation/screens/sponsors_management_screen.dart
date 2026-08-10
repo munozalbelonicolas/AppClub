@@ -519,6 +519,8 @@ Widget _buildSponsorImage(String url) {
     width: 80,
     height: 80,
     fit: BoxFit.cover,
+    memCacheWidth: 300,
+    memCacheHeight: 300,
     placeholder: (context, url) => Container(
       color: context.colors.surfaceLight,
       child: const Center(

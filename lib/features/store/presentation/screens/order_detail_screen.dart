@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -361,12 +362,14 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     if (imageUrl == null || imageUrl.isEmpty) return placeholder;
 
     if (imageUrl.startsWith('http')) {
-      return Image.network(
-        imageUrl,
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => placeholder,
+        memCacheWidth: 300,
+        memCacheHeight: 300,
+        errorWidget: (context, url, error) => placeholder,
       );
     }
     return Image.file(
@@ -396,12 +399,13 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     );
 
     if (url.startsWith('http')) {
-      return Image.network(
-        url,
+      return CachedNetworkImage(
+        imageUrl: url,
         width: double.infinity,
         height: 300,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => errorWidget,
+        memCacheWidth: 800,
+        errorWidget: (context, url, error) => errorWidget,
       );
     }
     return Image.file(

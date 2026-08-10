@@ -261,6 +261,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       return CachedNetworkImage(
         imageUrl: imageUrl, 
         fit: BoxFit.cover, 
+        memCacheWidth: 800,
         placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
         errorWidget: (context, url, error) => Container(
           color: context.colors.surfaceLight,

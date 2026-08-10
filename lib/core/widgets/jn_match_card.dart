@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -320,12 +321,14 @@ class JNMatchCard extends StatelessWidget {
       ),
       child: ClipOval(
         child: logoUrl != null && logoUrl.isNotEmpty
-            ? Image.network(
-                logoUrl,
+            ? CachedNetworkImage(
+                imageUrl: logoUrl,
                 width: 52,
                 height: 52,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Center(
+                memCacheWidth: 200,
+                memCacheHeight: 200,
+                errorWidget: (context, url, error) => Center(
                   child: Text(
                     displayInitials,
                     style: context.typography.titleLarge.copyWith(

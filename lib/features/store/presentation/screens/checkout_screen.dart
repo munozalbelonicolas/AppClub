@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -326,12 +327,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     if (url.isEmpty) return placeholder;
 
     if (url.startsWith('http')) {
-      return Image.network(
-        url,
+      return CachedNetworkImage(
+        imageUrl: url,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => placeholder,
+        memCacheWidth: 200,
+        memCacheHeight: 200,
+        errorWidget: (context, url, error) => placeholder,
       );
     }
     return Image.file(

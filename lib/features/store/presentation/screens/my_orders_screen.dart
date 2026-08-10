@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -161,12 +162,14 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
     if (imageUrl == null || imageUrl.isEmpty) return placeholder;
 
     if (imageUrl.startsWith('http')) {
-      return Image.network(
-        imageUrl,
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
         width: 50,
         height: 50,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => placeholder,
+        memCacheWidth: 200,
+        memCacheHeight: 200,
+        errorWidget: (context, url, error) => placeholder,
       );
     }
     return Image.file(

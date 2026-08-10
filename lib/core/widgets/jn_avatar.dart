@@ -45,6 +45,8 @@ class JNAvatar extends StatelessWidget {
                 ? CachedNetworkImage(
                     imageUrl: imageUrl!,
                     fit: BoxFit.cover,
+                    memCacheWidth: (size * 3).toInt().clamp(100, 600),
+                    memCacheHeight: (size * 3).toInt().clamp(100, 600),
                     placeholder: (context, url) => const CircularProgressIndicator(),
                     errorWidget: (context, url, error) => _buildInitials(context),
                   )

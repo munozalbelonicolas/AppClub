@@ -238,6 +238,8 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
     return CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
+      memCacheWidth: 400,
+      memCacheHeight: 400,
       placeholder: (context, url) => Shimmer.fromColors(
         baseColor: context.colors.surfaceLight,
         highlightColor: context.colors.surface,

@@ -123,6 +123,8 @@ class ProductCard extends StatelessWidget {
       return CachedNetworkImage(
         imageUrl: product.imageUrl!,
         fit: BoxFit.cover,
+        memCacheWidth: 500,
+        memCacheHeight: 500,
         placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
         errorWidget: (context, url, error) => Container(
           color: context.colors.surfaceLight,

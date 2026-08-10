@@ -2226,6 +2226,7 @@ Widget _buildImagePreview(
         CachedNetworkImage(
           imageUrl: presetPath,
           fit: BoxFit.cover,
+          memCacheWidth: 600,
           placeholder: (context, url) =>
               Container(color: context.colors.surfaceLight),
           errorWidget: (context, url, error) => const Icon(Icons.broken_image),
@@ -2279,6 +2280,7 @@ Widget _buildPostImage(String url, BuildContext context) {
     fit: BoxFit.cover,
     width: double.infinity,
     height: 160,
+    memCacheWidth: 800,
     placeholder: (context, url) => Shimmer.fromColors(
       baseColor: context.colors.surfaceLight,
       highlightColor: context.colors.surface,
