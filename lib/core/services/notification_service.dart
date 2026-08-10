@@ -176,9 +176,15 @@ class NotificationService {
             final targetUserId = data['targetUserId']?.toString() ?? 'all';
             final targetCategory = data['targetCategory']?.toString() ?? 'all';
 
-            bool isForMe = targetUserId == 'all' || targetUserId == currentUserId;
-            if (!isForMe && userCategory != null && userCategory.isNotEmpty) {
-              isForMe = targetCategory == 'all' || targetCategory == 'todos' || targetCategory == userCategory;
+            bool isForMe = false;
+            if (targetUserId != 'all' && targetUserId.isNotEmpty) {
+              isForMe = targetUserId == currentUserId;
+            } else if (targetCategory != 'all' && targetCategory != 'todos' && targetCategory.isNotEmpty) {
+              isForMe = userCategory != null &&
+                  userCategory.isNotEmpty &&
+                  userCategory.toLowerCase() == targetCategory.toLowerCase();
+            } else {
+              isForMe = true;
             }
 
             if (isForMe) {
