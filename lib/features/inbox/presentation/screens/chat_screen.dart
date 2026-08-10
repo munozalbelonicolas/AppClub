@@ -62,20 +62,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       // Update parent thread metadata
       final threadRef = db.collection('inbox_threads').doc(widget.threadId);
-      // Determine other user
+      // Determine other user participant
       String otherUserId = '';
-      try {
-        final docSnap = await threadRef.get();
-        if (docSnap.exists) {
-          final parts = docSnap.data()?['participants'] as List<dynamic>? ?? [];
-          for (final p in parts) {
-            if (p != currentUser.id) {
-              otherUserId = p as String;
-              break;
+      final threadIdParts = widget.threadId.split('_');
+      if (threadIdParts.length >= 3 && threadIdParts[0] == 'chat') {
+        final id1 = threadIdParts[1];
+        final id2 = threadIdParts[2];
+        if (id1 == currentUser.id) {
+          otherUserId = id2;
+        } else if (id2 == currentUser.id) {
+          otherUserId = id1;
+        }
+      }
+
+      if (otherUserId.isEmpty) {
+        try {
+          final docSnap = await threadRef.get();
+          if (docSnap.exists) {
+            final parts = docSnap.data()?['participants'] as List<dynamic>? ?? [];
+            for (final p in parts) {
+              if (p != currentUser.id) {
+                otherUserId = p.toString();
+                break;
+              }
             }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }
 
       batch.set(threadRef, {
         'lastMessageText': text,
@@ -87,13 +100,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       await batch.commit();
 
-      if (otherUserId.isNotEmpty) {
+      if (otherUserId.isNotEmpty && otherUserId != currentUser.id) {
         try {
           NotificationService().sendNotification(
             title: 'Mensaje de ${currentUser.name} ${currentUser.lastName}'.trim(),
             body: text,
             authorId: currentUser.id,
             targetUserId: otherUserId,
+            targetCategory: 'private',
           );
         } catch (_) {
           // Notification failure must NOT block message delivery

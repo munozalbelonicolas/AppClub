@@ -173,13 +173,17 @@ class NotificationService {
             final authorId = data['authorId']?.toString() ?? '';
             if (authorId == currentUserId) continue; // Don't notify self
 
-            final targetUserId = data['targetUserId']?.toString() ?? 'all';
-            final targetCategory = data['targetCategory']?.toString() ?? 'all';
+            final targetUserId = data['targetUserId']?.toString() ?? '';
+            final targetCategory = data['targetCategory']?.toString() ?? '';
 
             bool isForMe = false;
-            if (targetUserId != 'all' && targetUserId.isNotEmpty) {
-              isForMe = targetUserId == currentUserId;
-            } else if (targetCategory != 'all' && targetCategory != 'todos' && targetCategory.isNotEmpty) {
+            if (targetUserId.isNotEmpty && targetUserId != 'all') {
+              isForMe = (targetUserId == currentUserId);
+            } else if (targetCategory == 'private') {
+              isForMe = false;
+            } else if (targetCategory.isNotEmpty &&
+                targetCategory != 'all' &&
+                targetCategory != 'todos') {
               isForMe = userCategory != null &&
                   userCategory.isNotEmpty &&
                   userCategory.toLowerCase() == targetCategory.toLowerCase();
