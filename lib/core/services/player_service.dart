@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_logger.dart';
+import 'notification_service.dart';
 
 class PlayerExistsException implements Exception {
   final String playerId;
@@ -127,14 +128,12 @@ class PlayerService {
       });
 
       // Create notification for admin
-      await _db.collection('notifications').add({
-        'type': 'player_registration',
-        'userId': newPlayerRef.id,
-        'userName': '$name $lastName',
-        'tutorId': tutorId,
-        'read': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await NotificationService().sendNotification(
+        title: '⚽ Registro de Nuevo Jugador',
+        body: 'Se registró al jugador $name $lastName',
+        authorId: tutorId,
+        targetCategory: 'admin',
+      );
     }
   }
 
@@ -168,16 +167,12 @@ class PlayerService {
     });
 
     // 2. Create the notification for admins
-    await _db.collection('notifications').add({
-      'type': 'co_tutor_request',
-      'linkId': linkRef.id,
-      'tutorId': tutorId,
-      'tutorName': tutorName,
-      'playerId': playerId,
-      'playerName': playerName,
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    await NotificationService().sendNotification(
+      title: '👥 Solicitud de Co-Tutor',
+      body: '$tutorName solicitó ser co-tutor de $playerName',
+      authorId: tutorId,
+      targetCategory: 'admin',
+    );
   }
 }
 

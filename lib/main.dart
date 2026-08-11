@@ -237,13 +237,12 @@ class _AppNavigatorState extends ConsumerState<_AppNavigator> {
                 .update({'status': 'pending_approval'});
             ref.read(currentUserProvider.notifier).state =
                 session.copyWith(status: 'pending_approval');
-            await FirebaseFirestore.instance.collection('notifications').add({
-              'type': 'new_user_pending',
-              'userId': session.id,
-              'userName': '${session.name} ${session.lastName}',
-              'createdAt': FieldValue.serverTimestamp(),
-              'read': false,
-            });
+            await NotificationService().sendNotification(
+              title: '👤 Nuevo Registro Pendiente',
+              body: '${session.name} ${session.lastName} completó el registro de su jugador y aguarda aprobación.',
+              authorId: session.id,
+              targetCategory: 'admin',
+            );
             _forceRefresh();
           },
         ),
