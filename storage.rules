@@ -1,4 +1,4 @@
-﻿rules_version = '2';
+rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
@@ -13,26 +13,40 @@ service firebase.storage {
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['directivo', 'secretario'];
     }
 
-    // ─── Store Product Images ───
+    // ─── Public & Store Product Images ───
     match /store_products/{allPaths=**} {
-      allow read: if isAuthenticated();
-      // Only Admins can upload or delete product images
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     // ─── Store Receipt Images ───
     match /store_receipts/{allPaths=**} {
-      // Authenticated users can upload receipts, admins can read all
-      allow read: if isAuthenticated(); // Or restrict to isAdmin if receipts are private
-      // Users can only write if it's less than 5MB and is an image
+      allow read: if isAuthenticated();
       allow write: if isAuthenticated() && 
                    request.resource.size < 5 * 1024 * 1024 &&
                    request.resource.contentType.matches('image/.*');
     }
 
-    // ─── Default: deny everything else ───
+    // ─── Avatars, Sponsors & Novedades ───
+    match /avatars/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /sponsors/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /novedades/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Fallback for other images ───
     match /{allPaths=**} {
-      allow read, write: if false;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
   }
 }

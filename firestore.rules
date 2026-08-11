@@ -84,11 +84,11 @@ service cloud.firestore {
 
     // ─── Events & Announcements ───
     match /events/{eventId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
     match /announcements/{announcementId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -100,13 +100,19 @@ service cloud.firestore {
 
     // ─── Novedades ───
     match /novedades/{novedadId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isCoach();
+    }
+
+    // ─── Sponsors ───
+    match /sponsors/{sponsorId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // ─── Clubs & Categories ───
     match /clubs/{clubId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 

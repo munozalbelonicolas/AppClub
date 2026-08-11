@@ -46,6 +46,14 @@
           }
         },
         {
+          "client_id": "173425300822-n58gggusc2isen2hjqlvmv2m9hlgkk8g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jorgenewbery.jorge_newbery_app",
+            "certificate_hash": "44d2880cfc5ade074c3f1071878eb922ca8a7c74"
+          }
+        },
+        {
           "client_id": "173425300822-r8amilbc6gsgjgr66dh4p6neu44alo2a.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -136,14 +144,6 @@
           "android_info": {
             "package_name": "com.jorgenewbery.jorge_newbery_app.beta",
             "certificate_hash": "624378bc28b50c140bfa3f42846e321cdf87f139"
-          }
-        },
-        {
-          "client_id": "173425300822-ahn1qp7d380aodk1dke51tb9gn8qaolo.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.jorgenewbery.jorge_newbery_app.beta",
-            "certificate_hash": "65ff2abdc48110f34947d822736148a5a818052c"
           }
         },
         {
