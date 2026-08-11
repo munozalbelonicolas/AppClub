@@ -141,6 +141,7 @@ class OneSignalService {
         'app_id': OneSignalConfig.appId,
         'headings': {'es': title, 'en': title},
         'contents': {'es': body, 'en': body},
+        'target_channel': 'push',
         if (data != null) 'data': data,
       };
 
