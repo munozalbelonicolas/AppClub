@@ -13,6 +13,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_logger.dart';
 import 'notification_service.dart';
+import 'onesignal_service.dart';
 
 class AuthService {
   final Ref _ref;
@@ -341,6 +342,13 @@ class AuthService {
     NotificationService().saveTokenUser(uid);
     NotificationService().startNotificationStream(uid, userCategory: session.category);
 
+    // Sync OneSignal user ID & segment tags
+    OneSignalService().loginUser(uid);
+    OneSignalService().setUserTags({
+      'role': session.role,
+      if (session.category != null) 'category': session.category!,
+    });
+
     return session;
   }
 
@@ -561,6 +569,7 @@ class AuthService {
   Future<void> signOut() async {
     _userSubscription?.cancel();
     _userSubscription = null;
+    await OneSignalService().logoutUser();
     await _googleSignIn.signOut();
     await _auth.signOut();
     _ref.read(currentUserProvider.notifier).state = null;

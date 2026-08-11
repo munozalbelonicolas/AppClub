@@ -15,6 +15,7 @@ import 'core/providers/session_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/onesignal_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/app_theme_colors.dart';
 import 'core/theme/app_typography.dart';
@@ -34,8 +35,9 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   try {
     await NotificationService().initialize();
+    await OneSignalService().initialize();
   } catch (e) {
-    // Ignore notification init errors on platforms without FCM support
+    // Ignore notification init errors on platforms without FCM/OneSignal support
   }
   
   try {
