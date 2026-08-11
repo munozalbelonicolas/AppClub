@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -178,11 +179,23 @@ class AuthService {
       }
     } catch (e) {
       AppLogger.warning('Google Sign-In failed or not configured: $e', tag: 'AuthService');
-      
+
       if (!context.mounted) return null;
 
-      // Mostramos el selector falso para facilitar pruebas (Demo)
-      return await _showDemoGoogleSignInDialog(context, errorDetails: e.toString());
+      // En modo debug mostramos el selector demo para facilitar pruebas
+      if (kDebugMode) {
+        return await _showDemoGoogleSignInDialog(context, errorDetails: e.toString());
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo iniciar sesión con Google. Por favor ingresa con tu correo y contraseña.',
+            ),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
     }
     return null;
   }
