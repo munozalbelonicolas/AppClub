@@ -6,6 +6,6 @@
 // =============================================================================
 
 class OneSignalConfig {
-  /// App ID de OneSignal. Reemplazar con el GUID asignado en el panel.
-  static const String appId = 'YOUR_ONESIGNAL_APP_ID';
+  /// App ID de OneSignal.
+  static const String appId = '9282b435-66c1-4f6e-bef3-a121b7dea076';
 }
