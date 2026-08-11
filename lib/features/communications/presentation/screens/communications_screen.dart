@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/user_session.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -338,6 +339,17 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         'location': 'Cancha Principal JN',
                         'venue': 'Cancha Principal JN',
                       });
+
+                      // Disparar Notificación Push vía OneSignal
+                      try {
+                        await NotificationService().sendNotification(
+                          title: '📢 Nuevo Comunicado: ${titleController.text.trim()}',
+                          body: bodyController.text.trim(),
+                          authorId: sessionUser.id,
+                          targetCategory: selectedCategory,
+                        );
+                      } catch (_) {}
+
                       if (context.mounted) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(

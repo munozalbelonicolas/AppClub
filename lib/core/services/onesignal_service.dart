@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import '../config/onesignal_config.dart';
 
@@ -120,6 +122,77 @@ class OneSignalService {
   /// Asigna la categoría deportiva del usuario (ej. sub15, primera, etc.)
   Future<void> setCategoryTag(String category) async {
     await setUserTags({'category': category});
+  }
+
+  /// Envía una notificación Push vía OneSignal REST API.
+  /// Se puede enviar a un usuario específico (targetUserId),
+  /// a una categoría específica (targetCategory) o a todos los usuarios ('all').
+  Future<bool> sendPushNotification({
+    required String title,
+    required String body,
+    String? targetUserId,
+    String? targetCategory,
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      final url = Uri.parse('https://onesignal.com/api/v1/notifications');
+
+      final Map<String, dynamic> payload = {
+        'app_id': OneSignalConfig.appId,
+        'headings': {'es': title, 'en': title},
+        'contents': {'es': body, 'en': body},
+        if (data != null) 'data': data,
+      };
+
+      if (targetUserId != null &&
+          targetUserId.isNotEmpty &&
+          targetUserId != 'all') {
+        payload['include_aliases'] = {
+          'external_id': [targetUserId]
+        };
+        payload['include_external_user_ids'] = [targetUserId];
+      } else if (targetCategory != null &&
+          targetCategory.isNotEmpty &&
+          targetCategory != 'all' &&
+          targetCategory != 'todos') {
+        payload['filters'] = [
+          {
+            'field': 'tag',
+            'key': 'category',
+            'relation': '=',
+            'value': targetCategory,
+          }
+        ];
+      } else {
+        payload['included_segments'] = ['Subscribed Users', 'All'];
+      }
+
+      final Map<String, String> headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+      };
+      if (OneSignalConfig.restApiKey.isNotEmpty) {
+        headers['Authorization'] = 'Basic ${OneSignalConfig.restApiKey}';
+      }
+
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode(payload),
+      );
+
+      if (kDebugMode) {
+        print(
+          '📡 OneSignal Push Response [${response.statusCode}]: ${response.body}',
+        );
+      }
+
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error enviando Push por OneSignal: $e');
+      }
+      return false;
+    }
   }
 
   /// Procesa los datos adjuntos de la notificación para navegación interna.
