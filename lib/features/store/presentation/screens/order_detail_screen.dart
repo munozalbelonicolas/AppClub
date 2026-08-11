@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/image_upload_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -59,14 +60,12 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       final orderDoc = await FirebaseFirestore.instance.collection('store_orders').doc(widget.orderId).get();
       final orderData = orderDoc.data()!;
 
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'type': 'store_receipt_uploaded',
-        'orderId': widget.orderId,
-        'buyerName': '${user.name} ${user.lastName}',
-        'productName': orderData['productName'],
-        'read': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await NotificationService().sendNotification(
+        title: '📄 Comprobante Cargado',
+        body: '${user.name} ${user.lastName} cargó comprobante de pago para ${orderData['productName']}',
+        authorId: user.id,
+        targetCategory: 'admin',
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

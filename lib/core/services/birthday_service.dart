@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_logger.dart';
+import 'notification_service.dart';
 
 class BirthdayService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -103,30 +104,12 @@ class BirthdayService {
           }
 
           if (message.isNotEmpty) {
-            final notifRef1 = _db.collection('notifications').doc();
-            batch.set(notifRef1, {
-              'title': 'Aviso de Cumpleaños',
-              'body': message,
-              'targetRole': 'directivo',
-              'type': 'birthday',
-              'createdAt': FieldValue.serverTimestamp(),
-              'isRead': false,
-            });
-            operationsCount++;
-
-            if (playerCategory != null) {
-              final notifRef2 = _db.collection('notifications').doc();
-              batch.set(notifRef2, {
-                'title': 'Cumpleaños en tu categoría',
-                'body': message,
-                'targetRole': 'dt',
-                'targetCategory': playerCategory,
-                'type': 'birthday',
-                'createdAt': FieldValue.serverTimestamp(),
-                'isRead': false,
-              });
-              operationsCount++;
-            }
+            NotificationService().sendNotification(
+              title: '🎂 Aviso de Cumpleaños',
+              body: message,
+              authorId: 'system',
+              targetCategory: playerCategory ?? 'all',
+            );
           }
         }
 

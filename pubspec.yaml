@@ -1,7 +1,7 @@
 name: jorge_newbery_app
 description: "App oficial del club ASOC. DEPORTIVA INF. Y JUV. JORGE NEWBERY"
 publish_to: 'none'
-version: 3.41.0+7
+version: 3.43.0+12
 
 environment:
   sdk: ^3.12.1
@@ -37,6 +37,7 @@ dependencies:
   firebase_auth: ^6.5.2
   firebase_messaging: ^16.4.3
   flutter_local_notifications: ^18.0.1
+  onesignal_flutter: ^5.2.9
   google_sign_in: ^6.2.1
   image_picker: ^1.1.2
   path_provider: ^2.1.6
