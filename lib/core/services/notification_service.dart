@@ -91,7 +91,7 @@ class NotificationService {
               _channel.id,
               _channel.name,
               channelDescription: _channel.description,
-              icon: android?.smallIcon ?? '@mipmap/ic_launcher',
+              icon: android?.smallIcon ?? 'ic_stat_onesignal_default',
               importance: Importance.max,
               priority: Priority.high,
             ),
@@ -193,14 +193,8 @@ class NotificationService {
             }
 
             if (isForMe) {
-              final title = data['title']?.toString() ?? 'Nueva Notificación';
-              final body = data['body']?.toString() ?? data['message']?.toString() ?? '';
-
-              showLocalNotification(
-                id: change.doc.id.hashCode,
-                title: title,
-                body: body,
-              );
+              // OneSignal se encarga de mostrar la notificación Push oficial.
+              // No se llama a showLocalNotification aquí para evitar notificaciones duplicadas.
             }
           }
         }
@@ -232,7 +226,7 @@ class NotificationService {
           channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          icon: 'ic_stat_onesignal_default',
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
