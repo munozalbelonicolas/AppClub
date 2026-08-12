@@ -46,7 +46,7 @@ service cloud.firestore {
 
     // ─── Store Products ───
     match /store_products/{productId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -117,7 +117,7 @@ service cloud.firestore {
     }
 
     match /categories/{categoryId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
@@ -139,22 +139,37 @@ service cloud.firestore {
     }
 
     match /fixtures/{fixtureId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isCoach();
     }
 
     match /league_reports/{reportId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isCoach();
     }
 
     match /coach_reports/{reportId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isCoach();
     }
 
     match /players/{playerId} {
       allow read: if isAuthenticated();
+      allow write: if isAdmin() || isCoach();
+    }
+
+    match /scorers/{scorerId} {
+      allow read: if true;
+      allow write: if isAdmin() || isCoach();
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isCoach();
+    }
+
+    match /training_schedules/{scheduleId} {
+      allow read: if true;
       allow write: if isAdmin() || isCoach();
     }
 
