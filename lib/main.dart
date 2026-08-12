@@ -15,6 +15,7 @@ import 'core/providers/session_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/onesignal_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/app_theme_colors.dart';
 import 'core/theme/app_typography.dart';
@@ -34,8 +35,9 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   try {
     await NotificationService().initialize();
+    await OneSignalService().initialize();
   } catch (e) {
-    // Ignore notification init errors on platforms without FCM support
+    // Ignore notification init errors on platforms without FCM/OneSignal support
   }
   
   try {
@@ -235,13 +237,12 @@ class _AppNavigatorState extends ConsumerState<_AppNavigator> {
                 .update({'status': 'pending_approval'});
             ref.read(currentUserProvider.notifier).state =
                 session.copyWith(status: 'pending_approval');
-            await FirebaseFirestore.instance.collection('notifications').add({
-              'type': 'new_user_pending',
-              'userId': session.id,
-              'userName': '${session.name} ${session.lastName}',
-              'createdAt': FieldValue.serverTimestamp(),
-              'read': false,
-            });
+            await NotificationService().sendNotification(
+              title: '👤 Nuevo Registro Pendiente',
+              body: '${session.name} ${session.lastName} completó el registro de su jugador y aguarda aprobación.',
+              authorId: session.id,
+              targetCategory: 'admin',
+            );
             _forceRefresh();
           },
         ),

@@ -7,9 +7,6 @@ import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_avatar.dart';
-import '../../../../core/widgets/jn_badge.dart';
-import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {

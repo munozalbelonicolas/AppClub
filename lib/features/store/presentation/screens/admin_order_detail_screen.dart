@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -44,7 +46,6 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
       final orderDoc = await FirebaseFirestore.instance.collection('store_orders').doc(widget.orderId).get();
       final orderData = orderDoc.data()!;
 
-      String notifType;
       String notifMessage;
       switch (newStatus) {
         case 'confirmed':
@@ -59,20 +60,16 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
               updateData['paidQuotas'] = FieldValue.arrayUnion([quotaMonth]);
             }
             await FirebaseFirestore.instance.collection('users').doc(orderData['playerId']).update(updateData);
-            notifType = 'quota_payment_confirmed';
             notifMessage = '✅ Tu pago de cuota para ${orderData['productName'].split(' - ').last} fue confirmado.';
           } else {
-            notifType = 'store_order_confirmed';
             notifMessage = '✅ Tu pago por ${orderData['productName']} fue confirmado. Ya podés pasar a retirarlo por el club.';
           }
           break;
         case 'delivered':
-          notifType = 'store_order_delivered';
           notifMessage = '📦 Tu pedido de ${orderData['productName']} fue entregado.';
           break;
         case 'rejected':
           final isQuota = orderData['isQuotaPayment'] == true;
-          notifType = isQuota ? 'quota_payment_rejected' : 'store_order_rejected';
           notifMessage = isQuota 
               ? '❌ Tu pago de cuota para ${orderData['productName'].split(' - ').last} fue rechazado: ${notes ?? ''}'
               : '❌ Tu pedido de ${orderData['productName']} fue rechazado: ${notes ?? ''}';
@@ -88,14 +85,13 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
           return;
       }
 
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'type': notifType,
-        'orderId': widget.orderId,
-        'userId': orderData['buyerId'],
-        'body': notifMessage,
-        'read': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      final currentUser = ref.read(currentUserProvider);
+      await NotificationService().sendNotification(
+        title: 'Estado de Pedido / Cuota',
+        body: notifMessage,
+        authorId: currentUser?.id ?? 'admin',
+        targetUserId: orderData['buyerId'] ?? 'all',
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

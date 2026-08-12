@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/app_logger.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -93,15 +94,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       });
 
       // Notify admins
-      await db.collection('notifications').add({
-        'type': 'store_purchase',
-        'orderId': orderRef.id,
-        'buyerName': '${user.name} ${user.lastName}',
-        'productName': widget.productName,
-        'selectedSize': widget.selectedSize,
-        'read': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await NotificationService().sendNotification(
+        title: '🛍️ Nuevo Pedido en Tienda',
+        body: '${user.name} ${user.lastName} compró ${widget.productName} (${widget.selectedSize})',
+        authorId: user.id,
+        targetCategory: 'admin',
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

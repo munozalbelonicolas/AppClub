@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'onesignal_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -90,7 +91,7 @@ class NotificationService {
               _channel.id,
               _channel.name,
               channelDescription: _channel.description,
-              icon: android?.smallIcon ?? '@mipmap/ic_launcher',
+              icon: android?.smallIcon ?? 'ic_stat_onesignal_default',
               importance: Importance.max,
               priority: Priority.high,
             ),
@@ -192,14 +193,8 @@ class NotificationService {
             }
 
             if (isForMe) {
-              final title = data['title']?.toString() ?? 'Nueva Notificación';
-              final body = data['body']?.toString() ?? data['message']?.toString() ?? '';
-
-              showLocalNotification(
-                id: change.doc.id.hashCode,
-                title: title,
-                body: body,
-              );
+              // OneSignal se encarga de mostrar la notificación Push oficial.
+              // No se llama a showLocalNotification aquí para evitar notificaciones duplicadas.
             }
           }
         }
@@ -231,7 +226,7 @@ class NotificationService {
           channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          icon: 'ic_stat_onesignal_default',
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
@@ -243,7 +238,7 @@ class NotificationService {
     );
   }
 
-  /// Helper to push a new notification document to Firestore (triggers instant in-app/local push)
+  /// Helper to push a new notification document to Firestore and trigger OneSignal Push
   Future<void> sendNotification({
     required String title,
     required String body,
@@ -252,6 +247,7 @@ class NotificationService {
     String targetCategory = 'all',
   }) async {
     try {
+      // 1. Guardar documento en Firestore (para notificaciones en tiempo real in-app)
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': title,
         'body': body,
@@ -260,6 +256,14 @@ class NotificationService {
         'targetCategory': targetCategory,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // 2. Enviar notificación Push real a los dispositivos vía OneSignal
+      await OneSignalService().sendPushNotification(
+        title: title,
+        body: body,
+        targetUserId: targetUserId,
+        targetCategory: targetCategory,
+      );
     } catch (e) {
       if (kDebugMode) {
         print('Error sending notification doc: $e');

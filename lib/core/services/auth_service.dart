@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -13,6 +14,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_logger.dart';
 import 'notification_service.dart';
+import 'onesignal_service.dart';
 
 class AuthService {
   final Ref _ref;
@@ -177,11 +179,23 @@ class AuthService {
       }
     } catch (e) {
       AppLogger.warning('Google Sign-In failed or not configured: $e', tag: 'AuthService');
-      
+
       if (!context.mounted) return null;
 
-      // Mostramos el selector falso para facilitar pruebas (Demo)
-      return await _showDemoGoogleSignInDialog(context, errorDetails: e.toString());
+      // En modo debug mostramos el selector demo para facilitar pruebas
+      if (kDebugMode) {
+        return await _showDemoGoogleSignInDialog(context, errorDetails: e.toString());
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo iniciar sesión con Google. Por favor ingresa con tu correo y contraseña.',
+            ),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
     }
     return null;
   }
@@ -340,6 +354,13 @@ class AuthService {
     // Save FCM token and start notification stream exactly once at login
     NotificationService().saveTokenUser(uid);
     NotificationService().startNotificationStream(uid, userCategory: session.category);
+
+    // Sync OneSignal user ID & segment tags
+    OneSignalService().loginUser(uid);
+    OneSignalService().setUserTags({
+      'role': session.role,
+      if (session.category != null) 'category': session.category!,
+    });
 
     return session;
   }
@@ -561,6 +582,7 @@ class AuthService {
   Future<void> signOut() async {
     _userSubscription?.cancel();
     _userSubscription = null;
+    await OneSignalService().logoutUser();
     await _googleSignIn.signOut();
     await _auth.signOut();
     _ref.read(currentUserProvider.notifier).state = null;
