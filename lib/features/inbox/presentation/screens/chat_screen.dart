@@ -12,12 +12,22 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
   final String otherUserName;
   final String otherUserRole;
+  /// True when an auditor (admin/directivo/secretario) is viewing a thread
+  /// they are NOT a participant of.
+  final bool isAuditMode;
+  /// Map of participantId -> displayName for audit threads.
+  final Map<String, String>? auditParticipantNames;
+  /// Map of participantId -> role for audit threads.
+  final Map<String, String>? auditParticipantRoles;
 
   const ChatScreen({
     super.key,
     required this.threadId,
     required this.otherUserName,
     required this.otherUserRole,
+    this.isAuditMode = false,
+    this.auditParticipantNames,
+    this.auditParticipantRoles,
   });
 
   @override
@@ -36,6 +46,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _sendMessage(dynamic currentUser) async {
+    // Security guard: auditors can NEVER send messages in threads they don't participate in
+    if (widget.isAuditMode) return;
+
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
@@ -148,34 +161,65 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       backgroundColor: context.colors.background,
       appBar: AppBar(
         titleSpacing: 0,
-        title: Row(
-          children: [
-            JNAvatar(name: widget.otherUserName, size: 36),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
+        title: widget.isAuditMode
+            ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    widget.otherUserName,
-                    style: context.typography.titleLarge,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      const Text(
+                        '👁️ MODO AUDITORÍA',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFFD700),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
                   Text(
-                    widget.otherUserRole.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: context.colors.primary.withValues(alpha: 0.8),
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                    widget.otherUserName,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFFFFD700),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  JNAvatar(name: widget.otherUserName, size: 36),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.otherUserName,
+                          style: context.typography.titleLarge,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          widget.otherUserRole.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: context.colors.primary.withValues(alpha: 0.8),
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
         elevation: 0,
+        backgroundColor:
+            widget.isAuditMode ? const Color(0xFF1A1400) : null,
       ),
       body: Column(
         children: [
@@ -254,7 +298,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
                     final isMe = senderId == currentUser.id;
 
-                    return _buildChatBubble(text, createdAt, isMe);
+                    // In audit mode, look up sender name/role from the audit maps
+                    String? auditSenderLabel;
+                    if (widget.isAuditMode) {
+                      final senderName =
+                          widget.auditParticipantNames?[senderId] ??
+                          (data['senderName'] ?? 'Usuario').toString();
+                      final senderRole =
+                          widget.auditParticipantRoles?[senderId] ??
+                          (data['senderRole'] ?? '').toString();
+                      final roleLabel = _roleLabel(senderRole);
+                      auditSenderLabel = roleLabel.isNotEmpty
+                          ? '$senderName ($roleLabel)'
+                          : senderName;
+                    }
+
+                    return _buildChatBubble(
+                      text,
+                      createdAt,
+                      isMe,
+                      auditSenderLabel: auditSenderLabel,
+                    );
                   },
                 );
               },
@@ -266,7 +330,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildChatBubble(String text, DateTime time, bool isMe) {
+  Widget _buildChatBubble(
+    String text,
+    DateTime time,
+    bool isMe, {
+    String? auditSenderLabel,
+  }) {
     final bubbleColor = isMe ? context.colors.primary : context.colors.surfaceLight;
     final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final bubbleBorder = isMe
@@ -286,6 +355,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Column(
       crossAxisAlignment: align,
       children: [
+        if (auditSenderLabel != null)
+          Padding(
+            padding: EdgeInsets.only(
+              left: isMe ? 0 : 12,
+              right: isMe ? 12 : 0,
+              bottom: 2,
+            ),
+            child: Text(
+              auditSenderLabel,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFFFD700).withValues(alpha: 0.85),
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
         Container(
           margin: const EdgeInsets.only(bottom: 4, top: 4),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -323,6 +409,49 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildMessageInput(dynamic currentUser) {
+    // In audit mode, hide the input form and show a read-only banner instead
+    if (widget.isAuditMode) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1400),
+            border: Border(
+              top: BorderSide(
+                color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                width: 1,
+              ),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 2, right: 10),
+                child: Text('👁️', style: TextStyle(fontSize: 18)),
+              ),
+              Expanded(
+                child: Text(
+                  'Modo Supervisión Institucional: Solo lectura. '
+                  'Únicamente los participantes de esta conversación '
+                  'pueden interactuar o responder.',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFFFD700),
+                    fontWeight: FontWeight.w500,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Normal interactive input for actual participants
     return SafeArea(
       top: false,
       child: Container(
@@ -361,6 +490,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       ),
     );
+  }
+
+  /// Returns a human-readable role label for audit sender display.
+  String _roleLabel(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+      case 'administrator':
+        return 'ADMIN';
+      case 'directivo':
+        return 'DIRECTIVO';
+      case 'secretario':
+        return 'SECRETARIO';
+      case 'dt':
+      case 'coach':
+        return 'DT';
+      case 'tutor':
+        return 'TUTOR';
+      case 'socio':
+        return 'SOCIO';
+      case 'jugador':
+        return 'JUGADOR';
+      default:
+        return role.toUpperCase();
+    }
   }
 
   String _formatTimestamp(DateTime time) {

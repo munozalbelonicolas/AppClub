@@ -242,20 +242,29 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     );
   }
 
+  /// Determines if the current user is a privileged auditor who can see ALL threads.
+  bool _isAuditor(dynamic currentUser) {
+    final role = currentUser.role as String? ?? '';
+    return role == 'admin' ||
+        role == 'administrator' ||
+        role == 'directivo' ||
+        role == 'secretario';
+  }
+
   Widget _buildThreadsStream(dynamic currentUser) {
     final query = FirebaseFirestore.instance.collection('inbox_threads');
 
-    // Filter threads
-    Query filteredQuery = query;
-    if (currentUser.isNormalUser) {
-      // Normal users only see threads they participate in
+    // Auditors (admin/directivo/secretario) see ALL threads for institutional oversight.
+    // DTs, coaches and normal users only see their own threads.
+    Query filteredQuery;
+    if (_isAuditor(currentUser)) {
+      filteredQuery = query; // all threads – sorted in-memory below
+    } else {
+      // Normal users, DTs, coaches, tutors, socios, jugadores – only own threads
       filteredQuery = query.where(
         'participants',
         arrayContains: currentUser.id,
       );
-    } else if (currentUser.role == 'dt') {
-      // Coaches can see threads of participants in their category
-      // For simplicity, we get threads containing the DT or we fetch all and filter in memory
     }
 
     // NOTE: We do NOT use .orderBy('lastMessageTime') here because
@@ -310,10 +319,33 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             final rolesMap = data['userRoles'] as Map<String, dynamic>? ?? {};
             final categoriesMap =
                 data['userCategories'] as Map<String, dynamic>? ?? {};
+            final participants = (data['participants'] as List?)?.cast<String>() ?? [];
+            final isAuditThread = _isAuditor(currentUser) && !participants.contains(currentUser.id);
+
+            if (isAuditThread) {
+              // For audit threads (admin sees foreign chats), search against all participant names
+              if (_searchQuery.isNotEmpty) {
+                final allNames = namesMap.values.map((v) => v.toString().toLowerCase()).join(' ');
+                if (!allNames.contains(_searchQuery)) return false;
+              }
+              // Category filters: apply against any participant's category
+              if (_selectedCategoryFilter != 'Todas') {
+                final allCategories = categoriesMap.values.map((v) => v.toString().toLowerCase());
+                final allRoles = rolesMap.values.map((v) => v.toString().toLowerCase());
+                if (_selectedCategoryFilter == 'Tutores') {
+                  if (!allRoles.contains('tutor')) return false;
+                } else if (_selectedCategoryFilter == 'DTs') {
+                  if (!allRoles.contains('dt')) return false;
+                } else {
+                  if (!allCategories.contains(_selectedCategoryFilter.toLowerCase())) return false;
+                }
+              }
+              return true;
+            }
 
             // Find the other participant (the normal user)
             String otherUserId = '';
-            for (final pId in data['participants'] ?? []) {
+            for (final pId in participants) {
               if (pId != currentUser.id) {
                 otherUserId = pId;
                 break;
@@ -340,7 +372,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             // Coach restriction: DTs only manage their own category
             if (currentUser.role == 'dt') {
               final dtCategory = (currentUser.category ?? '').toLowerCase();
-              final isParticipant = (data['participants'] as List?)?.contains(currentUser.id) ?? false;
+              final isParticipant = participants.contains(currentUser.id);
               if (otherCategory != dtCategory && !isParticipant) {
                 return false;
               }
@@ -459,23 +491,50 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             final data = doc.data() as Map<String, dynamic>;
             final threadId = doc.id;
 
-            // Find the other participant in the chat
-            String otherUserId = '';
-            for (final pId in data['participants'] ?? []) {
-              if (pId != currentUser.id) {
-                otherUserId = pId;
-                break;
-              }
-            }
-
+            final participants = (data['participants'] as List?)?.cast<String>() ?? [];
             final namesMap = data['userNames'] as Map<String, dynamic>? ?? {};
             final rolesMap = data['userRoles'] as Map<String, dynamic>? ?? {};
             final categoriesMap =
                 data['userCategories'] as Map<String, dynamic>? ?? {};
 
-            final String otherName = namesMap[otherUserId] ?? 'Usuario';
-            final String otherRole = rolesMap[otherUserId] ?? 'tutor';
-            final String otherCategory = categoriesMap[otherUserId] ?? '';
+            // Detect audit mode: admin is viewing a thread they are NOT part of
+            final isAuditMode =
+                _isAuditor(currentUser) && !participants.contains(currentUser.id);
+
+            // Build display title and role
+            String displayTitle;
+            String displayRole;
+            String avatarName;
+            String otherRole;
+            String otherCategory;
+
+            if (isAuditMode) {
+              // Show both participants in audit format: "Nombre1 (Rol1) ↔ Nombre2 (Rol2)"
+              final entries = participants.map((pid) {
+                final name = (namesMap[pid] ?? 'Usuario').toString();
+                final role = _roleLabel((rolesMap[pid] ?? '').toString());
+                return '$name ($role)';
+              }).toList();
+              displayTitle = entries.join(' ↔ ');
+              displayRole = 'supervisión';
+              avatarName = entries.isNotEmpty ? entries.first : '??';
+              otherRole = 'supervisión';
+              otherCategory = '';
+            } else {
+              // Normal view: show the other participant
+              String otherUserId = '';
+              for (final pId in participants) {
+                if (pId != currentUser.id) {
+                  otherUserId = pId;
+                  break;
+                }
+              }
+              displayTitle = namesMap[otherUserId] ?? 'Usuario';
+              otherRole = (rolesMap[otherUserId] ?? 'tutor').toString();
+              displayRole = otherRole;
+              avatarName = displayTitle;
+              otherCategory = (categoriesMap[otherUserId] ?? '').toString();
+            }
 
             final lastMsg = data['lastMessageText'] ?? '';
             final Timestamp? lastTimeTimestamp =
@@ -494,27 +553,45 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               padding: const EdgeInsets.only(bottom: 10),
               child: JNCard(
                 onTap: () {
-                  // Mark as read in Firestore
-                  FirebaseFirestore.instance
-                      .collection('inbox_threads')
-                      .doc(threadId)
-                      .update({
-                        if (currentUser.isNormalUser) 'unreadByUser': false else 'unreadByAdmin': false,
-                        'unreadBy': FieldValue.arrayRemove([currentUser.id]),
-                      });
+                  // Mark as read in Firestore only if admin is a participant
+                  if (!isAuditMode) {
+                    FirebaseFirestore.instance
+                        .collection('inbox_threads')
+                        .doc(threadId)
+                        .update({
+                          if (currentUser.isNormalUser) 'unreadByUser': false else 'unreadByAdmin': false,
+                          'unreadBy': FieldValue.arrayRemove([currentUser.id]),
+                        });
+                  }
 
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => ChatScreen(
                         threadId: threadId,
-                        otherUserName: otherName,
-                        otherUserRole: otherRole,
+                        otherUserName: displayTitle,
+                        otherUserRole: displayRole,
+                        isAuditMode: isAuditMode,
+                        auditParticipantNames: isAuditMode
+                            ? Map<String, String>.fromEntries(
+                                namesMap.entries.map((e) => MapEntry(e.key, e.value.toString())),
+                              )
+                            : null,
+                        auditParticipantRoles: isAuditMode
+                            ? Map<String, String>.fromEntries(
+                                rolesMap.entries.map((e) => MapEntry(e.key, e.value.toString())),
+                              )
+                            : null,
                       ),
                     ),
                   );
                 },
-                border: isUnread
+                border: isAuditMode
+                    ? Border.all(
+                        color: const Color(0xFFFFD700).withValues(alpha: 0.6),
+                        width: 1.5,
+                      )
+                    : isUnread
                     ? Border.all(
                         color: context.colors.primary.withValues(alpha: 0.5),
                         width: 1.2,
@@ -523,7 +600,19 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 padding: const EdgeInsets.all(14),
                 child: Row(
                   children: [
-                    JNAvatar(name: otherName),
+                    isAuditMode
+                        ? Container(
+                            width: 44,
+                            height: 44,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF2A2000),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Center(
+                              child: Text('👁️', style: TextStyle(fontSize: 20)),
+                            ),
+                          )
+                        : JNAvatar(name: avatarName),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -534,34 +623,63 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                             runSpacing: 4,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Text(otherName, style: context.typography.titleMedium),
-                              JNBadge(
-                                label: otherRole.toUpperCase(),
-                                type: otherRole == 'directivo'
-                                    ? JNBadgeType.error
-                                    : otherRole == 'secretario'
-                                    ? JNBadgeType.info
-                                    : otherRole == 'dt'
-                                    ? JNBadgeType.accent
-                                    : JNBadgeType.neutral,
-                                small: true,
+                              Text(
+                                displayTitle,
+                                style: context.typography.titleMedium,
                               ),
-                              if (otherCategory.isNotEmpty &&
-                                  otherCategory != 'Todos')
+                              if (isAuditMode)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                                    border: Border.all(
+                                      color: const Color(0xFFFFD700),
+                                      width: 0.8,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'SUPERVISIÓN',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFFFD700),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                )
+                              else ...[
                                 JNBadge(
-                                  label: otherCategory,
+                                  label: otherRole.toUpperCase(),
+                                  type: otherRole == 'directivo'
+                                      ? JNBadgeType.error
+                                      : otherRole == 'secretario'
+                                      ? JNBadgeType.info
+                                      : otherRole == 'dt'
+                                      ? JNBadgeType.accent
+                                      : JNBadgeType.neutral,
                                   small: true,
                                 ),
+                                if (otherCategory.isNotEmpty &&
+                                    otherCategory != 'Todos')
+                                  JNBadge(
+                                    label: otherCategory,
+                                    small: true,
+                                  ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 4),
                           Text(
                             lastMsg,
                             style: context.typography.bodySmall.copyWith(
-                              color: isUnread
+                              color: isUnread && !isAuditMode
                                   ? context.colors.textPrimary
                                   : context.colors.textTertiary,
-                              fontWeight: isUnread
+                              fontWeight: isUnread && !isAuditMode
                                   ? FontWeight.w600
                                   : FontWeight.w400,
                             ),
@@ -579,7 +697,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           _formatTime(lastTime),
                           style: context.typography.labelSmall,
                         ),
-                        if (isUnread) ...[
+                        if (isUnread && !isAuditMode) ...[
                           const SizedBox(height: 6),
                           Container(
                             width: 10,
@@ -600,6 +718,30 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         );
       },
     );
+  }
+
+  /// Returns a human-readable role label for audit display.
+  String _roleLabel(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+      case 'administrator':
+        return 'ADMIN';
+      case 'directivo':
+        return 'DIRECTIVO';
+      case 'secretario':
+        return 'SECRETARIO';
+      case 'dt':
+      case 'coach':
+        return 'DT';
+      case 'tutor':
+        return 'TUTOR';
+      case 'socio':
+        return 'SOCIO';
+      case 'jugador':
+        return 'JUGADOR';
+      default:
+        return role.toUpperCase();
+    }
   }
 
   String _formatTime(DateTime time) {
