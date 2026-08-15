@@ -1136,15 +1136,27 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     final homeName = homeClub?['name'] ?? 'Local';
     final awayName = awayClub?['name'] ?? 'Visitante';
 
+    final allPlayers = ref.watch(playersStreamProvider).valueOrNull ?? [];
+    final categoryClean = category.replaceAll('Categoría', '').replaceAll('Cat.', '').trim();
+    final categoryPlayers = allPlayers.where((p) {
+      final cat = p['category']?.toString().trim();
+      return cat == categoryClean || cat == category;
+    }).toList();
+    categoryPlayers.sort((a, b) => _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
+
     String selectedTeam = homeName;
     final nameController = TextEditingController();
     final goalsController = TextEditingController(text: '1');
+    String? selectedPlayerId;
+    bool manualNameInput = false;
 
     showDialog(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final bool isLocalSelected = selectedTeam == homeName || selectedTeam.toLowerCase().contains('newbery');
+
             return AlertDialog(
               backgroundColor: const Color(0xFF18181A),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1243,6 +1255,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     ),
                     const SizedBox(height: 10),
 
+                    // Selector de Equipo
                     const Text('Equipo', style: TextStyle(color: Colors.white70, fontSize: 12)),
                     const SizedBox(height: 4),
                     Container(
@@ -1262,34 +1275,108 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             DropdownMenuItem(value: awayName, child: Text(awayName)),
                           ],
                           onChanged: (val) {
-                            if (val != null) setModalState(() => selectedTeam = val);
+                            if (val != null) {
+                              setModalState(() {
+                                selectedTeam = val;
+                                selectedPlayerId = null;
+                                nameController.clear();
+                              });
+                            }
                           },
                         ),
                       ),
                     ),
                     const SizedBox(height: 10),
 
+                    // Selector de Jugadores de la Categoría (para Club Local) o TextField
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           flex: 3,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Nombre del Jugador', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                              const SizedBox(height: 4),
-                              TextField(
-                                controller: nameController,
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                                decoration: InputDecoration(
-                                  hintText: 'Ej: Lautaro Martínez',
-                                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-                                  filled: true,
-                                  fillColor: const Color(0xFF242427),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    isLocalSelected ? 'Jugador (Cat. $categoryClean)' : 'Nombre del Jugador',
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                  ),
+                                  if (isLocalSelected && manualNameInput)
+                                    GestureDetector(
+                                      onTap: () {
+                                        setModalState(() {
+                                          manualNameInput = false;
+                                          nameController.clear();
+                                        });
+                                      },
+                                      child: const Text('📋 Usar lista', style: TextStyle(color: Color(0xFFE5B842), fontSize: 11)),
+                                    ),
+                                ],
                               ),
+                              const SizedBox(height: 4),
+
+                              if (isLocalSelected && !manualNameInput && categoryPlayers.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF242427),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFF333338)),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: categoryPlayers.any((p) => p['id'] == selectedPlayerId) ? selectedPlayerId : null,
+                                      hint: const Text('Seleccionar Jugador...', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                      dropdownColor: const Color(0xFF242427),
+                                      isExpanded: true,
+                                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                                      items: [
+                                        ...categoryPlayers.map((p) {
+                                          final pName = _getPlayerName(p);
+                                          return DropdownMenuItem<String>(
+                                            value: p['id'] as String,
+                                            child: Text(pName, overflow: TextOverflow.ellipsis),
+                                          );
+                                        }),
+                                        const DropdownMenuItem<String>(
+                                          value: 'MANUAL',
+                                          child: Text('✍️ Escribir otro nombre...', style: TextStyle(color: Color(0xFFE5B842))),
+                                        ),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val == 'MANUAL') {
+                                          setModalState(() {
+                                            selectedPlayerId = null;
+                                            manualNameInput = true;
+                                            nameController.clear();
+                                          });
+                                        } else if (val != null) {
+                                          final sel = categoryPlayers.firstWhere((p) => p['id'] == val);
+                                          setModalState(() {
+                                            selectedPlayerId = val;
+                                            nameController.text = _getPlayerName(sel);
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                )
+                              else
+                                TextField(
+                                  controller: nameController,
+                                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                                  decoration: InputDecoration(
+                                    hintText: isLocalSelected ? 'Ej: Nombre del jugador' : 'Ej: Jugador Rival',
+                                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                                    filled: true,
+                                    fillColor: const Color(0xFF242427),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -1880,5 +1967,14 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(child: Text('Error: $err', style: TextStyle(color: context.colors.error))),
     );
+  }
+
+  String _getPlayerName(Map<String, dynamic> p) {
+    final name = p['name']?.toString() ?? p['displayName']?.toString() ?? p['fullName']?.toString() ?? '';
+    if (name.isNotEmpty) return name;
+    final fn = p['firstName']?.toString() ?? '';
+    final ln = p['lastName']?.toString() ?? '';
+    if (fn.isNotEmpty || ln.isNotEmpty) return '$fn $ln'.trim();
+    return 'Jugador sin nombre';
   }
 }
