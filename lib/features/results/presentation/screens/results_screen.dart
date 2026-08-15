@@ -129,7 +129,19 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   // ─── Fixture Tab ──────────────────────────────────
   Widget _buildFixtureTab() {
     final matchesAsync = ref.watch(matchesStreamProvider);
-    final List<Map<String, dynamic>> matches = matchesAsync.valueOrNull ?? [];
+    final List<Map<String, dynamic>> rawMatches = matchesAsync.valueOrNull ?? [];
+    final List<Map<String, dynamic>> matches = List.from(rawMatches);
+    matches.sort((a, b) {
+      final d1 = a['date']?.toString() ?? '';
+      final d2 = b['date']?.toString() ?? '';
+      if (d1.isNotEmpty && d2.isNotEmpty) {
+        final cmp = d1.compareTo(d2);
+        if (cmp != 0) return cmp;
+      }
+      final m1 = (a['matchday'] is int) ? a['matchday'] as int : int.tryParse(a['matchday']?.toString() ?? '') ?? 0;
+      final m2 = (b['matchday'] is int) ? b['matchday'] as int : int.tryParse(b['matchday']?.toString() ?? '') ?? 0;
+      return m1.compareTo(m2);
+    });
     
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
