@@ -518,7 +518,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                                                   : JNBadgeType.neutral,
                                               small: true,
                                             ),
-                                            if (category != null)
+                                            if (category != null && role != 'directivo' && role != 'secretario')
                                               JNBadge(
                                                 label: category,
                                                 small: true,
@@ -529,24 +529,26 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                                                 type: JNBadgeType.error,
                                                 small: true,
                                               ),
-                                            if (expiry == null)
-                                              const JNBadge(
-                                                label: 'SIN APTO',
-                                                type: JNBadgeType.error,
-                                                small: true,
-                                              )
-                                            else if (hasAptoExpired)
-                                              const JNBadge(
-                                                label: 'APTO VENCIDO',
-                                                type: JNBadgeType.error,
-                                                small: true,
-                                              )
-                                            else if (hasAptoWarning)
-                                              const JNBadge(
-                                                label: 'APTO X VENCER',
-                                                type: JNBadgeType.accent,
-                                                small: true,
-                                              ),
+                                            if (role == 'jugador') ...[
+                                              if (expiry == null)
+                                                const JNBadge(
+                                                  label: 'SIN APTO',
+                                                  type: JNBadgeType.error,
+                                                  small: true,
+                                                )
+                                              else if (hasAptoExpired)
+                                                const JNBadge(
+                                                  label: 'APTO VENCIDO',
+                                                  type: JNBadgeType.error,
+                                                  small: true,
+                                                )
+                                              else if (hasAptoWarning)
+                                                const JNBadge(
+                                                  label: 'APTO X VENCER',
+                                                  type: JNBadgeType.accent,
+                                                  small: true,
+                                                ),
+                                            ],
                                           ],
                                         ),
                                       ],

@@ -231,16 +231,22 @@ class AuthService {
 
     if (docSnap.exists && !isNewRegistration) {
       final data = docSnap.data()!;
+      final userRole = data['role'] ?? 'tutor';
+      final bool isAdminRole = userRole == 'directivo' || userRole == 'secretario';
+      final String? userCategory = isAdminRole ? null : data['category'];
+
       session = UserSession(
         id: uid,
         name: data['name'] ?? name,
         lastName: data['lastName'] ?? lastName,
         email: email,
-        role: data['role'] ?? 'tutor',
+        role: userRole,
         status: data['status'] ?? 'active',
         emailVerified: emailVerified,
-        category: data['category'],
-        assignedCategories: (data['assignedCategories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+        category: userCategory,
+        assignedCategories: isAdminRole
+            ? null
+            : (data['assignedCategories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
         dni: data['dni'],
         weight: data['weight'],
         height: data['height'],
@@ -264,9 +270,19 @@ class AuthService {
         termsVersion: data['termsVersion'],
       );
 
-      // Update email verified status if it changed
+      // Clean up category from Firestore if user is admin role but had category stored
+      final Map<String, dynamic> updates = {};
       if (data['emailVerified'] != emailVerified) {
-        await docRef.update({'emailVerified': emailVerified});
+        updates['emailVerified'] = emailVerified;
+      }
+      if (isAdminRole && data['category'] != null) {
+        updates['category'] = FieldValue.delete();
+      }
+      if (isAdminRole && data['assignedCategories'] != null) {
+        updates['assignedCategories'] = FieldValue.delete();
+      }
+      if (updates.isNotEmpty) {
+        await docRef.update(updates);
       }
     } else {
       // New user
@@ -319,16 +335,20 @@ class AuthService {
     _userSubscription = docRef.snapshots().listen((snapshot) {
       if (snapshot.exists) {
         final snapshotData = snapshot.data()!;
+        final snapshotRole = snapshotData['role'] ?? 'tutor';
+        final bool isSnapshotAdmin = snapshotRole == 'directivo' || snapshotRole == 'secretario';
         final updatedSession = UserSession(
           id: uid,
           name: snapshotData['name'] ?? name,
           lastName: snapshotData['lastName'] ?? lastName,
           email: email,
-          role: snapshotData['role'] ?? 'tutor',
+          role: snapshotRole,
           status: snapshotData['status'] ?? 'active',
           emailVerified: snapshotData['emailVerified'] ?? emailVerified,
-          category: snapshotData['category'],
-          assignedCategories: (snapshotData['assignedCategories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+          category: isSnapshotAdmin ? null : snapshotData['category'],
+          assignedCategories: isSnapshotAdmin
+              ? null
+              : (snapshotData['assignedCategories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
           dni: snapshotData['dni'],
           weight: snapshotData['weight'],
           height: snapshotData['height'],

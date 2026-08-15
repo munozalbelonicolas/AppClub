@@ -46,10 +46,11 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
 
   Future<void> _updateRole(String role, String? category, List<String>? assignedCategories, String userName) async {
     try {
+      final bool isAdminRole = role == 'directivo' || role == 'secretario';
       await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({
         'role': role,
-        'category': category,
-        if (role == 'dt' && assignedCategories != null) 'assignedCategories': assignedCategories,
+        'category': isAdminRole ? null : category,
+        'assignedCategories': role == 'dt' ? assignedCategories : null,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -408,7 +409,8 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                       spacing: 8,
                       children: [
                         JNBadge(label: role.toUpperCase()),
-                        if (category != null) JNBadge(label: category, type: JNBadgeType.accent),
+                        if (category != null && role != 'directivo' && role != 'secretario')
+                          JNBadge(label: category, type: JNBadgeType.accent),
                         if (isPending) const JNBadge(label: 'PENDIENTE', type: JNBadgeType.warning),
                         if (isDisabled) const JNBadge(label: 'BLOQUEADO', type: JNBadgeType.error),
                         if (status == 'active') const JNBadge(label: 'ACTIVO', type: JNBadgeType.success),

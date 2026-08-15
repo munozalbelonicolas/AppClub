@@ -189,7 +189,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         lastName: _lastNameController.text.trim(),
         email: user.email,
         role: user.role,
-        category: computedCategory ?? user.category,
+        category: (user.role == 'directivo' || user.role == 'secretario')
+            ? null
+            : (user.role == 'jugador' ? (computedCategory ?? user.category) : user.category),
         childId: user.childId,
         dni: _dniController.text.trim(),
         weight: user.role == 'jugador' ? _weightController.text.trim() : null,
