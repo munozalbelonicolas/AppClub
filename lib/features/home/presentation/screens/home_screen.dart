@@ -20,6 +20,7 @@ import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_match_card.dart';
 import '../../../../core/widgets/jn_section_header.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
+import '../../../attendance/presentation/screens/player_attendance_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
 import '../../../results/presentation/screens/league_report_screen.dart';
@@ -944,6 +945,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => const AttendanceScreen(),
+                            ),
+                          );
+                        } else if (sessionUser.role == 'tutor' ||
+                            sessionUser.role == 'jugador') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const PlayerAttendanceScreen(),
                             ),
                           );
                         } else {

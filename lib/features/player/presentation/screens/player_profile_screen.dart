@@ -12,6 +12,7 @@ import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_stat_card.dart';
+import '../../../attendance/presentation/screens/player_attendance_screen.dart';
 
 class PlayerProfileScreen extends ConsumerStatefulWidget {
   const PlayerProfileScreen({super.key});
@@ -351,6 +352,59 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
             ),
           ],
         ).animate().fadeIn(duration: 400.ms),
+
+        const SizedBox(height: 20),
+
+        // ─── Asistencia a Entrenamientos ───
+        Text(
+          'Asistencia a Entrenamientos',
+          style: context.typography.headlineSmall,
+        ),
+        const SizedBox(height: 12),
+        JNCard(
+          padding: const EdgeInsets.all(14),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PlayerAttendanceScreen(
+                  playerId: player['id']?.toString() ?? '',
+                  initialPlayer: player,
+                ),
+              ),
+            );
+          },
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: context.colors.success.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.how_to_reg, color: context.colors.success, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Historial de Asistencia',
+                      style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Consulta el presentismo a los entrenamientos',
+                      style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: context.colors.textTertiary),
+            ],
+          ),
+        ),
 
         const SizedBox(height: 24),
 

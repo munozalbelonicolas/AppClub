@@ -8,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
+import 'player_attendance_screen.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -465,6 +466,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final sessionUser = ref.watch(currentUserProvider);
     if (sessionUser == null) return const Scaffold();
 
+    if (sessionUser.role == 'tutor' || sessionUser.role == 'jugador') {
+      return const PlayerAttendanceScreen();
+    }
+
     final allCategories = ref.watch(appCategoriesProvider);
 
     final isAdmin = sessionUser.role == 'directivo' || sessionUser.role == 'secretario';
@@ -614,11 +619,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     }
 
                     final List<String> sortedDateColumns = allDateColsSet.toList()
-                      ..sort((a, b) => a.compareTo(b)); // Chronological: Oldest left, Newest right
+                      ..sort((a, b) => b.compareTo(a)); // Descending: Newest left, Oldest right
 
-                    _activeDateColumnForBulk ??= sortedDateColumns.last;
+                    _activeDateColumnForBulk ??= sortedDateColumns.first;
 
-                    final String activeBulkDate = _activeDateColumnForBulk ?? sortedDateColumns.last;
+                    final String activeBulkDate = _activeDateColumnForBulk ?? sortedDateColumns.first;
                     final Map<String, String> activeBulkRecords = historyMapByDate[activeBulkDate] ?? {};
 
                     return JNCard(
