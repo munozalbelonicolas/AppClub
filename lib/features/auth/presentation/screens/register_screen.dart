@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -74,11 +75,51 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (session != null && mounted) {
         widget.onRegisterSuccess();
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        String msg = 'Error al crear la cuenta.';
+        if (e.code == 'email-already-in-use') {
+          msg = 'Este correo electrónico ya está registrado. Intenta iniciar sesión o recuperar tu contraseña.';
+        } else if (e.code == 'weak-password') {
+          msg = 'La contraseña es demasiado débil (mínimo 6 caracteres).';
+        } else if (e.code == 'invalid-email') {
+          msg = 'El formato del correo electrónico no es válido.';
+        } else if (e.code == 'operation-not-allowed') {
+          msg = 'El registro con correo y contraseña no está habilitado en Firebase Authentication.';
+        } else if (e.message != null && e.message!.isNotEmpty) {
+          msg = e.message!;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: context.colors.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        String msg = 'Error con la base de datos (${e.code}): ${e.message ?? 'Verifica tu conexión y permisos.'}';
+        if (e.code == 'permission-denied') {
+          msg = 'Permiso denegado al guardar los datos del perfil en Firestore.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: context.colors.error,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al registrarse: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al registrarse: $e'),
+            backgroundColor: context.colors.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     } finally {
       if (mounted) {

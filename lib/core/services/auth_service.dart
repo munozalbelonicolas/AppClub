@@ -91,7 +91,11 @@ class AuthService {
       final User? firebaseUser = userCredential.user;
 
       if (firebaseUser != null) {
-        await firebaseUser.sendEmailVerification();
+        try {
+          await firebaseUser.sendEmailVerification();
+        } catch (e) {
+          AppLogger.warning('Could not send email verification: $e', tag: 'AuthService');
+        }
 
         final session = await _syncUserProfile(
           firebaseUser.uid,
@@ -107,7 +111,10 @@ class AuthService {
         return session;
       }
     } on FirebaseAuthException catch (e) {
-      AppLogger.error('Email Registration failed', error: e, tag: 'AuthService');
+      AppLogger.error('Email Registration failed (FirebaseAuthException)', error: e, tag: 'AuthService');
+      rethrow;
+    } catch (e) {
+      AppLogger.error('Email Registration failed (General / Firestore)', error: e, tag: 'AuthService');
       rethrow;
     }
     return null;
