@@ -279,53 +279,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   'Iniciá sesión para continuar',
                   style: context.typography.bodyMedium,
                 ),
-              ).animate(delay: 300.ms).fadeIn(duration: 400.ms),
-
-              const SizedBox(height: 36),
+              ),
 
               const SizedBox(height: 28),
 
               // Email field
               TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    style: context.typography.bodyLarge,
-                    decoration: const InputDecoration(
-                      hintText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined, size: 20),
-                    ),
-                  )
-                  .animate(delay: 500.ms)
-                  .fadeIn(duration: 400.ms)
-                  .slideX(begin: 0.05),
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                style: context.typography.bodyLarge,
+                decoration: const InputDecoration(
+                  hintText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+                ),
+              ),
 
               const SizedBox(height: 14),
 
               // Password field
               TextField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    style: context.typography.bodyLarge,
-                    decoration: InputDecoration(
-                      hintText: 'Contraseña',
-                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          size: 20,
-                          color: context.colors.textTertiary,
-                        ),
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                      ),
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                style: context.typography.bodyLarge,
+                decoration: InputDecoration(
+                  hintText: 'Contraseña',
+                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 20,
+                      color: context.colors.textTertiary,
                     ),
-                  )
-                  .animate(delay: 600.ms)
-                  .fadeIn(duration: 400.ms)
-                  .slideX(begin: 0.05),
+                    onPressed: () => setState(
+                      () => _obscurePassword = !_obscurePassword,
+                    ),
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 10),
 
@@ -365,19 +357,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
 
               // Login button
               JNButton(
-                    label: 'Iniciar Sesión',
-                    onPressed: _handleLogin,
-                    fullWidth: true,
-                    size: JNButtonSize.large,
-                    isLoading: _isLoading,
-                  )
-                  .animate(delay: 700.ms)
-                  .fadeIn(duration: 400.ms)
-                  .slideY(begin: 0.1),
+                label: 'Iniciar Sesión',
+                onPressed: _handleLogin,
+                fullWidth: true,
+                size: JNButtonSize.large,
+                isLoading: _isLoading,
+              ),
 
               const SizedBox(height: 16),
 
