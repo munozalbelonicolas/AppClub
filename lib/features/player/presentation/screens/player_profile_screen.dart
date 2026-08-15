@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 
 import '../../../../core/providers/session_provider.dart';
@@ -438,6 +440,17 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
   }
 
   Widget _buildInfoTab(Map<String, dynamic> player) {
+    String fmt(dynamic raw) {
+      if (raw == null) return '—';
+      if (raw is Timestamp) {
+        return DateFormat('dd/MM/yyyy').format(raw.toDate());
+      }
+      if (raw is DateTime) {
+        return DateFormat('dd/MM/yyyy').format(raw);
+      }
+      return raw.toString();
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
       children:
@@ -445,63 +458,63 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
             _InfoTile(
               icon: Icons.cake,
               label: 'Edad',
-              value: '${player['age']} años',
+              value: player['age'] != null ? '${player['age']} años' : '—',
             ),
             _InfoTile(
               icon: Icons.calendar_today,
               label: 'Fecha de nacimiento',
-              value: player['birthDate'] as String,
+              value: fmt(player['birthDate']),
             ),
             _InfoTile(
               icon: Icons.sports,
               label: 'Posición',
-              value: player['position'] as String,
+              value: fmt(player['position']),
             ),
             _InfoTile(
               icon: Icons.numbers,
               label: 'Dorsal',
-              value: '#${player['number']}',
+              value: player['number'] != null ? '#${player['number']}' : '—',
             ),
             _InfoTile(
               icon: Icons.category,
               label: 'Categoría',
-              value: player['category'] as String,
+              value: fmt(player['category']),
             ),
             if (player.containsKey('height'))
               _InfoTile(
                 icon: Icons.height,
                 label: 'Altura',
-                value: player['height'] as String,
+                value: fmt(player['height']),
               ),
             if (player.containsKey('weight'))
               _InfoTile(
                 icon: Icons.monitor_weight_outlined,
                 label: 'Peso',
-                value: player['weight'] as String,
+                value: fmt(player['weight']),
               ),
             if (player.containsKey('fatherName') && (player['fatherName'] as String).isNotEmpty)
               _InfoTile(
                 icon: Icons.person,
                 label: 'Tutor/a 1',
-                value: player['fatherName'] as String,
+                value: fmt(player['fatherName']),
               ),
             if (player.containsKey('motherName') && (player['motherName'] as String).isNotEmpty)
               _InfoTile(
                 icon: Icons.person_2,
                 label: 'Tutor/a 2',
-                value: player['motherName'] as String,
+                value: fmt(player['motherName']),
               ),
             if (player.containsKey('phone1') && (player['phone1'] as String).isNotEmpty)
               _InfoTile(
                 icon: Icons.phone,
                 label: 'Teléfono 1',
-                value: player['phone1'] as String,
+                value: fmt(player['phone1']),
               ),
             if (player.containsKey('phone2') && (player['phone2'] as String).isNotEmpty)
               _InfoTile(
                 icon: Icons.phone_android,
                 label: 'Teléfono 2',
-                value: player['phone2'] as String,
+                value: fmt(player['phone2']),
               ),
           ].asMap().entries.map((e) {
             return Padding(
@@ -645,8 +658,23 @@ class _InfoTile extends StatelessWidget {
             child: Icon(icon, size: 18, color: context.colors.textSecondary),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(label, style: context.typography.bodyMedium)),
-          Text(value, style: context.typography.titleSmall),
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: context.typography.bodyMedium,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            flex: 3,
+            child: Text(
+              value,
+              style: context.typography.titleSmall,
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );
