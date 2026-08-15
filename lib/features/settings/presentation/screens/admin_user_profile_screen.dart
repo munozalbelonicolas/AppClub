@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/category_service.dart';
+import '../../../../core/services/firestore_service.dart';
 
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -677,6 +678,127 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                           ),
                         );
                       },
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                Consumer(
+                  builder: (context, ref, child) {
+                    final fixtures = ref.watch(fixturesStreamProvider('all')).valueOrNull ?? [];
+                    final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
+                    final targetName = name.toLowerCase();
+
+                    final List<Map<String, dynamic>> goalEvents = [];
+                    int totalGoals = 0;
+
+                    for (final fixture in fixtures) {
+                      final fixName = fixture['name']?.toString() ?? 'Fecha';
+                      final fixDate = fixture['date']?.toString() ?? '';
+                      final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+
+                      for (final match in matches) {
+                        final scorers = List<Map<String, dynamic>>.from(match['scorers'] ?? []);
+                        for (final sc in scorers) {
+                          final scName = sc['name']?.toString().trim().toLowerCase() ?? '';
+                          final scId = sc['playerId']?.toString();
+
+                          final bool isMatch = (scId != null && scId == widget.userId) ||
+                              (scName.isNotEmpty && (scName == targetName || scName.contains(targetName) || targetName.contains(scName)));
+
+                          if (isMatch) {
+                            final homeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull;
+                            final awayClub = clubs.where((c) => c['id'] == match['awayClubId']).firstOrNull;
+
+                            final teamName = sc['team']?.toString() ?? '';
+                            String rivalName = 'Rival';
+
+                            if (teamName.isNotEmpty) {
+                              if (homeClub != null && teamName.toLowerCase() == homeClub['name']?.toString().toLowerCase()) {
+                                rivalName = awayClub?['name'] ?? 'Visitante';
+                              } else if (awayClub != null && teamName.toLowerCase() == awayClub['name']?.toString().toLowerCase()) {
+                                rivalName = homeClub?['name'] ?? 'Local';
+                              } else {
+                                rivalName = awayClub?['name'] ?? homeClub?['name'] ?? 'Rival';
+                              }
+                            } else {
+                              rivalName = awayClub?['name'] ?? homeClub?['name'] ?? 'Rival';
+                            }
+
+                            final goals = (sc['goals'] is int) ? sc['goals'] as int : int.tryParse(sc['goals']?.toString() ?? '') ?? 1;
+                            totalGoals += goals;
+
+                            goalEvents.add({
+                              'fixtureName': fixName,
+                              'date': match['date']?.toString() ?? fixDate,
+                              'rivalName': rivalName,
+                              'category': match['category']?.toString() ?? fixture['category']?.toString() ?? category ?? '',
+                              'goals': goals,
+                            });
+                          }
+                        }
+                      }
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Historial de Goles en Torneo ($totalGoals)', style: context.typography.titleLarge),
+                        const SizedBox(height: 12),
+                        if (goalEvents.isEmpty)
+                          JNCard(
+                            padding: const EdgeInsets.all(14),
+                            child: Text(
+                              'No se registran goles en este torneo para este jugador.',
+                              style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
+                            ),
+                          )
+                        else
+                          ...goalEvents.map((gEvent) {
+                            return JNCard(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: context.colors.accent.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: Icon(Icons.sports_soccer, color: context.colors.accent, size: 20),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('vs ${gEvent['rivalName']}', style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+                                        Text(
+                                          '${gEvent['fixtureName']} · Cat. ${gEvent['category']}${gEvent['date'].toString().isNotEmpty ? ' · ${gEvent['date']}' : ''}',
+                                          style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary, fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: context.colors.primary.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '+${gEvent['goals']} ${gEvent['goals'] == 1 ? 'Gol' : 'Goles'}',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.primary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                      ],
                     );
                   },
                 ),
