@@ -355,7 +355,22 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(appCategoriesProvider);
-    final categoryOptions = ['all', ...categories];
+    final Set<String> categorySet = {'all', ...categories};
+    if (_selectedCategory.isNotEmpty) {
+      categorySet.add(_selectedCategory);
+    }
+    final categoryOptions = categorySet.toList();
+    final effectiveCategory = categoryOptions.contains(_selectedCategory) ? _selectedCategory : 'all';
+
+    final effectiveHomeClubId = widget.clubs.any((c) => c['id'] == _homeClubId)
+        ? _homeClubId
+        : (widget.clubs.isNotEmpty ? widget.clubs.first['id'] as String? : null);
+
+    final effectiveAwayClubId = widget.clubs.any((c) => c['id'] == _awayClubId)
+        ? _awayClubId
+        : (widget.clubs.length > 1
+            ? widget.clubs[1]['id'] as String?
+            : (widget.clubs.isNotEmpty ? widget.clubs.first['id'] as String? : null));
 
     return Dialog(
       backgroundColor: const Color(0xFF18181A),
@@ -491,7 +506,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
-                              value: _selectedCategory,
+                              value: effectiveCategory,
                               dropdownColor: const Color(0xFF242427),
                               isExpanded: true,
                               icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
@@ -551,7 +566,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
-                                    value: _homeClubId,
+                                    value: effectiveHomeClubId,
                                     dropdownColor: const Color(0xFF28282D),
                                     isExpanded: true,
                                     icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
@@ -605,7 +620,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
-                                    value: _awayClubId,
+                                    value: effectiveAwayClubId,
                                     dropdownColor: const Color(0xFF28282D),
                                     isExpanded: true,
                                     icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
