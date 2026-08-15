@@ -15,6 +15,7 @@ import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../coach_panel/presentation/screens/coach_dashboard_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
+import '../../../player/presentation/screens/child_detail_screen.dart';
 import '../../../player/presentation/screens/my_profile_screen.dart';
 import '../../../results/presentation/screens/fixture_screen.dart';
 import '../../../results/presentation/screens/league_report_screen.dart';
@@ -139,49 +140,67 @@ class SettingsScreen extends ConsumerWidget {
                 }
                 return Column(
                   children: children.map((player) {
+                    final playerId = player['id']?.toString() ?? '';
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: JNCard(
                         padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: context.colors.surfaceLight,
-                              backgroundImage: player['avatarUrl'] != null &&
-                                      player['avatarUrl'].toString().isNotEmpty
-                                  ? (player['avatarUrl'].toString().startsWith('http')
-                                      ? NetworkImage(player['avatarUrl'].toString())
-                                          as ImageProvider
-                                      : FileImage(File(player['avatarUrl'].toString()))
-                                          as ImageProvider)
-                                  : null,
-                              child: player['avatarUrl'] == null ||
-                                      player['avatarUrl'].toString().isEmpty
-                                  ? Icon(
-                                      Icons.person,
-                                      size: 20,
-                                      color: context.colors.textTertiary,
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${player['name']} ${player['lastName'] ?? ''}',
-                                    style: context.typography.titleMedium,
-                                  ),
-                                  Text(
-                                    'Categoría: ${player['category'] ?? 'Sin Categoría'}',
-                                    style: context.typography.bodySmall,
-                                  ),
-                                ],
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            if (playerId.isEmpty) return;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChildDetailScreen(childId: playerId),
                               ),
-                            ),
-                          ],
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundColor: context.colors.surfaceLight,
+                                backgroundImage: player['avatarUrl'] != null &&
+                                        player['avatarUrl'].toString().isNotEmpty
+                                    ? (player['avatarUrl'].toString().startsWith('http')
+                                        ? NetworkImage(player['avatarUrl'].toString())
+                                            as ImageProvider
+                                        : FileImage(File(player['avatarUrl'].toString()))
+                                            as ImageProvider)
+                                    : null,
+                                child: player['avatarUrl'] == null ||
+                                        player['avatarUrl'].toString().isEmpty
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 20,
+                                        color: context.colors.textTertiary,
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${player['name']} ${player['lastName'] ?? ''}',
+                                      style: context.typography.titleMedium,
+                                    ),
+                                    Text(
+                                      'Categoría: ${player['category'] ?? 'Sin Categoría'}',
+                                      style: context.typography.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                color: context.colors.textTertiary,
+                                size: 20,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
