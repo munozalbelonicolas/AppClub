@@ -542,7 +542,43 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               ),
                             ],
 
-                            const SizedBox(height: 6),
+                            // Tarjetas del partido
+                            if (match['cards'] != null && (match['cards'] as List).isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: (match['cards'] as List).map((c) {
+                                  final cMap = c as Map<String, dynamic>;
+                                  final isRed = cMap['cardType']?.toString() == 'red';
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: (isRed ? Colors.red : Colors.amber).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: (isRed ? Colors.red : Colors.amber).withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.square_rounded,
+                                          size: 10,
+                                          color: isRed ? Colors.red : Colors.amber,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          cMap['name']?.toString() ?? '',
+                                          style: const TextStyle(fontSize: 10, color: Colors.white70),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
 
                             // Fila de Estado y Botones de Acción
                             Row(
@@ -588,6 +624,43 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.bold,
                                                   color: context.colors.primary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+
+                                      // Botón Tarjetas
+                                      InkWell(
+                                        onTap: () => _showMatchCardsModal(
+                                          context,
+                                          fixture: fixture,
+                                          matchIndex: matchIndexInAll,
+                                          homeClub: mHomeClub,
+                                          awayClub: mAwayClub,
+                                          category: catLabel,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.square_rounded, size: 13, color: Colors.amber),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'Tarjetas',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.amber,
                                                 ),
                                               ),
                                             ],
@@ -1485,7 +1558,467 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
-  // ─── 2. Posiciones Tab (Calculada en Vivo con 2 pts victoria / 1 pt empate) ──────────────────────────────────
+  // ─── Modal: Cargar Tarjetas del Partido ──────────────────────────────────
+  void _showMatchCardsModal(
+    BuildContext context, {
+    required Map<String, dynamic> fixture,
+    required int matchIndex,
+    required Map<String, dynamic>? homeClub,
+    required Map<String, dynamic>? awayClub,
+    required String category,
+  }) {
+    final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+    final match = Map<String, dynamic>.from(matches[matchIndex]);
+    final List<Map<String, dynamic>> matchCards =
+        List<Map<String, dynamic>>.from(match['cards'] ?? []);
+
+    final homeName = homeClub?['name'] ?? 'Local';
+    final awayName = awayClub?['name'] ?? 'Visitante';
+
+    final allPlayers = ref.watch(playersStreamProvider).valueOrNull ?? [];
+    final categoryClean =
+        category.replaceAll('Categoría', '').replaceAll('Cat.', '').trim();
+    final categoryPlayers = allPlayers.where((p) {
+      final cat = p['category']?.toString().trim();
+      return cat == categoryClean || cat == category;
+    }).toList();
+    categoryPlayers.sort((a, b) =>
+        _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
+
+    String selectedTeam = homeName;
+    String selectedCardType = 'yellow'; // 'yellow' | 'red'
+    String? selectedPlayerId;
+    final nameController = TextEditingController();
+    bool manualNameInput = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final bool isLocalSelected =
+                selectedTeam == homeName ||
+                selectedTeam.toLowerCase().contains('newbery');
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF18181A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.square_rounded, color: Colors.amber, size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Tarjetas del Partido',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '$homeName vs $awayName (${category.startsWith('20') ? 'Cat. $category' : category})',
+                      style: const TextStyle(
+                          color: Color(0xFFE5B842),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ── Lista actual de tarjetas ──────────────────────────
+                    if (matchCards.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF242427),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'No hay tarjetas registradas en este partido.',
+                          style: TextStyle(color: Colors.white60, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    else
+                      Column(
+                        children: matchCards.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final card = entry.value;
+                          final isRed = card['cardType']?.toString() == 'red';
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF242427),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.square_rounded,
+                                  size: 16,
+                                  color: isRed ? Colors.red : Colors.amber,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        card['name']?.toString() ?? '',
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13),
+                                      ),
+                                      Text(
+                                        '${card['team']} · ${isRed ? 'Tarjeta Roja' : 'Tarjeta Amarilla'}',
+                                        style: const TextStyle(
+                                            color: Colors.white60, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 18, color: Colors.redAccent),
+                                  onPressed: () {
+                                    setModalState(() => matchCards.removeAt(idx));
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                    const SizedBox(height: 16),
+                    const Divider(color: Color(0xFF333338)),
+                    const SizedBox(height: 10),
+
+                    const Text(
+                      'Agregar Tarjeta al Partido',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Tipo de tarjeta
+                    const Text('Tipo de Tarjeta',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () =>
+                                setModalState(() => selectedCardType = 'yellow'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selectedCardType == 'yellow'
+                                    ? Colors.amber.withValues(alpha: 0.25)
+                                    : const Color(0xFF242427),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: selectedCardType == 'yellow'
+                                      ? Colors.amber
+                                      : const Color(0xFF444448),
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.square_rounded,
+                                      size: 16, color: Colors.amber),
+                                  SizedBox(width: 6),
+                                  Text('Amarilla',
+                                      style: TextStyle(
+                                          color: Colors.amber,
+                                          fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () =>
+                                setModalState(() => selectedCardType = 'red'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selectedCardType == 'red'
+                                    ? Colors.red.withValues(alpha: 0.25)
+                                    : const Color(0xFF242427),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: selectedCardType == 'red'
+                                      ? Colors.red
+                                      : const Color(0xFF444448),
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.square_rounded,
+                                      size: 16, color: Colors.red),
+                                  SizedBox(width: 6),
+                                  Text('Roja',
+                                      style: TextStyle(
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Selector de Equipo
+                    const Text('Equipo',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF242427),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedTeam,
+                          dropdownColor: const Color(0xFF242427),
+                          isExpanded: true,
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                          items: [
+                            DropdownMenuItem(value: homeName, child: Text(homeName)),
+                            DropdownMenuItem(value: awayName, child: Text(awayName)),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                selectedTeam = val;
+                                selectedPlayerId = null;
+                                nameController.clear();
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Selector de jugador (dropdown para local, textfield para visitante)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isLocalSelected
+                              ? 'Jugador (Cat. $categoryClean)'
+                              : 'Nombre del Jugador',
+                          style:
+                              const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        if (isLocalSelected && manualNameInput)
+                          GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                manualNameInput = false;
+                                nameController.clear();
+                              });
+                            },
+                            child: const Text('📋 Usar lista',
+                                style: TextStyle(
+                                    color: Color(0xFFE5B842), fontSize: 11)),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    if (isLocalSelected &&
+                        !manualNameInput &&
+                        categoryPlayers.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF242427),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF333338)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: categoryPlayers
+                                    .any((p) => p['id'] == selectedPlayerId)
+                                ? selectedPlayerId
+                                : null,
+                            hint: const Text('Seleccionar Jugador...',
+                                style: TextStyle(
+                                    color: Colors.white54, fontSize: 12)),
+                            dropdownColor: const Color(0xFF242427),
+                            isExpanded: true,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 13),
+                            items: [
+                              ...categoryPlayers.map((p) {
+                                final pName = _getPlayerName(p);
+                                return DropdownMenuItem<String>(
+                                  value: p['id'] as String,
+                                  child: Text(pName,
+                                      overflow: TextOverflow.ellipsis),
+                                );
+                              }),
+                              const DropdownMenuItem<String>(
+                                value: 'MANUAL',
+                                child: Text('✍️ Escribir otro nombre...',
+                                    style: TextStyle(
+                                        color: Color(0xFFE5B842))),
+                              ),
+                            ],
+                            onChanged: (val) {
+                              if (val == 'MANUAL') {
+                                setModalState(() {
+                                  selectedPlayerId = null;
+                                  manualNameInput = true;
+                                  nameController.clear();
+                                });
+                              } else if (val != null) {
+                                final sel = categoryPlayers
+                                    .firstWhere((p) => p['id'] == val);
+                                setModalState(() {
+                                  selectedPlayerId = val;
+                                  nameController.text = _getPlayerName(sel);
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      )
+                    else
+                      TextField(
+                        controller: nameController,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: isLocalSelected
+                              ? 'Ej: Nombre del jugador'
+                              : 'Ej: Jugador Rival',
+                          hintStyle: const TextStyle(
+                              color: Colors.white38, fontSize: 12),
+                          filled: true,
+                          fillColor: const Color(0xFF242427),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+
+                    const SizedBox(height: 12),
+
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: selectedCardType == 'red'
+                            ? Colors.red
+                            : Colors.amber,
+                        side: BorderSide(
+                            color: selectedCardType == 'red'
+                                ? Colors.red
+                                : Colors.amber),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: Icon(
+                        Icons.square_rounded,
+                        size: 16,
+                        color: selectedCardType == 'red' ? Colors.red : Colors.amber,
+                      ),
+                      label: Text('Añadir ${selectedCardType == 'red' ? 'Tarjeta Roja' : 'Tarjeta Amarilla'}'),
+                      onPressed: () {
+                        final pName = nameController.text.trim();
+                        if (pName.isNotEmpty) {
+                          setModalState(() {
+                            matchCards.add({
+                              'name': pName,
+                              'playerId': selectedPlayerId,
+                              'team': selectedTeam,
+                              'cardType': selectedCardType,
+                              'isClub': isLocalSelected,
+                            });
+                            nameController.clear();
+                            selectedPlayerId = null;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancelar',
+                      style: TextStyle(color: Colors.white70)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () async {
+                    matches[matchIndex] = {
+                      ...match,
+                      'cards': matchCards,
+                    };
+
+                    await ref
+                        .read(firestoreServiceProvider)
+                        .updateFixture(fixture['id'], {'matches': matches});
+
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Tarjetas guardadas correctamente!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Guardar Tarjetas',
+                      style: TextStyle(
+                          color: Colors.black, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildStandingsTab() {
     final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
     final clubsAsync = ref.watch(clubsStreamProvider);

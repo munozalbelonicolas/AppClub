@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:percent_indicator/circular_percent_indicator.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
@@ -128,6 +127,58 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
 
     final displayGoals = totalGoalsCount > 0 ? totalGoalsCount : (player['goals'] as int? ?? 0);
 
+    // ─── Tarjetas ───────────────────────────────────────────────────────────
+    final List<Map<String, dynamic>> cardEvents = [];
+    int totalYellow = 0;
+    int totalRed = 0;
+
+    for (final fixture in fixtures) {
+      final fixName = fixture['name']?.toString() ?? 'Fecha';
+      final fixDate = fixture['date']?.toString() ?? '';
+      final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+
+      for (final match in matches) {
+        final cards = List<Map<String, dynamic>>.from(match['cards'] ?? []);
+        for (final card in cards) {
+          final cName = card['name']?.toString().trim().toLowerCase() ?? '';
+          final cId = card['playerId']?.toString();
+          final targetName = playerName.toLowerCase();
+
+          final bool isMatch = (cId != null && cId == playerId) ||
+              (cName.isNotEmpty && (cName == targetName || cName.contains(targetName) || targetName.contains(cName)));
+
+          if (isMatch) {
+            final isRed = card['cardType']?.toString() == 'red';
+            if (isRed) {
+              totalRed++;
+            } else {
+              totalYellow++;
+            }
+            final homeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull;
+            final awayClub = clubs.where((c) => c['id'] == match['awayClubId']).firstOrNull;
+            final teamName = card['team']?.toString() ?? '';
+            String rivalName = 'Rival';
+            if (teamName.isNotEmpty && homeClub != null &&
+                teamName.toLowerCase() == homeClub['name']?.toString().toLowerCase()) {
+              rivalName = awayClub?['name'] ?? 'Visitante';
+            } else if (teamName.isNotEmpty && awayClub != null &&
+                teamName.toLowerCase() == awayClub['name']?.toString().toLowerCase()) {
+              rivalName = homeClub?['name'] ?? 'Local';
+            } else {
+              rivalName = awayClub?['name'] ?? homeClub?['name'] ?? 'Rival';
+            }
+            cardEvents.add({
+              'fixtureName': fixName,
+              'date': match['date']?.toString() ?? fixDate,
+              'rivalName': rivalName,
+              'category': match['category']?.toString() ?? fixture['category']?.toString() ?? player['category'] ?? '',
+              'cardType': card['cardType']?.toString() ?? 'yellow',
+            });
+          }
+        }
+      }
+    }
+
     return Scaffold(
       backgroundColor: context.colors.background,
       body: NestedScrollView(
@@ -163,7 +214,7 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildStatsTab(player, displayGoals, goalEvents),
+            _buildStatsTab(player, displayGoals, goalEvents, cardEvents, totalYellow, totalRed),
             _buildInfoTab(player),
             _buildMedicalTab(player),
           ],
@@ -240,11 +291,6 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
                 _QuickStat(value: '${player['assists'] ?? 0}', label: 'Asistencias'),
                 Container(width: 1, height: 30, color: context.colors.border),
                 _QuickStat(value: '${player['matches'] ?? 0}', label: 'Partidos'),
-                Container(width: 1, height: 30, color: context.colors.border),
-                _QuickStat(
-                  value: '${player['attendance'] ?? 100}%',
-                  label: 'Asistencia',
-                ),
               ],
             ).animate(delay: 400.ms).fadeIn(duration: 400.ms),
           ],
@@ -253,7 +299,14 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
     );
   }
 
-  Widget _buildStatsTab(Map<String, dynamic> player, int displayGoals, List<Map<String, dynamic>> goalEvents) {
+  Widget _buildStatsTab(
+    Map<String, dynamic> player,
+    int displayGoals,
+    List<Map<String, dynamic>> goalEvents,
+    List<Map<String, dynamic>> cardEvents,
+    int totalYellow,
+    int totalRed,
+  ) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
       children: [
@@ -285,10 +338,16 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
               color: context.colors.info,
             ),
             JNStatCard(
-              value: '${player['yellowCards'] ?? 0}',
+              value: '$totalYellow',
               label: 'Amarillas',
-              icon: Icons.square,
-              color: context.colors.warning,
+              icon: Icons.square_rounded,
+              color: Colors.amber,
+            ),
+            JNStatCard(
+              value: '$totalRed',
+              label: 'Rojas',
+              icon: Icons.square_rounded,
+              color: Colors.red,
             ),
           ],
         ).animate().fadeIn(duration: 400.ms),
@@ -374,36 +433,80 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
             }).toList(),
           ),
 
-        const SizedBox(height: 24),
-
-        // Attendance ring
-        Text('Asistencia general', style: context.typography.headlineSmall),
-        const SizedBox(height: 16),
-        Center(
-              child: CircularPercentIndicator(
-                radius: 70,
-                lineWidth: 8,
-                percent: (player['attendance'] as int) / 100,
-                center: Column(
-                  mainAxisSize: MainAxisSize.min,
+        // ─── Historial de Tarjetas ───
+        if (cardEvents.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Tarjetas Recibidas ($totalYellow 🟨 · $totalRed 🟥)',
+            style: context.typography.headlineSmall,
+          ),
+          const SizedBox(height: 12),
+          Column(
+            children: cardEvents.map((cEvent) {
+              final isRed = cEvent['cardType'] == 'red';
+              return JNCard(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                child: Row(
                   children: [
-                    Text(
-                      '${player['attendance']}%',
-                      style: context.typography.headlineLarge.copyWith(
-                        color: context.colors.success,
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: (isRed ? Colors.red : Colors.amber)
+                            .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.square_rounded,
+                        color: isRed ? Colors.red : Colors.amber,
+                        size: 20,
                       ),
                     ),
-                    Text('asistencia', style: context.typography.bodySmall),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'vs ${cEvent['rivalName']}',
+                            style: context.typography.titleMedium
+                                .copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${cEvent['fixtureName']} · Cat. ${cEvent['category']}'
+                            '${cEvent['date'].toString().isNotEmpty ? ' · ${cEvent['date']}' : ''}',
+                            style: context.typography.bodySmall.copyWith(
+                                color: context.colors.textTertiary,
+                                fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (isRed ? Colors.red : Colors.amber)
+                            .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isRed ? 'ROJA' : 'AMARILLA',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isRed ? Colors.red : Colors.amber,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-                progressColor: context.colors.success,
-                backgroundColor: context.colors.surfaceVariant,
-                circularStrokeCap: CircularStrokeCap.round,
-              ),
-            )
-            .animate(delay: 200.ms)
-            .fadeIn(duration: 500.ms)
-            .scale(begin: const Offset(0.9, 0.9)),
+              );
+            }).toList(),
+          ),
+        ],
 
         const SizedBox(height: 24),
 

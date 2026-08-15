@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:percent_indicator/circular_percent_indicator.dart';
 
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
@@ -326,11 +325,6 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen>
                 _QuickStat(value: '${player['assists'] ?? 0}', label: 'Asistencias'),
                 Container(width: 1, height: 30, color: context.colors.border),
                 _QuickStat(value: '${player['matches'] ?? 0}', label: 'Partidos'),
-                Container(width: 1, height: 30, color: context.colors.border),
-                _QuickStat(
-                  value: '${player['attendance'] ?? 100}%',
-                  label: 'Asistencia',
-                ),
               ],
             ).animate(delay: 400.ms).fadeIn(duration: 400.ms),
           ],
@@ -350,7 +344,6 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen>
   ) {
     final matches = player['matches'] as int? ?? 0;
     final assists = player['assists'] as int? ?? 0;
-    final attendance = (player['attendance'] as int? ?? 100).clamp(0, 100);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
@@ -393,12 +386,6 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen>
               label: 'Rojas',
               icon: Icons.square_rounded,
               color: Colors.red,
-            ),
-            JNStatCard(
-              value: '${player['yellowCards'] ?? 0}',
-              label: 'T. Amrll. (manual)',
-              icon: Icons.square,
-              color: context.colors.warning,
             ),
           ],
         ).animate().fadeIn(duration: 400.ms),
@@ -563,36 +550,6 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen>
               );
             }).toList(),
           ),
-        ],
-
-        const SizedBox(height: 24),
-
-        // Asistencia ring
-        if (attendance > 0) ...[
-          Text('Asistencia general', style: context.typography.headlineSmall),
-          const SizedBox(height: 16),
-          Center(
-            child: CircularPercentIndicator(
-              radius: 70,
-              lineWidth: 8,
-              percent: attendance / 100,
-              center: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '$attendance%',
-                    style: context.typography.headlineLarge
-                        .copyWith(color: context.colors.success),
-                  ),
-                  Text('asistencia', style: context.typography.bodySmall),
-                ],
-              ),
-              progressColor: context.colors.success,
-              backgroundColor: context.colors.surfaceVariant,
-              circularStrokeCap: CircularStrokeCap.round,
-            ),
-          ).animate(delay: 200.ms).fadeIn(duration: 500.ms).scale(begin: const Offset(0.9, 0.9)),
-          const SizedBox(height: 24),
         ],
       ],
     );
