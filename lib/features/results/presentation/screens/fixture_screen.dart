@@ -31,7 +31,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
             IconButton(
               icon: const Icon(Icons.add),
               tooltip: 'Nueva Fecha',
-              onPressed: () => _openEditFixtureScreen(context, clubs: clubs),
+              onPressed: () => _openEditFixtureModal(context, clubs: clubs),
             ),
         ],
       ),
@@ -60,14 +60,13 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
     );
   }
 
-  void _openEditFixtureScreen(BuildContext context, {required List<Map<String, dynamic>> clubs, Map<String, dynamic>? fixture}) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EditFixtureScreen(
-          clubs: clubs,
-          fixture: fixture,
-        ),
+  void _openEditFixtureModal(BuildContext context, {required List<Map<String, dynamic>> clubs, Map<String, dynamic>? fixture}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _EditFixtureModal(
+        clubs: clubs,
+        fixture: fixture,
       ),
     );
   }
@@ -92,7 +91,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                       IconButton(
                         icon: Icon(Icons.edit_outlined, color: context.colors.primary, size: 20),
                         tooltip: 'Editar Fecha y Partidos',
-                        onPressed: () => _openEditFixtureScreen(context, clubs: clubs, fixture: fixture),
+                        onPressed: () => _openEditFixtureModal(context, clubs: clubs, fixture: fixture),
                       ),
                       IconButton(
                         icon: Icon(Icons.delete_outline, color: context.colors.error, size: 20),
@@ -194,48 +193,70 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
   }
 }
 
-class EditFixtureScreen extends ConsumerStatefulWidget {
+class _EditFixtureModal extends ConsumerStatefulWidget {
   final Map<String, dynamic>? fixture;
   final List<Map<String, dynamic>> clubs;
 
-  const EditFixtureScreen({
-    super.key,
+  const _EditFixtureModal({
     this.fixture,
     required this.clubs,
   });
 
   @override
-  ConsumerState<EditFixtureScreen> createState() => _EditFixtureScreenState();
+  ConsumerState<_EditFixtureModal> createState() => _EditFixtureModalState();
 }
 
-class _EditFixtureScreenState extends ConsumerState<EditFixtureScreen> {
+class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
   late TextEditingController _nameController;
-  late List<Map<String, dynamic>> _matches;
+  late String _selectedCategory;
+  DateTime? _matchDate;
+  TimeOfDay? _matchTime;
+  String? _homeClubId;
+  String? _awayClubId;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.fixture?['name'] ?? '');
-    _matches = widget.fixture?['matches'] != null
-        ? List<Map<String, dynamic>>.from(
-            (widget.fixture!['matches'] as List).map((m) => Map<String, dynamic>.from(m as Map)),
-          )
-        : [];
-    if (_matches.isEmpty) {
-      // Add one empty match default for convenience
-      _matches.add({
-        'homeClubId': widget.clubs.isNotEmpty ? widget.clubs.first['id'] : null,
-        'awayClubId': widget.clubs.length > 1 ? widget.clubs[1]['id'] : null,
-        'date': _formatDate(DateTime.now()),
-        'time': '15:00',
-        'status': 'scheduled',
-      });
-    }
-  }
+    final f = widget.fixture;
+    _nameController = TextEditingController(text: f?['name'] ?? '');
+    _selectedCategory = f?['category'] ?? 'all';
 
-  String _formatDate(DateTime d) {
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final matches = List<Map<String, dynamic>>.from(f?['matches'] ?? []);
+    final firstMatch = matches.isNotEmpty ? matches.first : null;
+
+    _homeClubId = firstMatch?['homeClubId'] ??
+        widget.clubs.where((c) => (c['name'] as String?)?.toLowerCase().contains('newbery') == true).firstOrNull?['id'] ??
+        (widget.clubs.isNotEmpty ? widget.clubs.first['id'] : null);
+
+    _awayClubId = firstMatch?['awayClubId'] ??
+        widget.clubs.where((c) => c['id'] != _homeClubId).firstOrNull?['id'] ??
+        (widget.clubs.length > 1 ? widget.clubs[1]['id'] : null);
+
+    // Parse date
+    final rawDate = firstMatch?['date'] ?? f?['date'];
+    if (rawDate != null) {
+      try {
+        final parts = (rawDate as String).split('-');
+        if (parts.length == 3) {
+          _matchDate = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+        }
+      } catch (_) {}
+    }
+    _matchDate ??= DateTime.now();
+
+    // Parse time
+    final rawTime = firstMatch?['time'] ?? f?['time'];
+    if (rawTime != null) {
+      try {
+        final clean = (rawTime as String).replaceAll('hs', '').trim();
+        final parts = clean.split(':');
+        if (parts.length >= 2) {
+          _matchTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+        }
+      } catch (_) {}
+    }
+    _matchTime ??= const TimeOfDay(hour: 15, minute: 30);
   }
 
   @override
@@ -244,71 +265,73 @@ class _EditFixtureScreenState extends ConsumerState<EditFixtureScreen> {
     super.dispose();
   }
 
-  void _addMatch() {
-    setState(() {
-      _matches.add({
-        'homeClubId': widget.clubs.isNotEmpty ? widget.clubs.first['id'] : null,
-        'awayClubId': widget.clubs.length > 1 ? widget.clubs[1]['id'] : null,
-        'date': _formatDate(DateTime.now()),
-        'time': '15:00',
-        'status': 'scheduled',
-      });
-    });
+  String _formatDateDisplay(DateTime d) {
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
   }
 
-  void _removeMatch(int index) {
-    setState(() {
-      _matches.removeAt(index);
-    });
+  String _formatDateISO(DateTime d) {
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTimeDisplay(TimeOfDay t) {
+    return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor ingresa un nombre para la fecha (Ej: 1ra Fecha)')),
+        const SnackBar(content: Text('Por favor ingresa un nombre para la fecha')),
       );
       return;
     }
 
-    if (_matches.isEmpty) {
+    if (_homeClubId == null || _awayClubId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Debes agregar al menos un partido')),
+        const SnackBar(content: Text('Selecciona Club Local y Visitante')),
       );
       return;
     }
 
-    for (int i = 0; i < _matches.length; i++) {
-      final m = _matches[i];
-      if (m['homeClubId'] == null || m['awayClubId'] == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Selecciona club local y visitante para el Partido #${i + 1}')),
-        );
-        return;
-      }
-      if (m['homeClubId'] == m['awayClubId']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('El Club Local y Visitante no pueden ser el mismo en el Partido #${i + 1}')),
-        );
-        return;
-      }
+    if (_homeClubId == _awayClubId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El Club Local y Visitante no pueden ser el mismo')),
+      );
+      return;
     }
 
     setState(() => _isSaving = true);
     try {
+      final dateIso = _matchDate != null ? _formatDateISO(_matchDate!) : _formatDateISO(DateTime.now());
+      final timeStr = _matchTime != null ? _formatTimeDisplay(_matchTime!) : '15:30';
+
+      final matchesList = [
+        {
+          'homeClubId': _homeClubId,
+          'awayClubId': _awayClubId,
+          'date': dateIso,
+          'time': timeStr,
+          'status': 'scheduled',
+        }
+      ];
+
       final firestoreService = ref.read(firestoreServiceProvider);
       if (widget.fixture != null) {
         await firestoreService.updateFixture(widget.fixture!['id'], {
           'name': name,
-          'matches': _matches,
+          'category': _selectedCategory,
+          'date': dateIso,
+          'matches': matchesList,
         });
       } else {
         await firestoreService.addFixture({
           'name': name,
-          'category': 'all',
-          'matches': _matches,
+          'category': _selectedCategory,
+          'date': dateIso,
+          'matches': matchesList,
         });
       }
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -331,248 +354,357 @@ class _EditFixtureScreenState extends ConsumerState<EditFixtureScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.fixture != null;
+    final categories = ref.watch(appCategoriesProvider);
+    final categoryOptions = ['all', ...categories];
 
-    return Scaffold(
-      backgroundColor: context.colors.background,
-      appBar: AppBar(
-        title: Text(isEditing ? 'Editar Fecha y Partidos' : 'Nueva Fecha'),
-        actions: [
-          TextButton(
-            onPressed: _isSaving ? null : _save,
-            child: _isSaving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text('Guardar', style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-        children: [
-          // ─── Nombre de la fecha ───
-          JNCard(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Datos de la Fecha', style: context.typography.titleMedium),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _nameController,
-                  style: context.typography.bodyLarge,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre de la fecha *',
-                    hintText: 'Ej: 1ra Fecha, 2da Fecha, Cuartos de Final',
-                    prefixIcon: Icon(Icons.label_outline),
+    return Dialog(
+      backgroundColor: const Color(0xFF18181A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ─── Header ───
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Editar Fecha del Fixture',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 22),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ─── Nombre de la Fecha ───
+              RichText(
+                text: const TextSpan(
+                  text: 'Nombre de la Fecha ',
+                  style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
+                  children: [
+                    TextSpan(text: '*', style: TextStyle(color: Colors.redAccent)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _nameController,
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFF242427),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF333338)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF333338)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFE5B842)),
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 16),
 
-          // ─── Encabezado de Partidos ───
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Partidos (${_matches.length})', style: context.typography.titleMedium),
-              TextButton.icon(
-                icon: const Icon(Icons.add_circle_outline, size: 18),
-                label: const Text('Agregar Partido'),
-                onPressed: _addMatch,
+              // ─── Fecha y Categoría ───
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Fecha del Encuentro / Jornada',
+                          style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _matchDate ?? DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                              locale: const Locale('es', 'ES'),
+                            );
+                            if (picked != null) {
+                              setState(() => _matchDate = picked);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF242427),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF333338)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _matchDate != null ? _formatDateDisplay(_matchDate!) : 'DD/MM/AAAA',
+                                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                                ),
+                                const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.white54),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Categoría',
+                          style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF242427),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF333338)),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedCategory,
+                              dropdownColor: const Color(0xFF242427),
+                              isExpanded: true,
+                              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
+                              style: const TextStyle(color: Colors.white, fontSize: 14),
+                              items: categoryOptions.map((cat) {
+                                return DropdownMenuItem<String>(
+                                  value: cat,
+                                  child: Text(cat == 'all' ? 'Todas las Cat.' : cat),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) setState(() => _selectedCategory = val);
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ─── Encuentro / Partido Container ───
+              const Text(
+                'Encuentro / Partido',
+                style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E22),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF2E2E33)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Local
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Local', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF28282D),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF3A3A40)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _homeClubId,
+                                    dropdownColor: const Color(0xFF28282D),
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                    items: widget.clubs.map((c) {
+                                      return DropdownMenuItem<String>(
+                                        value: c['id'] as String,
+                                        child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) => setState(() => _homeClubId = val),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // VS
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+                          child: Text(
+                            'VS',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFE5B842),
+                            ),
+                          ),
+                        ),
+                        // Visitante
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RichText(
+                                text: const TextSpan(
+                                  text: 'Visitante / Rival ',
+                                  style: TextStyle(fontSize: 12, color: Colors.white70),
+                                  children: [
+                                    TextSpan(text: '*', style: TextStyle(color: Colors.redAccent)),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF28282D),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF3A3A40)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _awayClubId,
+                                    dropdownColor: const Color(0xFF28282D),
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                    items: widget.clubs.map((c) {
+                                      return DropdownMenuItem<String>(
+                                        value: c['id'] as String,
+                                        child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) => setState(() => _awayClubId = val),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Hora del Partido
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Hora del Partido', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: _matchTime ?? const TimeOfDay(hour: 15, minute: 30),
+                            );
+                            if (picked != null) {
+                              setState(() => _matchTime = picked);
+                            }
+                          },
+                          child: Container(
+                            width: 140,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF28282D),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF3A3A40)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _matchTime != null ? _formatTimeDisplay(_matchTime!) : '15:30',
+                                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                                ),
+                                const Icon(Icons.access_time, size: 16, color: Colors.white54),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ─── Botones Cancelar y Guardar Fecha ───
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      backgroundColor: const Color(0xFF242427),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Cancelar',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                      backgroundColor: const Color(0xFFE5B842),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: _isSaving ? null : _save,
+                    child: _isSaving
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                        : const Text(
+                            'Guardar Fecha',
+                            style: TextStyle(color: Color(0xFF121212), fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
-
-          // ─── Tarjetas de Partidos Inline ───
-          ..._matches.asMap().entries.map((entry) {
-            final index = entry.key;
-            final match = entry.value;
-            return _buildMatchEditorCard(index, match);
-          }),
-
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              side: BorderSide(color: context.colors.primary),
-            ),
-            icon: Icon(Icons.add, color: context.colors.primary),
-            label: Text('Agregar Otro Partido a la Fecha', style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.w600)),
-            onPressed: _addMatch,
-          ),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          border: Border(top: BorderSide(color: context.colors.border, width: 0.5)),
-        ),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: context.colors.primary,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-          onPressed: _isSaving ? null : _save,
-          child: _isSaving
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : Text(isEditing ? 'Guardar Cambios' : 'Crear Fecha', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMatchEditorCard(int index, Map<String, dynamic> match) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: JNCard(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: context.colors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text('Partido #${index + 1}', style: context.typography.labelMedium.copyWith(color: context.colors.primary)),
-                ),
-                if (_matches.length > 1)
-                  IconButton(
-                    icon: Icon(Icons.delete_outline, color: context.colors.error, size: 20),
-                    tooltip: 'Eliminar partido',
-                    onPressed: () => _removeMatch(index),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Club Local
-            DropdownButtonFormField<String>(
-              dropdownColor: context.colors.surface,
-              initialValue: match['homeClubId'],
-              decoration: const InputDecoration(
-                labelText: 'Club Local',
-                prefixIcon: Icon(Icons.shield_outlined),
-              ),
-              items: widget.clubs.map((c) {
-                return DropdownMenuItem<String>(
-                  value: c['id'] as String,
-                  child: Text(c['name'] as String, style: context.typography.bodyMedium),
-                );
-              }).toList(),
-              onChanged: (val) {
-                setState(() {
-                  match['homeClubId'] = val;
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            // Club Visitante
-            DropdownButtonFormField<String>(
-              dropdownColor: context.colors.surface,
-              initialValue: match['awayClubId'],
-              decoration: const InputDecoration(
-                labelText: 'Club Visitante',
-                prefixIcon: Icon(Icons.shield_outlined),
-              ),
-              items: widget.clubs.map((c) {
-                return DropdownMenuItem<String>(
-                  value: c['id'] as String,
-                  child: Text(c['name'] as String, style: context.typography.bodyMedium),
-                );
-              }).toList(),
-              onChanged: (val) {
-                setState(() {
-                  match['awayClubId'] = val;
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            // Fecha y Hora
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      DateTime initial = DateTime.now();
-                      if (match['date'] != null) {
-                        try {
-                          final parts = (match['date'] as String).split('-');
-                          if (parts.length == 3) {
-                            initial = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-                          }
-                        } catch (_) {}
-                      }
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: initial,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                        locale: const Locale('es', 'ES'),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          match['date'] = _formatDate(picked);
-                        });
-                      }
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Fecha',
-                        prefixIcon: Icon(Icons.calendar_today, size: 18),
-                      ),
-                      child: Text(
-                        match['date'] ?? 'Seleccionar',
-                        style: context.typography.bodyMedium,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      TimeOfDay initial = const TimeOfDay(hour: 15, minute: 0);
-                      if (match['time'] != null) {
-                        try {
-                          final clean = (match['time'] as String).replaceAll('hs', '').trim();
-                          final parts = clean.split(':');
-                          if (parts.length >= 2) {
-                            initial = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-                          }
-                        } catch (_) {}
-                      }
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: initial,
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          match['time'] = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
-                        });
-                      }
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Hora',
-                        prefixIcon: Icon(Icons.access_time, size: 18),
-                      ),
-                      child: Text(
-                        match['time'] ?? '15:00',
-                        style: context.typography.bodyMedium,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
       ),
     );
