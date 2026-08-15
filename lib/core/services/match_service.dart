@@ -178,9 +178,11 @@ class MatchService {
 
   // ─── Scorers ───────────────────────────────────────
   Stream<List<Map<String, dynamic>>> getScorersByCategory(String category) {
-    return _db
-        .collection('scorers')
-        .where('category', isEqualTo: category)
+    Query<Map<String, dynamic>> query = _db.collection('scorers');
+    if (category != 'all' && category != 'Todas las Cat.' && category.isNotEmpty) {
+      query = query.where('category', isEqualTo: category);
+    }
+    return query
         .orderBy('goals', descending: true)
         .limit(50)
         .snapshots()
