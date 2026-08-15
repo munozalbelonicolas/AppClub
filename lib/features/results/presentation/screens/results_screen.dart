@@ -66,7 +66,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       _selectedCategory = categories.first;
     }
 
-    final bool canManage = sessionUser?.isAdmin == true || sessionUser?.role == 'dt';
+    final bool canManage = sessionUser?.isAdmin == true || sessionUser?.role == 'dt' || sessionUser?.isCoach == true;
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -141,7 +141,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   items: categories.map((cat) {
                     return DropdownMenuItem(
                       value: cat,
-                      child: Text(cat == 'all' ? 'Todas las Categorías' : cat),
+                      child: Text(cat == 'all' ? 'Todas las Categorías (Jornada General)' : 'Categoría $cat'),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -156,7 +156,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
-  // ─── 1. Fixture & Resultados Tab ──────────────────────────────────
+  // ─── 1. Fixture & Resultados Tab (Jornadas y 10 Categorías) ──────────────────────────────────
   Widget _buildFixtureTab(bool canManage) {
     final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
     final clubsAsync = ref.watch(clubsStreamProvider);
@@ -164,13 +164,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
     return fixturesAsync.when(
       data: (allFixtures) {
-        final filteredFixtures = allFixtures.where((f) {
-          if (_selectedCategory == 'all') return true;
-          final cat = f['category']?.toString();
-          return cat == null || cat == 'all' || cat == _selectedCategory;
-        }).toList();
-
-        if (filteredFixtures.isEmpty) {
+        if (allFixtures.isEmpty) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(32.0),
@@ -180,7 +174,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   Icon(Icons.sports_soccer, size: 48, color: context.colors.textTertiary),
                   const SizedBox(height: 16),
                   Text(
-                    'No hay fechas programadas para esta categoría',
+                    'No hay fechas programadas en el fixture',
                     style: context.typography.titleMedium.copyWith(color: context.colors.textSecondary),
                     textAlign: TextAlign.center,
                   ),
@@ -192,12 +186,57 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-          itemCount: filteredFixtures.length,
+          itemCount: allFixtures.length,
           itemBuilder: (context, fIndex) {
-            final fixture = filteredFixtures[fIndex];
-            final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+            final fixture = allFixtures[fIndex];
+            final allMatches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
             final fixtureName = fixture['name'] ?? 'Fecha ${fIndex + 1}';
-            final fixtureCategory = fixture['category'];
+            final fixtureDate = fixture['date']?.toString() ?? '';
+
+            // Filtrar partidos de la fecha según la categoría seleccionada
+            final displayedMatches = allMatches.where((m) {
+              if (_selectedCategory == 'all') return true;
+              final cat = m['category']?.toString();
+              return cat == null || cat == 'all' || cat == _selectedCategory;
+            }).toList();
+
+            if (_selectedCategory != 'all' && displayedMatches.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            // Calcular Puntos Globales de la Jornada (2 pts ganar, 1 pt empatar, 0 perder)
+            int homeTotalPts = 0;
+            int awayTotalPts = 0;
+            int playedCount = 0;
+
+            String? homeClubId;
+            String? awayClubId;
+
+            for (final m in allMatches) {
+              homeClubId ??= m['homeClubId']?.toString();
+              awayClubId ??= m['awayClubId']?.toString();
+
+              final hScore = m['homeScore'] != null ? int.tryParse(m['homeScore'].toString()) : null;
+              final aScore = m['awayScore'] != null ? int.tryParse(m['awayScore'].toString()) : null;
+              final status = m['status']?.toString() ?? '';
+
+              if (hScore != null && aScore != null && status != 'scheduled') {
+                playedCount++;
+                if (hScore > aScore) {
+                  homeTotalPts += 2;
+                } else if (hScore < aScore) {
+                  awayTotalPts += 2;
+                } else {
+                  homeTotalPts += 1;
+                  awayTotalPts += 1;
+                }
+              }
+            }
+
+            final homeClub = clubs.where((c) => c['id'] == homeClubId).firstOrNull;
+            final awayClub = clubs.where((c) => c['id'] == awayClubId).firstOrNull;
+            final homeName = homeClub?['name'] ?? 'Local';
+            final awayName = awayClub?['name'] ?? 'Visitante';
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
@@ -206,40 +245,156 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header de la Fecha
+                    // ─── Header de la Fecha & Marcador General ───
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              fixtureName,
+                              style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            if (fixtureDate.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                fixtureDate,
+                                style: context.typography.labelSmall.copyWith(color: context.colors.textSecondary),
+                              ),
+                            ],
+                          ],
+                        ),
+
+                        // Botón de Cargar Jornada Completa (Admin / DT)
+                        if (canManage && allMatches.isNotEmpty)
+                          InkWell(
+                            onTap: () => _showFullMatchdayResultsModal(
+                              context,
+                              fixture: fixture,
+                              clubs: clubs,
+                              homeClub: homeClub,
+                              awayClub: awayClub,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: context.colors.accent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: context.colors.accent.withValues(alpha: 0.5)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.edit_note, size: 16, color: context.colors.accent),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Cargar Jornada (10 Cat.)',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: context.colors.accent,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ─── Banner de Puntos Totales de la Jornada ───
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: context.colors.surfaceVariant.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: context.colors.primary.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                _buildClubSmallAvatar(homeClub),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    homeName,
+                                    style: context.typography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  '$homeTotalPts pts',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                    color: context.colors.accent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 10.0),
+                            child: Text('VS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white38, fontSize: 11)),
+                          ),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Text(
+                                  '$awayTotalPts pts',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                    color: context.colors.accent,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    awayName,
+                                    style: context.typography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.end,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                _buildClubSmallAvatar(awayClub),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          fixtureName,
-                          style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                          'Puntos de Jornada: $playedCount/${allMatches.length} partidos jugados (2 pts Victoria · 1 pt Empate)',
+                          style: TextStyle(fontSize: 10, color: context.colors.textTertiary),
                         ),
-                        if (fixtureCategory != null && fixtureCategory != 'all')
-                          JNBadge(
-                            label: fixtureCategory.toString().toUpperCase(),
-                            type: JNBadgeType.accent,
-                            small: true,
-                          ),
                       ],
                     ),
-                    const SizedBox(height: 12),
 
-                    if (matches.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text(
-                          'Sin partidos asignados',
-                          style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
-                        ),
-                      ),
+                    const SizedBox(height: 14),
 
-                    // Lista de Partidos
-                    ...matches.asMap().entries.map((entry) {
-                      final mIndex = entry.key;
+                    // ─── Lista de Partidos de las Categorías ───
+                    ...displayedMatches.asMap().entries.map((entry) {
+                      final matchIndexInAll = allMatches.indexOf(entry.value);
                       final match = entry.value;
-                      final homeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull;
-                      final awayClub = clubs.where((c) => c['id'] == match['awayClubId']).firstOrNull;
+                      final mHomeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull ?? homeClub;
+                      final mAwayClub = clubs.where((c) => c['id'] == match['awayClubId']).firstOrNull ?? awayClub;
 
+                      final catLabel = match['category']?.toString() ?? 'Cat. General';
                       final status = match['status']?.toString() ?? 'scheduled';
                       final bool isFinished = status == 'finished' || status == 'finalizado';
                       final bool isLive = status == 'live' || status == 'en vivo';
@@ -248,90 +403,115 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       final bool hasScores = homeScore != null && awayScore != null;
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: context.colors.surfaceVariant.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(10),
+                          color: context.colors.surfaceVariant.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: isLive
                                 ? context.colors.error.withValues(alpha: 0.5)
-                                : context.colors.border.withValues(alpha: 0.3),
+                                : context.colors.border.withValues(alpha: 0.25),
                           ),
                         ),
                         child: Column(
                           children: [
+                            // Categoría y Horario
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: context.colors.primary.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    catLabel.startsWith('20') ? 'Categoría $catLabel' : catLabel,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: context.colors.primary,
+                                    ),
+                                  ),
+                                ),
+                                if (match['time'] != null && match['time'].toString().isNotEmpty)
+                                  Text(
+                                    match['time'].toString(),
+                                    style: TextStyle(fontSize: 11, color: context.colors.textTertiary),
+                                  ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 6),
+
                             // Fila de Equipos y Marcador
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 // Local
                                 Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
-                                      _buildClubItem(homeClub, alignRight: true),
+                                      Flexible(
+                                        child: Text(
+                                          mHomeClub?['name'] ?? 'Local',
+                                          style: context.typography.titleSmall,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.end,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      _buildClubSmallAvatar(mHomeClub),
                                     ],
                                   ),
                                 ),
                                 const SizedBox(width: 8),
 
-                                // Centro: Marcador o VS
+                                // Marcador
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: isFinished
-                                        ? context.colors.surface
-                                        : (isLive ? context.colors.error.withValues(alpha: 0.15) : context.colors.surface),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: context.colors.surface,
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (hasScores || isFinished || isLive)
-                                        Text(
+                                  child: hasScores || isFinished || isLive
+                                      ? Text(
                                           '${homeScore ?? 0} - ${awayScore ?? 0}',
-                                          style: context.typography.titleLarge.copyWith(
+                                          style: TextStyle(
+                                            fontSize: 16,
                                             fontWeight: FontWeight.w900,
                                             color: isLive ? context.colors.error : context.colors.textPrimary,
                                           ),
                                         )
-                                      else
-                                        Text(
+                                      : const Text(
                                           'VS',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: context.colors.accent,
-                                          ),
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE5B842)),
                                         ),
-                                      if (match['date'] != null && match['time'] != null) ...[
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '${match['date']} · ${match['time']}',
-                                          style: context.typography.labelSmall.copyWith(
-                                            color: context.colors.textTertiary,
-                                            fontSize: 9,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
                                 ),
                                 const SizedBox(width: 8),
 
                                 // Visitante
                                 Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                  child: Row(
                                     children: [
-                                      _buildClubItem(awayClub, alignRight: false),
+                                      _buildClubSmallAvatar(mAwayClub),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          mAwayClub?['name'] ?? 'Visitante',
+                                          style: context.typography.titleSmall,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
                               ],
                             ),
 
-                            // Scorers Pill / List if registered
+                            // Goleadores del partido
                             if (match['scorers'] != null && (match['scorers'] as List).isNotEmpty) ...[
                               const SizedBox(height: 6),
                               Wrap(
@@ -362,13 +542,12 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               ),
                             ],
 
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
 
-                            // Fila de Estado y Botones de Gestión
+                            // Fila de Estado y Botones de Acción
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                // Badge de Estado
                                 if (isLive)
                                   const JNBadge(label: '● EN VIVO', type: JNBadgeType.error, small: true)
                                 else if (isFinished)
@@ -376,7 +555,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                 else
                                   const JNBadge(label: 'PROGRAMADO', small: true),
 
-                                // Botones de Acción (Directivos y DTs)
                                 if (canManage)
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -386,10 +564,10 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                         onTap: () => _showMatchScorersModal(
                                           context,
                                           fixture: fixture,
-                                          matchIndex: mIndex,
-                                          homeClub: homeClub,
-                                          awayClub: awayClub,
-                                          category: fixtureCategory?.toString() ?? _selectedCategory,
+                                          matchIndex: matchIndexInAll,
+                                          homeClub: mHomeClub,
+                                          awayClub: mAwayClub,
+                                          category: catLabel,
                                         ),
                                         borderRadius: BorderRadius.circular(6),
                                         child: Container(
@@ -420,12 +598,13 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
                                       // Botón Resultado
                                       InkWell(
-                                        onTap: () => _showMatchResultModal(
+                                        onTap: () => _showSingleMatchResultModal(
                                           context,
                                           fixture: fixture,
-                                          matchIndex: mIndex,
-                                          homeClub: homeClub,
-                                          awayClub: awayClub,
+                                          matchIndex: matchIndexInAll,
+                                          homeClub: mHomeClub,
+                                          awayClub: mAwayClub,
+                                          category: catLabel,
                                         ),
                                         borderRadius: BorderRadius.circular(6),
                                         child: Container(
@@ -441,7 +620,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                               Icon(Icons.sports_soccer, size: 13, color: context.colors.accent),
                                               const SizedBox(width: 4),
                                               Text(
-                                                hasScores ? 'Editar' : '⚽ Resultado',
+                                                hasScores ? 'Editar Goles' : '⚽ Resultado',
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.bold,
@@ -472,68 +651,271 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
-  Widget _buildClubItem(Map<String, dynamic>? club, {required bool alignRight}) {
-    final name = club?['name'] ?? 'Rival';
+  Widget _buildClubSmallAvatar(Map<String, dynamic>? club) {
     final logoUrl = club?['logoUrl']?.toString();
-    final avatar = CircleAvatar(
-      radius: 16,
+    return CircleAvatar(
+      radius: 12,
       backgroundColor: context.colors.surfaceLight,
       backgroundImage: logoUrl != null && logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null,
-      child: logoUrl == null || logoUrl.isEmpty ? const Icon(Icons.shield, size: 16) : null,
+      child: logoUrl == null || logoUrl.isEmpty ? const Icon(Icons.shield, size: 12) : null,
     );
-
-    if (alignRight) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Flexible(
-            child: Text(
-              name,
-              style: context.typography.titleSmall,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.end,
-            ),
-          ),
-          const SizedBox(width: 8),
-          avatar,
-        ],
-      );
-    } else {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          avatar,
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              name,
-              style: context.typography.titleSmall,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      );
-    }
   }
 
-  // Modal de Carga Rápida de Resultado
-  void _showMatchResultModal(
+  // ─── Modal: Cargar Jornada Completa (Las 10 Categorías) ──────────────────────────────────
+  void _showFullMatchdayResultsModal(
+    BuildContext context, {
+    required Map<String, dynamic> fixture,
+    required List<Map<String, dynamic>> clubs,
+    required Map<String, dynamic>? homeClub,
+    required Map<String, dynamic>? awayClub,
+  }) {
+    final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+    final homeName = homeClub?['name'] ?? 'Local';
+    final awayName = awayClub?['name'] ?? 'Visitante';
+
+    final List<TextEditingController> homeControllers = [];
+    final List<TextEditingController> awayControllers = [];
+    final List<String> statuses = [];
+
+    for (final m in matches) {
+      homeControllers.add(TextEditingController(text: m['homeScore']?.toString() ?? '0'));
+      awayControllers.add(TextEditingController(text: m['awayScore']?.toString() ?? '0'));
+      final st = m['status']?.toString() ?? 'finished';
+      statuses.add((st == 'finished' || st == 'live' || st == 'scheduled') ? st : 'finished');
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            // Calcular en vivo los puntos de la jornada
+            int liveHomePts = 0;
+            int liveAwayPts = 0;
+            for (int i = 0; i < matches.length; i++) {
+              final hG = int.tryParse(homeControllers[i].text.trim()) ?? 0;
+              final aG = int.tryParse(awayControllers[i].text.trim()) ?? 0;
+              final st = statuses[i];
+              if (st != 'scheduled') {
+                if (hG > aG) {
+                  liveHomePts += 2;
+                } else if (hG < aG) {
+                  liveAwayPts += 2;
+                } else {
+                  liveHomePts += 1;
+                  liveAwayPts += 1;
+                }
+              }
+            }
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF18181A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Planilla de Jornada',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '${fixture['name'] ?? 'Fecha'}: $homeName vs $awayName',
+                    style: const TextStyle(color: Color(0xFFE5B842), fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF242427),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Puntos de Jornada: $homeName $liveHomePts - $liveAwayPts $awayName',
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('(2 pts Victoria)', style: TextStyle(color: Color(0xFFE5B842), fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: matches.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final m = entry.value;
+                      final cat = m['category']?.toString() ?? 'Cat. ${i + 1}';
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF222226),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF333338)),
+                        ),
+                        child: Row(
+                          children: [
+                            // Categoría
+                            SizedBox(
+                              width: 75,
+                              child: Text(
+                                cat.startsWith('20') ? 'Cat. $cat' : cat,
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+
+                            // Goles Local
+                            SizedBox(
+                              width: 45,
+                              child: TextField(
+                                controller: homeControllers[i],
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: const Color(0xFF2A2A30),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                                onChanged: (_) => setModalState(() {}),
+                              ),
+                            ),
+
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 6.0),
+                              child: Text('-', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
+                            ),
+
+                            // Goles Visitante
+                            SizedBox(
+                              width: 45,
+                              child: TextField(
+                                controller: awayControllers[i],
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: const Color(0xFF2A2A30),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                                onChanged: (_) => setModalState(() {}),
+                              ),
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            // Selector de Estado
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2A2A30),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: statuses[i],
+                                    dropdownColor: const Color(0xFF2A2A30),
+                                    isExpanded: true,
+                                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                                    items: const [
+                                      DropdownMenuItem(value: 'finished', child: Text('Finalizado')),
+                                      DropdownMenuItem(value: 'live', child: Text('En Vivo')),
+                                      DropdownMenuItem(value: 'scheduled', child: Text('Programado')),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) setModalState(() => statuses[i] = val);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE5B842),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () async {
+                    final updatedMatches = List<Map<String, dynamic>>.from(matches);
+                    for (int i = 0; i < matches.length; i++) {
+                      final hScore = int.tryParse(homeControllers[i].text.trim()) ?? 0;
+                      final aScore = int.tryParse(awayControllers[i].text.trim()) ?? 0;
+                      updatedMatches[i] = {
+                        ...updatedMatches[i],
+                        'homeScore': hScore,
+                        'awayScore': aScore,
+                        'status': statuses[i],
+                      };
+                    }
+
+                    await ref.read(firestoreServiceProvider).updateFixture(fixture['id'], {
+                      'matches': updatedMatches,
+                    });
+
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Resultados de la jornada guardados exitosamente!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Guardar Todos los Resultados', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ─── Modal: Cargar Resultado Individual de Partido / Categoría ──────────────────────────────────
+  void _showSingleMatchResultModal(
     BuildContext context, {
     required Map<String, dynamic> fixture,
     required int matchIndex,
     required Map<String, dynamic>? homeClub,
     required Map<String, dynamic>? awayClub,
+    required String category,
   }) {
     final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
     final match = matches[matchIndex];
 
-    final homeController = TextEditingController(
-      text: match['homeScore']?.toString() ?? '0',
-    );
-    final awayController = TextEditingController(
-      text: match['awayScore']?.toString() ?? '0',
-    );
+    final homeController = TextEditingController(text: match['homeScore']?.toString() ?? '0');
+    final awayController = TextEditingController(text: match['awayScore']?.toString() ?? '0');
     String status = match['status']?.toString() ?? 'finished';
     if (status != 'finished' && status != 'live' && status != 'scheduled') {
       status = 'finished';
@@ -550,7 +932,13 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Cargar Resultado', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Resultado del Partido', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(category.startsWith('20') ? 'Categoría $category' : category, style: const TextStyle(color: Color(0xFFE5B842), fontSize: 12)),
+                    ],
+                  ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white70, size: 20),
                     onPressed: () => Navigator.pop(ctx),
@@ -561,7 +949,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Equipos e Inputs de Goles
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -570,33 +957,33 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                           child: Column(
                             children: [
                               CircleAvatar(
-                                radius: 22,
+                                radius: 20,
                                 backgroundColor: context.colors.surfaceLight,
                                 backgroundImage: homeClub?['logoUrl'] != null && homeClub!['logoUrl'].isNotEmpty
                                     ? NetworkImage(homeClub['logoUrl'])
                                     : null,
                                 child: homeClub?['logoUrl'] == null ? const Icon(Icons.shield) : null,
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 4),
                               Text(
                                 homeClub?['name'] ?? 'Local',
-                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 8),
                               SizedBox(
-                                width: 70,
+                                width: 65,
                                 child: TextField(
                                   controller: homeController,
                                   keyboardType: TextInputType.number,
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                                   decoration: InputDecoration(
                                     filled: true,
                                     fillColor: const Color(0xFF242427),
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
                                 ),
@@ -606,8 +993,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         ),
 
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Text('VS', style: TextStyle(color: Color(0xFFE5B842), fontWeight: FontWeight.w900, fontSize: 16)),
+                          padding: EdgeInsets.symmetric(horizontal: 6.0),
+                          child: Text('VS', style: TextStyle(color: Color(0xFFE5B842), fontWeight: FontWeight.w900, fontSize: 15)),
                         ),
 
                         // Visitante
@@ -615,33 +1002,33 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                           child: Column(
                             children: [
                               CircleAvatar(
-                                radius: 22,
+                                radius: 20,
                                 backgroundColor: context.colors.surfaceLight,
                                 backgroundImage: awayClub?['logoUrl'] != null && awayClub!['logoUrl'].isNotEmpty
                                     ? NetworkImage(awayClub['logoUrl'])
                                     : null,
                                 child: awayClub?['logoUrl'] == null ? const Icon(Icons.shield) : null,
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 4),
                               Text(
                                 awayClub?['name'] ?? 'Visitante',
-                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 8),
                               SizedBox(
-                                width: 70,
+                                width: 65,
                                 child: TextField(
                                   controller: awayController,
                                   keyboardType: TextInputType.number,
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                                   decoration: InputDecoration(
                                     filled: true,
                                     fillColor: const Color(0xFF242427),
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
                                 ),
@@ -652,16 +1039,16 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       ],
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
                     // Selector de Estado
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Estado del Partido', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                        const SizedBox(height: 6),
+                        const Text('Estado del Partido', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
                             color: const Color(0xFF242427),
                             borderRadius: BorderRadius.circular(8),
@@ -671,7 +1058,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               value: status,
                               dropdownColor: const Color(0xFF242427),
                               isExpanded: true,
-                              style: const TextStyle(color: Colors.white, fontSize: 14),
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
                               items: const [
                                 DropdownMenuItem(value: 'finished', child: Text('Finalizado')),
                                 DropdownMenuItem(value: 'live', child: Text('En Vivo')),
@@ -733,7 +1120,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
-  // Modal de Carga de Goleadores del Partido
+  // ─── Modal: Carga de Goleadores del Partido ──────────────────────────────────
   void _showMatchScorersModal(
     BuildContext context, {
     required Map<String, dynamic> fixture,
@@ -782,14 +1169,12 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Subtítulo del Encuentro
                     Text(
-                      '$homeName vs $awayName',
+                      '$homeName vs $awayName (${category.startsWith('20') ? 'Cat. $category' : category})',
                       style: const TextStyle(color: Color(0xFFE5B842), fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 12),
 
-                    // Lista de Goleadores cargados en el partido
                     if (matchScorers.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -852,14 +1237,12 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     const Divider(color: Color(0xFF333338)),
                     const SizedBox(height: 10),
 
-                    // Formulario para agregar goleador
                     const Text(
                       'Agregar Goleador al Partido',
                       style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 10),
 
-                    // Equipo
                     const Text('Equipo', style: TextStyle(color: Colors.white70, fontSize: 12)),
                     const SizedBox(height: 4),
                     Container(
@@ -886,7 +1269,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     ),
                     const SizedBox(height: 10),
 
-                    // Nombre y Goles
                     Row(
                       children: [
                         Expanded(
@@ -937,7 +1319,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     ),
                     const SizedBox(height: 12),
 
-                    // Botón Agregar Goleador a la lista
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFE5B842),
@@ -977,7 +1358,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
-                    // Actualizar el partido dentro del fixture
                     matches[matchIndex] = {
                       ...match,
                       'scorers': matchScorers,
@@ -987,7 +1367,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       'matches': matches,
                     });
 
-                    // También sincronizar en la colección general de goleadores de la liga
                     for (final sc in matchScorers) {
                       final effectiveCategory = (category == 'all' || category.isEmpty) ? 'Primera' : category;
                       await ref.read(firestoreServiceProvider).addScorer({
@@ -1019,7 +1398,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
-  // ─── 2. Posiciones Tab (Calculada en Vivo) ──────────────────────────────────
+  // ─── 2. Posiciones Tab (Calculada en Vivo con 2 pts victoria / 1 pt empate) ──────────────────────────────────
   Widget _buildStandingsTab() {
     final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
     final clubsAsync = ref.watch(clubsStreamProvider);
@@ -1027,10 +1406,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     final fixtures = fixturesAsync.valueOrNull ?? [];
     final clubs = clubsAsync.valueOrNull ?? [];
 
-    // Calcular estadísticas en vivo
     final Map<String, Map<String, dynamic>> standingsMap = {};
 
-    // Inicializar todos los clubes registrados
     for (final c in clubs) {
       final name = c['name']?.toString() ?? '';
       if (name.isEmpty) continue;
@@ -1049,17 +1426,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       };
     }
 
-    // Filtrar fechas según la categoría seleccionada
-    final filteredFixtures = fixtures.where((f) {
-      if (_selectedCategory == 'all') return true;
-      final cat = f['category']?.toString();
-      return cat == null || cat == 'all' || cat == _selectedCategory;
-    }).toList();
-
-    // Procesar todos los partidos terminados o con marcador
-    for (final f in filteredFixtures) {
+    for (final f in fixtures) {
       final matches = List<Map<String, dynamic>>.from(f['matches'] ?? []);
       for (final m in matches) {
+        // Filtrar por categoría si no está seleccionada 'all'
+        if (_selectedCategory != 'all') {
+          final cat = m['category']?.toString();
+          if (cat != null && cat != _selectedCategory) {
+            continue;
+          }
+        }
+
         final homeClub = clubs.where((c) => c['id'] == m['homeClubId']).firstOrNull;
         final awayClub = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
 
@@ -1070,7 +1447,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
         final hScore = m['homeScore'] != null ? int.tryParse(m['homeScore'].toString()) : null;
         final aScore = m['awayScore'] != null ? int.tryParse(m['awayScore'].toString()) : null;
 
-        // Si el partido está finalizado o tiene marcador cargado
         if (hScore != null && aScore != null && status != 'scheduled') {
           if (!standingsMap.containsKey(homeName)) {
             standingsMap[homeName] = {
@@ -1117,13 +1493,14 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
           awayStat['gc'] = (awayStat['gc'] as int) + hScore;
           awayStat['gd'] = (awayStat['gf'] as int) - (awayStat['gc'] as int);
 
+          // REGLA DE TORNEO: 2 puntos por victoria, 1 por empate, 0 por derrota
           if (hScore > aScore) {
             homeStat['won'] = (homeStat['won'] as int) + 1;
-            homeStat['points'] = (homeStat['points'] as int) + 3;
+            homeStat['points'] = (homeStat['points'] as int) + 2;
             awayStat['lost'] = (awayStat['lost'] as int) + 1;
           } else if (hScore < aScore) {
             awayStat['won'] = (awayStat['won'] as int) + 1;
-            awayStat['points'] = (awayStat['points'] as int) + 3;
+            awayStat['points'] = (awayStat['points'] as int) + 2;
             homeStat['lost'] = (homeStat['lost'] as int) + 1;
           } else {
             homeStat['drawn'] = (homeStat['drawn'] as int) + 1;
@@ -1136,7 +1513,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     }
 
     final standings = standingsMap.values.toList();
-    // Ordenar: Puntos DESC, Diferencia de Gol DESC, Goles a Favor DESC, Partidos Ganados DESC
     standings.sort((a, b) {
       final pA = a['points'] as int;
       final pB = b['points'] as int;
@@ -1162,6 +1538,28 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       children: [
+        // Info Banner Puntos
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: context.colors.surfaceVariant.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _selectedCategory == 'all'
+                    ? 'Tabla General de Clubes (Suma de Jornadas)'
+                    : 'Tabla de Posiciones · Categoría $_selectedCategory',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white70),
+              ),
+              const Text('PG = 2 pts · PE = 1 pt', style: TextStyle(fontSize: 10, color: Color(0xFFE5B842), fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+
         // Table Header
         JNCard(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -1240,7 +1638,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 : Border.all(color: Colors.transparent),
             child: Row(
               children: [
-                // Posición
                 SizedBox(
                   width: 24,
                   child: Container(
@@ -1272,7 +1669,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 ),
                 const SizedBox(width: 6),
 
-                // Escudo y Nombre
                 Expanded(
                   child: Row(
                     children: [
@@ -1299,7 +1695,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   ),
                 ),
 
-                // PJ, G, E, P, DG, PTS
                 SizedBox(
                   width: 24,
                   child: Text('${team['played']}', style: context.typography.bodySmall, textAlign: TextAlign.center),
@@ -1402,7 +1797,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
               border: isClub ? Border.all(color: context.colors.primary.withValues(alpha: 0.25)) : null,
               child: Row(
                 children: [
-                  // Rank / Medalla
                   Container(
                     width: 32,
                     height: 32,
@@ -1434,7 +1828,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   ),
                   const SizedBox(width: 12),
 
-                  // Info Jugador
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1454,7 +1847,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     ),
                   ),
 
-                  // Goles
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(

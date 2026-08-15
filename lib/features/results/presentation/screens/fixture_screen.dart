@@ -304,16 +304,62 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
     try {
       final dateIso = _matchDate != null ? _formatDateISO(_matchDate!) : _formatDateISO(DateTime.now());
       final timeStr = _matchTime != null ? _formatTimeDisplay(_matchTime!) : '15:30';
+      final categories = ref.read(appCategoriesProvider);
+      final List<Map<String, dynamic>> matchesList = [];
+      final existingMatches = List<Map<String, dynamic>>.from(widget.fixture?['matches'] ?? []);
 
-      final matchesList = [
-        {
-          'homeClubId': _homeClubId,
-          'awayClubId': _awayClubId,
-          'date': dateIso,
-          'time': timeStr,
-          'status': 'scheduled',
+      if (_selectedCategory == 'all' || _selectedCategory.isEmpty) {
+        for (final cat in categories) {
+          final existing = existingMatches.where((m) => m['category'] == cat).firstOrNull;
+          if (existing != null) {
+            matchesList.add({
+              ...existing,
+              'category': cat,
+              'homeClubId': _homeClubId,
+              'awayClubId': _awayClubId,
+              'date': dateIso,
+              'time': existing['time'] ?? timeStr,
+            });
+          } else {
+            matchesList.add({
+              'category': cat,
+              'homeClubId': _homeClubId,
+              'awayClubId': _awayClubId,
+              'date': dateIso,
+              'time': timeStr,
+              'status': 'scheduled',
+              'homeScore': null,
+              'awayScore': null,
+              'scorers': [],
+            });
+          }
         }
-      ];
+      } else {
+        final existing = existingMatches.where((m) => m['category'] == _selectedCategory).firstOrNull ??
+            (existingMatches.isNotEmpty ? existingMatches.first : null);
+        if (existing != null) {
+          matchesList.add({
+            ...existing,
+            'category': _selectedCategory,
+            'homeClubId': _homeClubId,
+            'awayClubId': _awayClubId,
+            'date': dateIso,
+            'time': timeStr,
+          });
+        } else {
+          matchesList.add({
+            'category': _selectedCategory,
+            'homeClubId': _homeClubId,
+            'awayClubId': _awayClubId,
+            'date': dateIso,
+            'time': timeStr,
+            'status': 'scheduled',
+            'homeScore': null,
+            'awayScore': null,
+            'scorers': [],
+          });
+        }
+      }
 
       final firestoreService = ref.read(firestoreServiceProvider);
       if (widget.fixture != null) {
