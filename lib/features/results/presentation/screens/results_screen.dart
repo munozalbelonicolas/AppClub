@@ -331,9 +331,40 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               ],
                             ),
 
+                            // Scorers Pill / List if registered
+                            if (match['scorers'] != null && (match['scorers'] as List).isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: (match['scorers'] as List).map((sc) {
+                                  final scMap = sc as Map<String, dynamic>;
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: context.colors.surface.withValues(alpha: 0.7),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: context.colors.border.withValues(alpha: 0.3)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.sports_soccer, size: 10, color: Color(0xFFE5B842)),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${scMap['name']} (${scMap['goals']})',
+                                          style: const TextStyle(fontSize: 10, color: Colors.white70),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+
                             const SizedBox(height: 8),
 
-                            // Fila de Estado y Botón de Carga de Resultado
+                            // Fila de Estado y Botones de Gestión
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -345,40 +376,83 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                 else
                                   const JNBadge(label: 'PROGRAMADO', small: true),
 
-                                // Botón de Cargar Resultado (Directivos y DTs)
+                                // Botones de Acción (Directivos y DTs)
                                 if (canManage)
-                                  InkWell(
-                                    onTap: () => _showMatchResultModal(
-                                      context,
-                                      fixture: fixture,
-                                      matchIndex: mIndex,
-                                      homeClub: homeClub,
-                                      awayClub: awayClub,
-                                    ),
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: context.colors.accent.withValues(alpha: 0.15),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Botón Goleadores
+                                      InkWell(
+                                        onTap: () => _showMatchScorersModal(
+                                          context,
+                                          fixture: fixture,
+                                          matchIndex: mIndex,
+                                          homeClub: homeClub,
+                                          awayClub: awayClub,
+                                          category: fixtureCategory?.toString() ?? _selectedCategory,
+                                        ),
                                         borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: context.colors.accent.withValues(alpha: 0.4)),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.sports_soccer, size: 14, color: context.colors.accent),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            hasScores ? 'Editar Goles' : '⚽ Resultado',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: context.colors.accent,
-                                            ),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: context.colors.primary.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: context.colors.primary.withValues(alpha: 0.35)),
                                           ),
-                                        ],
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.emoji_events_outlined, size: 13, color: context.colors.primary),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Goleadores',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: context.colors.primary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                      const SizedBox(width: 6),
+
+                                      // Botón Resultado
+                                      InkWell(
+                                        onTap: () => _showMatchResultModal(
+                                          context,
+                                          fixture: fixture,
+                                          matchIndex: mIndex,
+                                          homeClub: homeClub,
+                                          awayClub: awayClub,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: context.colors.accent.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: context.colors.accent.withValues(alpha: 0.4)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.sports_soccer, size: 13, color: context.colors.accent),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                hasScores ? 'Editar' : '⚽ Resultado',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: context.colors.accent,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                               ],
                             ),
@@ -650,6 +724,292 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     }
                   },
                   child: const Text('Guardar Resultado', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Modal de Carga de Goleadores del Partido
+  void _showMatchScorersModal(
+    BuildContext context, {
+    required Map<String, dynamic> fixture,
+    required int matchIndex,
+    required Map<String, dynamic>? homeClub,
+    required Map<String, dynamic>? awayClub,
+    required String category,
+  }) {
+    final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+    final match = Map<String, dynamic>.from(matches[matchIndex]);
+    final List<Map<String, dynamic>> matchScorers = List<Map<String, dynamic>>.from(match['scorers'] ?? []);
+
+    final homeName = homeClub?['name'] ?? 'Local';
+    final awayName = awayClub?['name'] ?? 'Visitante';
+
+    String selectedTeam = homeName;
+    final nameController = TextEditingController();
+    final goalsController = TextEditingController(text: '1');
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF18181A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.emoji_events_outlined, color: Color(0xFFE5B842), size: 22),
+                      SizedBox(width: 8),
+                      Text('Goleadores', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Subtítulo del Encuentro
+                    Text(
+                      '$homeName vs $awayName',
+                      style: const TextStyle(color: Color(0xFFE5B842), fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Lista de Goleadores cargados en el partido
+                    if (matchScorers.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF242427),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'No se han registrado goleadores en este partido.',
+                          style: TextStyle(color: Colors.white60, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    else
+                      Column(
+                        children: matchScorers.asMap().entries.map((entry) {
+                          final scIdx = entry.key;
+                          final sc = entry.value;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF242427),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.sports_soccer, size: 14, color: Color(0xFFE5B842)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        sc['name']?.toString() ?? '',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                      Text(
+                                        '${sc['team']} · ${sc['goals']} ${sc['goals'] == 1 ? 'gol' : 'goles'}',
+                                        style: const TextStyle(color: Colors.white60, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                  onPressed: () {
+                                    setModalState(() {
+                                      matchScorers.removeAt(scIdx);
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                    const SizedBox(height: 16),
+                    const Divider(color: Color(0xFF333338)),
+                    const SizedBox(height: 10),
+
+                    // Formulario para agregar goleador
+                    const Text(
+                      'Agregar Goleador al Partido',
+                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Equipo
+                    const Text('Equipo', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF242427),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedTeam,
+                          dropdownColor: const Color(0xFF242427),
+                          isExpanded: true,
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                          items: [
+                            DropdownMenuItem(value: homeName, child: Text(homeName)),
+                            DropdownMenuItem(value: awayName, child: Text(awayName)),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setModalState(() => selectedTeam = val);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Nombre y Goles
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Nombre del Jugador', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                              const SizedBox(height: 4),
+                              TextField(
+                                controller: nameController,
+                                style: const TextStyle(color: Colors.white, fontSize: 13),
+                                decoration: InputDecoration(
+                                  hintText: 'Ej: Lautaro Martínez',
+                                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                                  filled: true,
+                                  fillColor: const Color(0xFF242427),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Goles', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                              const SizedBox(height: 4),
+                              TextField(
+                                controller: goalsController,
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: const Color(0xFF242427),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Botón Agregar Goleador a la lista
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFE5B842),
+                        side: const BorderSide(color: Color(0xFFE5B842)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Añadir a la lista'),
+                      onPressed: () {
+                        final pName = nameController.text.trim();
+                        final gCount = int.tryParse(goalsController.text.trim()) ?? 1;
+                        if (pName.isNotEmpty && gCount > 0) {
+                          setModalState(() {
+                            matchScorers.add({
+                              'name': pName,
+                              'team': selectedTeam,
+                              'goals': gCount,
+                              'isClub': selectedTeam.toLowerCase().contains('newbery'),
+                            });
+                            nameController.clear();
+                            goalsController.text = '1';
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE5B842),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () async {
+                    // Actualizar el partido dentro del fixture
+                    matches[matchIndex] = {
+                      ...match,
+                      'scorers': matchScorers,
+                    };
+
+                    await ref.read(firestoreServiceProvider).updateFixture(fixture['id'], {
+                      'matches': matches,
+                    });
+
+                    // También sincronizar en la colección general de goleadores de la liga
+                    for (final sc in matchScorers) {
+                      final effectiveCategory = (category == 'all' || category.isEmpty) ? 'Primera' : category;
+                      await ref.read(firestoreServiceProvider).addScorer({
+                        'name': sc['name'],
+                        'team': sc['team'],
+                        'category': effectiveCategory,
+                        'goals': sc['goals'] ?? 1,
+                        'isClub': sc['isClub'] ?? false,
+                      });
+                    }
+
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Goleadores del partido guardados correctamente!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Guardar Goleadores', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
