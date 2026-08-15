@@ -129,7 +129,7 @@ class SettingsScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(16),
                     child: Center(
                       child: Text(
-                        'Sin hijos registrados. Agrégalos desde "Mi Perfil".',
+                        'Sin hijos registrados. Agrégalos desde "Mi Cuenta".',
                         style: context.typography.bodySmall.copyWith(
                           color: context.colors.textTertiary,
                         ),
