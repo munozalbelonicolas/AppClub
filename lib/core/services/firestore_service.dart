@@ -22,6 +22,7 @@ class FirestoreService {
   Stream<List<Map<String, dynamic>>> getAllNovedades() => _novedades.getAllNovedades();
   Stream<List<Map<String, dynamic>>> getNovedadesForUser(List<String>? categories) => _novedades.getNovedadesForUser(categories);
   Future<void> addNovedad(Map<String, dynamic> data) => _novedades.addNovedad(data);
+  Future<void> updateNovedad(String id, Map<String, dynamic> data) => _novedades.updateNovedad(id, data);
   Future<void> deleteNovedad(String id) => _novedades.deleteNovedad(id);
   Future<void> addCommentToNovedad(String novedadId, Map<String, dynamic> commentData) =>
       _novedades.addCommentToNovedad(novedadId, commentData);
@@ -429,6 +430,9 @@ final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, c
         'status': 'upcoming',
         'source': 'novedad',
         'title': n['title'] ?? 'Partido Amistoso',
+        'body': n['body'] ?? '',
+        'opponentClubId': n['opponentClubId'],
+        'hasTransport': n['hasTransport'] ?? false,
       });
     }
   }

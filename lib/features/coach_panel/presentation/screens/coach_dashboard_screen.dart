@@ -238,16 +238,56 @@ class CoachDashboardScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        Icons.sports_soccer,
-                        size: 18,
-                        color: context.colors.primary,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.sports_soccer,
+                              size: 18,
+                              color: context.colors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
+                                style: context.typography.titleMedium,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
-                        style: context.typography.titleMedium,
+                      IconButton(
+                        icon: Icon(Icons.edit_outlined, color: context.colors.primary, size: 20),
+                        tooltip: 'Editar Partido',
+                        onPressed: () => _showEditMatchDialog(context, ref, sessionUser, clubs, nextMatch),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete_outline, color: context.colors.error, size: 20),
+                        tooltip: 'Eliminar Partido',
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Eliminar Partido'),
+                              content: const Text('¿Estás seguro de que deseas eliminar este partido programado?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            if (nextMatch['source'] == 'novedad') {
+                              await ref.read(firestoreServiceProvider).deleteNovedad(nextMatch['id']);
+                            }
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -780,6 +820,263 @@ void _showCreateMatchDialog(
                   }
                 },
                 child: const Text('Programar'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+void _showEditMatchDialog(
+  BuildContext context,
+  WidgetRef ref,
+  dynamic sessionUser,
+  List<Map<String, dynamic>> clubs,
+  Map<String, dynamic> match,
+) {
+  final titleController = TextEditingController(text: match['title'] ?? match['homeTeam'] != null ? '${match['homeTeam']} vs ${match['awayTeam']}' : 'Partido');
+  final bodyController = TextEditingController(text: match['body'] ?? '');
+  final venueController = TextEditingController(text: match['venue'] ?? match['location'] ?? 'Cancha Principal JN');
+  final formKey = GlobalKey<FormState>();
+
+  DateTime? eventDate;
+  if (match['date'] != null) {
+    try {
+      final parts = (match['date'] as String).split('-');
+      if (parts.length == 3) {
+        eventDate = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+      }
+    } catch (_) {}
+  }
+  eventDate ??= DateTime.now();
+
+  TimeOfDay? eventTime;
+  if (match['time'] != null) {
+    try {
+      final cleanTime = (match['time'] as String).replaceAll('hs', '').trim();
+      final parts = cleanTime.split(':');
+      if (parts.length >= 2) {
+        eventTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+      }
+    } catch (_) {}
+  }
+  eventTime ??= const TimeOfDay(hour: 15, minute: 0);
+
+  bool hasTransport = match['hasTransport'] == true;
+  String? selectedOpponentId = match['opponentClubId'];
+  String selectedCategory = match['category'] ?? (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty
+      ? sessionUser.assignedCategories!.first
+      : (sessionUser.category ?? 'Sub-12'));
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: context.colors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              side: BorderSide(color: context.colors.border, width: 0.5),
+            ),
+            title: Text(
+              'Editar Partido',
+              style: context.typography.titleLarge,
+            ),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: titleController,
+                      style: context.typography.bodyLarge,
+                      decoration: const InputDecoration(
+                        labelText: 'Título del partido / novedad',
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Ingresa un título'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: bodyController,
+                      maxLines: 2,
+                      style: context.typography.bodyLarge,
+                      decoration: const InputDecoration(
+                        labelText: 'Detalles / Descripción',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Fecha del Partido
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: eventDate ?? DateTime.now(),
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          locale: const Locale('es', 'ES'),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            eventDate = picked;
+                          });
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Fecha del Partido *',
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          eventDate != null
+                              ? '${eventDate!.day.toString().padLeft(2, '0')}/${eventDate!.month.toString().padLeft(2, '0')}/${eventDate!.year}'
+                              : 'Seleccionar Fecha',
+                          style: context.typography.bodyLarge.copyWith(
+                            color: eventDate != null ? null : context.colors.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Hora del Partido
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: eventTime ?? TimeOfDay.now(),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            eventTime = picked;
+                          });
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Hora del Partido',
+                          prefixIcon: Icon(Icons.access_time),
+                        ),
+                        child: Text(
+                          eventTime != null
+                              ? '${eventTime!.hour.toString().padLeft(2, '0')}:${eventTime!.minute.toString().padLeft(2, '0')} hs'
+                              : 'Seleccionar Hora',
+                          style: context.typography.bodyLarge.copyWith(
+                            color: eventTime != null ? null : context.colors.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: venueController,
+                      style: context.typography.bodyLarge,
+                      decoration: const InputDecoration(
+                        labelText: 'Lugar / Cancha',
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      dropdownColor: context.colors.surface,
+                      initialValue: selectedOpponentId,
+                      decoration: const InputDecoration(
+                        labelText: 'Club Rival (Opcional)',
+                      ),
+                      items: clubs.where((c) => c['isLocal'] != true).map((club) {
+                        return DropdownMenuItem<String>(
+                          value: club['id'],
+                          child: Text(club['name'], style: context.typography.bodyLarge),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setDialogState(() {
+                          selectedOpponentId = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Row(
+                        children: [
+                          Icon(Icons.directions_bus, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Text('Traslado Incluido'),
+                        ],
+                      ),
+                      value: hasTransport,
+                      activeThumbColor: Colors.orange,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (val) {
+                        setDialogState(() {
+                          hasTransport = val;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: context.colors.primary,
+                ),
+                onPressed: () async {
+                  if (formKey.currentState!.validate()) {
+                    if (eventDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Por favor selecciona la fecha del partido')),
+                      );
+                      return;
+                    }
+                    final firestoreService = ref.read(firestoreServiceProvider);
+                    final dateStr = '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}';
+                    final timeStr = eventTime != null
+                        ? '${eventTime!.hour.toString().padLeft(2, '0')}:${eventTime!.minute.toString().padLeft(2, '0')} hs'
+                        : 'A confirmar';
+                    final venueStr = venueController.text.trim().isNotEmpty
+                        ? venueController.text.trim()
+                        : 'Cancha Principal JN';
+
+                    if (match['source'] == 'novedad') {
+                      await firestoreService.updateNovedad(match['id'], {
+                        'title': titleController.text.trim(),
+                        'body': bodyController.text.trim(),
+                        'category': selectedCategory,
+                        'hasTransport': hasTransport,
+                        'opponentClubId': selectedOpponentId,
+                        'eventDate': dateStr,
+                        'date': dateStr,
+                        'eventTime': timeStr,
+                        'time': timeStr,
+                        'location': venueStr,
+                        'venue': venueStr,
+                      });
+                    }
+
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Partido actualizado correctamente!'),
+                          backgroundColor: context.colors.success,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Guardar Cambios'),
               ),
             ],
           );
