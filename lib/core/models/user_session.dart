@@ -7,7 +7,7 @@ class UserSession {
   final String lastName;
   final String email;
   final String role; // 'tutor', 'jugador', 'dt', 'secretario', 'directivo'
-  final String? category; // e.g., 'Sub-12', 'Sub-14', etc.
+  final String? category; // e.g., '2012', '2013', etc.
   final String? childId; // For 'tutor' role
 
   // New profile fields
@@ -121,6 +121,14 @@ class UserSession {
       assignedCategories: assignedCategories ?? this.assignedCategories,
       assignedCoachId: assignedCoachId ?? this.assignedCoachId,
     );
+  }
+
+  /// Full name of the user or fallback to email prefix
+  String get fullName {
+    final full = '$name $lastName'.trim();
+    if (full.isNotEmpty) return full;
+    if (email.isNotEmpty) return email.split('@').first;
+    return 'Usuario';
   }
 
   /// Check if user has not completed registration (e.g. Google Sign In missing phones)

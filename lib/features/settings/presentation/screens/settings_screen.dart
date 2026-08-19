@@ -4,7 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/services/auth_service.dart';
@@ -92,7 +94,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── Hijos asociados (Tutor) ────────────────────────
-          if (user.role != 'jugador') ...[
+          if (user.role == 'tutor') ...[
             Text('Mis Hijos', style: context.typography.labelMedium),
             const SizedBox(height: 8),
             StreamBuilder<List<Map<String, dynamic>>>(
@@ -406,22 +408,26 @@ class SettingsScreen extends ConsumerWidget {
               _SettingToggle(
                 icon: Icons.notifications,
                 label: 'Notificaciones push',
-                value: true,
+                prefKey: 'pref_push_notifications',
+                defaultValue: true,
               ),
               _SettingToggle(
                 icon: Icons.campaign,
                 label: 'Comunicados',
-                value: true,
+                prefKey: 'pref_announcements_notifications',
+                defaultValue: true,
               ),
               _SettingToggle(
                 icon: Icons.sports_soccer,
                 label: 'Resultados de partidos',
-                value: true,
+                prefKey: 'pref_match_notifications',
+                defaultValue: true,
               ),
               _SettingToggle(
                 icon: Icons.payment,
                 label: 'Recordatorios de cuotas',
-                value: false,
+                prefKey: 'pref_quota_notifications',
+                defaultValue: false,
               ),
             ],
           ).animate(delay: 200.ms).fadeIn(duration: 400.ms),
@@ -474,8 +480,8 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () {
                   showAboutDialog(
                     context: context,
-                    applicationName: 'Jorge Newbery App',
-                    applicationVersion: '3.41',
+                    applicationName: AppConfig.appName,
+                    applicationVersion: AppConfig.fullVersion,
                     applicationIcon: Image.asset('assets/images/app_logo.jpg', width: 48, height: 48),
                     applicationLegalese: 'powered by Nilotech @2026 https://nilotech.online\nTodos los derechos reservados',
                   );
@@ -627,12 +633,14 @@ class _SettingsGroup extends StatelessWidget {
 class _SettingToggle extends StatefulWidget {
   final IconData icon;
   final String label;
-  final bool value;
+  final String prefKey;
+  final bool defaultValue;
 
   const _SettingToggle({
     required this.icon,
     required this.label,
-    required this.value,
+    required this.prefKey,
+    this.defaultValue = true,
   });
 
   @override
@@ -640,12 +648,30 @@ class _SettingToggle extends StatefulWidget {
 }
 
 class _SettingToggleState extends State<_SettingToggle> {
-  late bool _value;
+  bool _value = true;
+  bool _loaded = false;
 
   @override
   void initState() {
     super.initState();
-    _value = widget.value;
+    _value = widget.defaultValue;
+    _loadPref();
+  }
+
+  Future<void> _loadPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _value = prefs.getBool(widget.prefKey) ?? widget.defaultValue;
+        _loaded = true;
+      });
+    }
+  }
+
+  Future<void> _savePref(bool val) async {
+    setState(() => _value = val);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(widget.prefKey, val);
   }
 
   @override
@@ -666,7 +692,7 @@ class _SettingToggleState extends State<_SettingToggle> {
           ),
           Switch.adaptive(
             value: _value,
-            onChanged: (v) => setState(() => _value = v),
+            onChanged: _loaded ? _savePref : null,
             activeTrackColor: context.colors.primary,
             activeThumbColor: Colors.white,
           ),

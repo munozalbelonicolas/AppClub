@@ -235,10 +235,28 @@ class AuthService {
       final bool isAdminRole = userRole == 'directivo' || userRole == 'secretario';
       final String? userCategory = isAdminRole ? null : data['category'];
 
+      String resolvedName = (data['name']?.toString() ?? '').trim();
+      String resolvedLastName = (data['lastName']?.toString() ?? '').trim();
+
+      if (resolvedName.isEmpty && resolvedLastName.isEmpty) {
+        final disp = (data['displayName']?.toString() ??
+                data['fullName']?.toString() ??
+                displayName)
+            .trim();
+        if (disp.isNotEmpty) {
+          final parts = disp.split(' ');
+          resolvedName = parts.first;
+          resolvedLastName =
+              parts.length > 1 ? parts.sublist(1).join(' ') : '';
+        } else {
+          resolvedName = email.split('@').first;
+        }
+      }
+
       session = UserSession(
         id: uid,
-        name: data['name'] ?? name,
-        lastName: data['lastName'] ?? lastName,
+        name: resolvedName,
+        lastName: resolvedLastName,
         email: email,
         role: userRole,
         status: data['status'] ?? 'active',
@@ -337,10 +355,29 @@ class AuthService {
         final snapshotData = snapshot.data()!;
         final snapshotRole = snapshotData['role'] ?? 'tutor';
         final bool isSnapshotAdmin = snapshotRole == 'directivo' || snapshotRole == 'secretario';
+
+        String resolvedSnapName = (snapshotData['name']?.toString() ?? '').trim();
+        String resolvedSnapLastName = (snapshotData['lastName']?.toString() ?? '').trim();
+
+        if (resolvedSnapName.isEmpty && resolvedSnapLastName.isEmpty) {
+          final disp = (snapshotData['displayName']?.toString() ??
+                  snapshotData['fullName']?.toString() ??
+                  displayName)
+              .trim();
+          if (disp.isNotEmpty) {
+            final parts = disp.split(' ');
+            resolvedSnapName = parts.first;
+            resolvedSnapLastName =
+                parts.length > 1 ? parts.sublist(1).join(' ') : '';
+          } else {
+            resolvedSnapName = email.split('@').first;
+          }
+        }
+
         final updatedSession = UserSession(
           id: uid,
-          name: snapshotData['name'] ?? name,
-          lastName: snapshotData['lastName'] ?? lastName,
+          name: resolvedSnapName,
+          lastName: resolvedSnapLastName,
           email: email,
           role: snapshotRole,
           status: snapshotData['status'] ?? 'active',

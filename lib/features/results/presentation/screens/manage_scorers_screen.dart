@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -16,7 +17,7 @@ class ManageScorersScreen extends ConsumerStatefulWidget {
 }
 
 class _ManageScorersScreenState extends ConsumerState<ManageScorersScreen> {
-  String _selectedCategory = 'Primera';
+  String? _selectedCategory;
 
 
   void _showAddEditScorerDialog(BuildContext context, [Map<String, dynamic>? scorer]) {
@@ -147,17 +148,26 @@ class _ManageScorersScreenState extends ConsumerState<ManageScorersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = ref.watch(appCategoriesProvider);
-    if (!categories.contains(_selectedCategory) && categories.isNotEmpty) {
-      // Must schedule setState because we are building
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _selectedCategory = categories.first;
-        });
-      });
+    final sessionUser = ref.watch(currentUserProvider);
+    final isCoach = sessionUser?.role == 'dt';
+    final appCats = ref.watch(appCategoriesProvider);
+    final List<String> coachCats;
+    if (sessionUser?.assignedCategories != null && sessionUser!.assignedCategories!.isNotEmpty) {
+      coachCats = sessionUser.assignedCategories!;
+    } else if (sessionUser?.category != null && sessionUser!.category!.isNotEmpty) {
+      coachCats = [sessionUser.category!];
+    } else {
+      coachCats = [];
+    }
+    final categories = (isCoach && coachCats.isNotEmpty) ? coachCats : appCats;
+
+    if (_selectedCategory == null || !categories.contains(_selectedCategory)) {
+      if (categories.isNotEmpty) {
+        _selectedCategory = categories.first;
+      }
     }
 
-    final scorersAsync = ref.watch(scorersStreamProvider(_selectedCategory));
+    final scorersAsync = ref.watch(scorersStreamProvider(_selectedCategory ?? ''));
 
     return Scaffold(
       backgroundColor: context.colors.background,

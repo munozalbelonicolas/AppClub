@@ -11,6 +11,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/birthday_service.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -162,11 +163,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String eventType = isDT ? 'partido' : 'ninguno';
     bool hasTransport = false;
     String? selectedOpponentId;
+    bool isPublishing = false;
 
     final appCategories = ref.read(appCategoriesProvider);
     final List<String> categories = ['all', ...appCategories];
 
     final List<Map<String, String>> imagePresets = [
+      {
+        'label': 'Comunicado',
+        'url':
+            'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+      },
       {
         'label': 'Entrenamiento',
         'url':
@@ -375,6 +382,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               child: Text('Ninguno (Publicación normal)'),
                             ),
                             DropdownMenuItem(
+                              value: 'comunicado',
+                              child: Text('Comunicado Oficial 📢'),
+                            ),
+                            DropdownMenuItem(
                               value: 'partido',
                               child: Text('Partido'),
                             ),
@@ -399,7 +410,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (val != null) {
                               setDialogState(() {
                                 eventType = val;
-                                if (eventType == 'ninguno') {
+                                if (eventType == 'ninguno' ||
+                                    eventType == 'comunicado') {
                                   hasTransport = false;
                                   selectedOpponentId = null;
                                 }
@@ -408,7 +420,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           },
                         ),
                       ],
-                      if (eventType != 'ninguno') ...[
+                      if (eventType != 'ninguno' &&
+                          eventType != 'comunicado') ...[
                         const SizedBox(height: 12),
                         // Fecha del Partido / Evento
                         InkWell(
@@ -545,59 +558,109 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
                   ),
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      final firestoreService = ref.read(
-                        firestoreServiceProvider,
-                      );
-                      final dateStr = eventDate != null
-                          ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
-                          : null;
-                      final timeStr = eventTime != null
-                          ? '${eventTime!.hour.toString().padLeft(2, '0')}:${eventTime!.minute.toString().padLeft(2, '0')} hs'
-                          : 'A confirmar';
-                      final venueStr = venueController.text.trim().isNotEmpty
-                          ? venueController.text.trim()
-                          : 'Cancha Principal JN';
+                  onPressed: isPublishing
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setDialogState(() => isPublishing = true);
+                            try {
+                              final firestoreService = ref.read(
+                                firestoreServiceProvider,
+                              );
+                              final dateStr = eventDate != null
+                                  ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
+                                  : null;
+                              final timeStr = eventTime != null
+                                  ? '${eventTime!.hour.toString().padLeft(2, '0')}:${eventTime!.minute.toString().padLeft(2, '0')} hs'
+                                  : 'A confirmar';
+                              final venueStr =
+                                  venueController.text.trim().isNotEmpty
+                                      ? venueController.text.trim()
+                                      : 'Cancha Principal JN';
 
-                      await firestoreService.addNovedad({
-                        'title': titleController.text.trim(),
-                        'body': bodyController.text.trim(),
-                        'imageUrl': selectedImagePath != null
-                            ? selectedImagePath
-                            : selectedPresetImage,
-                        'category': selectedCategory,
-                        'authorId': sessionUser.id,
-                        'authorName':
-                            '${sessionUser.name} ${sessionUser.lastName}',
-                        'authorRole': sessionUser.role,
-                        'isMatch':
-                            eventType ==
-                            'partido', // Kept for backwards compatibility
-                        'eventType': eventType,
-                        'hasTransport': hasTransport,
-                        'opponentClubId': (eventType != 'ninguno')
-                            ? selectedOpponentId
-                            : null,
-                        'eventDate': dateStr,
-                        'read': false,
-                        'eventTime': timeStr,
-                        'time': timeStr,
-                        'location': venueStr,
-                        'venue': venueStr,
-                      });
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Novedad publicada con éxito!'),
-                            backgroundColor: context.colors.success,
+                              String? finalImageUrl = selectedPresetImage;
+                              if (selectedImagePath != null &&
+                                  selectedImagePath!.isNotEmpty) {
+                                if (selectedImagePath!.startsWith('http://') ||
+                                    selectedImagePath!
+                                        .startsWith('https://')) {
+                                  finalImageUrl = selectedImagePath;
+                                } else {
+                                  final localFile = File(selectedImagePath!);
+                                  if (await localFile.exists()) {
+                                    finalImageUrl =
+                                        await ImageUploadService.uploadPostImage(
+                                      localFile,
+                                    );
+                                  }
+                                }
+                              }
+
+                              await firestoreService.addNovedad({
+                                'title': titleController.text.trim(),
+                                'body': bodyController.text.trim(),
+                                'imageUrl': finalImageUrl,
+                                'category': selectedCategory,
+                                'authorId': sessionUser.id,
+                                'authorName': sessionUser.fullName,
+                                'authorRole':
+                                    (sessionUser.role ?? '').toString().isNotEmpty
+                                        ? sessionUser.role
+                                        : 'directivo',
+                                'type': eventType == 'comunicado'
+                                    ? 'comunicado'
+                                    : (eventType == 'partido'
+                                        ? 'partido'
+                                        : 'novedad'),
+                                'isMatch':
+                                    eventType ==
+                                    'partido', // Kept for backwards compatibility
+                                'eventType': eventType,
+                                'hasTransport': hasTransport,
+                                'opponentClubId': (eventType != 'ninguno' &&
+                                        eventType != 'comunicado')
+                                    ? selectedOpponentId
+                                    : null,
+                                'eventDate': dateStr,
+                                'read': false,
+                                'eventTime': timeStr,
+                                'time': timeStr,
+                                'location': venueStr,
+                                'venue': venueStr,
+                              });
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                        'Novedad publicada con éxito!'),
+                                    backgroundColor: context.colors.success,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setDialogState(() => isPublishing = false);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error al publicar: $e'),
+                                    backgroundColor: context.colors.error,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                  child: isPublishing
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
                           ),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Publicar'),
+                        )
+                      : const Text('Publicar'),
                 ),
               ],
             );
@@ -656,15 +719,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     const Map<String, dynamic>? player = null;
     const Map<String, dynamic>? pendingPayment = null;
 
-    String categoriesStr = sessionUser.assignedCategories?.isNotEmpty == true
-        ? sessionUser.assignedCategories!.join(',')
-        : (sessionUser.category ?? '');
-
-    if (sessionUser.role == 'tutor' &&
-        selectedChild != null &&
-        selectedChild['category'] != null) {
-      categoriesStr = selectedChild['category'] as String;
+    final List<String> relevantCategories = [];
+    if (sessionUser.assignedCategories?.isNotEmpty == true) {
+      relevantCategories.addAll(sessionUser.assignedCategories!);
+    } else if (sessionUser.category != null && sessionUser.category!.isNotEmpty) {
+      relevantCategories.add(sessionUser.category!);
     }
+
+    if (sessionUser.role == 'tutor') {
+      final tutorPlayers =
+          ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ??
+              [];
+      for (final p in tutorPlayers) {
+        final cat = p['category']?.toString();
+        if (cat != null && cat.isNotEmpty) {
+          relevantCategories.add(cat);
+        }
+      }
+      if (selectedChild != null && selectedChild['category'] != null) {
+        relevantCategories.add(selectedChild['category'] as String);
+      }
+    }
+
+    final String categoriesStr = relevantCategories.toSet().join(',');
 
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin
@@ -1239,6 +1316,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       return 0;
                     });
 
+                    final rawAuthor = (post['authorName'] ?? post['author'] ?? '')
+                        .toString()
+                        .trim();
+                    final String displayAuthor = (rawAuthor.isNotEmpty &&
+                            rawAuthor.toLowerCase() != 'autor')
+                        ? rawAuthor
+                        : 'Club Jorge Newbery';
+
+                    final rawRole =
+                        (post['authorRole'] ?? '').toString().trim();
+                    final String displayRole = rawRole.isNotEmpty
+                        ? rawRole.toUpperCase()
+                        : (post['type'] == 'birthday' ? 'SISTEMA' : 'DIRECTIVA');
+
+                    final rawCat =
+                        (post['category'] ?? 'all').toString().trim();
+                    final String displayCategory =
+                        (rawCat.isEmpty || rawCat.toLowerCase() == 'all')
+                            ? 'Global'
+                            : rawCat;
+
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
                       child: JNCard(
@@ -1250,7 +1348,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Row(
                               children: [
                                 JNAvatar(
-                                  name: post['authorName'] ?? 'Club',
+                                  name: displayAuthor,
                                   size: 36,
                                 ),
                                 const SizedBox(width: 10),
@@ -1260,11 +1358,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        post['authorName'] ?? 'Autor',
+                                        displayAuthor,
                                         style: context.typography.titleSmall,
                                       ),
                                       Text(
-                                        '${(post['authorRole'] ?? '').toUpperCase()} · ${post['category'] == 'all' ? 'Global' : post['category']}',
+                                        '$displayRole · $displayCategory',
                                         style: context.typography.bodySmall
                                             .copyWith(
                                               color:
@@ -1377,19 +1475,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: context.colors.primary
-                                            .withValues(alpha: 0.1),
+                                        color: (post['eventType'] ==
+                                                    'comunicado' ||
+                                                post['type'] == 'comunicado')
+                                            ? const Color(0xFFD4AF37)
+                                                .withValues(alpha: 0.15)
+                                            : context.colors.primary
+                                                .withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: context.colors.primary,
+                                          color: (post['eventType'] ==
+                                                      'comunicado' ||
+                                                  post['type'] == 'comunicado')
+                                              ? const Color(0xFFD4AF37)
+                                              : context.colors.primary,
                                         ),
                                       ),
                                       child: Text(
-                                        (post['eventType'] as String)
-                                            .toUpperCase(),
+                                        (post['eventType'] == 'comunicado' ||
+                                                post['type'] == 'comunicado')
+                                            ? 'COMUNICADO OFICIAL 📢'
+                                            : (post['eventType'] as String)
+                                                .toUpperCase(),
                                         style: context.typography.labelSmall
                                             .copyWith(
-                                              color: context.colors.primary,
+                                              color: (post['eventType'] ==
+                                                          'comunicado' ||
+                                                      post['type'] ==
+                                                          'comunicado')
+                                                  ? const Color(0xFFD4AF37)
+                                                  : context.colors.primary,
                                               fontWeight: FontWeight.bold,
                                             ),
                                       ),
@@ -2062,26 +2177,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   String _formatDate(String dateStr) {
-    final parts = dateStr.split('-');
-    if (parts.length != 3) return dateStr;
-    final months = [
-      '',
-      'Ene',
-      'Feb',
-      'Mar',
-      'Abr',
-      'May',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dic',
-    ];
-    final day = int.parse(parts[2]);
-    final month = int.parse(parts[1]);
-    return '$day ${months[month]}';
+    try {
+      final parts = dateStr.trim().split('-');
+      if (parts.length != 3) return dateStr;
+      final months = [
+        '',
+        'Ene',
+        'Feb',
+        'Mar',
+        'Abr',
+        'May',
+        'Jun',
+        'Jul',
+        'Ago',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dic',
+      ];
+      final month = int.tryParse(parts[1]) ?? 0;
+      final day = int.tryParse(parts[2].split('T').first.split(' ').first) ?? 0;
+      if (month >= 1 && month <= 12 && day > 0) {
+        return '$day ${months[month]}';
+      }
+      return dateStr;
+    } catch (_) {
+      return dateStr;
+    }
   }
 
   String _formatNumber(int number) {

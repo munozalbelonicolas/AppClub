@@ -6,10 +6,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../home/data/repositories/sponsor_repository.dart';
 
@@ -191,10 +191,21 @@ class SponsorsManagementScreen extends ConsumerWidget {
                       setDialogState(() => isUploading = true);
                       try {
                         String finalImageUrl = selectedPresetImage ?? '';
-                        
-                        if (selectedImagePath != null) {
-                          // Bypass Firebase Storage and save local path directly
-                          finalImageUrl = selectedImagePath!;
+
+                        if (selectedImagePath != null &&
+                            selectedImagePath!.isNotEmpty) {
+                          if (selectedImagePath!.startsWith('http://') ||
+                              selectedImagePath!.startsWith('https://')) {
+                            finalImageUrl = selectedImagePath!;
+                          } else {
+                            final localFile = File(selectedImagePath!);
+                            if (await localFile.exists()) {
+                              finalImageUrl =
+                                  await ImageUploadService.uploadSponsorImage(
+                                localFile,
+                              );
+                            }
+                          }
                         }
 
                         final sponsorRepo = ref.read(sponsorRepositoryProvider);
@@ -308,24 +319,6 @@ class SponsorsManagementScreen extends ConsumerWidget {
                         color: context.colors.textSecondary,
                       ),
                       textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    JNButton(
-                      label: 'Cargar Sponsors de Prueba',
-                      onPressed: () async {
-                        final sponsorRepo = ref.read(sponsorRepositoryProvider);
-                        for (final preset in _presetSponsors) {
-                          await sponsorRepo.addSponsor(preset);
-                        }
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Sponsors de prueba añadidos!'),
-                              backgroundColor: context.colors.success,
-                            ),
-                          );
-                        }
-                      },
                     ),
                   ],
                 ),

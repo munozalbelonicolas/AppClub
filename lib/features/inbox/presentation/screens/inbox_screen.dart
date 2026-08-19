@@ -135,7 +135,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    final isStaff = !currentUser.isNormalUser;
+    final isStaff = currentUser.isAdmin || currentUser.isCoach;
     final categories = ref.watch(appCategoriesProvider);
     final filterOptions = ['Todas', ...categories, 'Tutores', 'DTs'];
 

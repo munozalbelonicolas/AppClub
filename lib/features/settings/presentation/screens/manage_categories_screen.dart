@@ -87,6 +87,9 @@ class ManageCategoriesScreen extends ConsumerWidget {
               decoration: const InputDecoration(labelText: 'Nombre de Categoría (Ej: 2021)'),
               validator: (val) {
                 if (val == null || val.trim().isEmpty) return 'El nombre es requerido';
+                if (!RegExp(r'^\d{4}$').hasMatch(val.trim())) {
+                  return 'Debe ser un año de 4 dígitos (Ej: 2017)';
+                }
                 return null;
               },
             ),

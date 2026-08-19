@@ -21,6 +21,16 @@ class ImageUploadService {
     return _uploadToCloudinary(file);
   }
 
+  /// Upload a novelty / post image and return its secure URL.
+  static Future<String> uploadPostImage(File file) async {
+    return _uploadToCloudinary(file);
+  }
+
+  /// Upload a sponsor image and return its secure URL.
+  static Future<String> uploadSponsorImage(File file) async {
+    return _uploadToCloudinary(file);
+  }
+
   /// Upload a payment receipt image and return its secure URL.
   static Future<String> uploadReceipt(File file, String orderId) async {
     return _uploadToCloudinary(file);

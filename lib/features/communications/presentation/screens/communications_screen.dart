@@ -12,7 +12,6 @@ import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
-import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../data/repositories/announcement_repository.dart';
 import 'story_export_screen.dart';
@@ -371,79 +370,20 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     );
   }
 
-  void _showSeedDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: context.colors.surface,
-        title: const Text('Cargar Comunicados de Prueba'),
-        content: const Text('Esto cargará un par de comunicados oficiales iniciales en Firestore para probar la sección.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () async {
-              final announcementRepo = ref.read(announcementRepositoryProvider);
-              final now = DateTime.now();
-              final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-              
-              await announcementRepo.addAnnouncement({
-                'title': 'Cierre de inscripciones para el torneo',
-                'body': 'Recordamos a los tutores que este viernes vence el plazo para presentar la ficha médica y completar el registro del torneo anual. No se aceptarán prórrogas.',
-                'category': 'administrativo',
-                'priority': 'high',
-                'date': dateStr,
-                'read': false,
-                'authorId': 'usr_dir_01',
-                'authorName': 'Lorena Gómez',
-                'authorRole': 'directivo',
-              });
-
-              await announcementRepo.addAnnouncement({
-                'title': 'Convocatoria amistoso contra Central',
-                'body': 'El sábado jugamos un partido amistoso de preparación contra Rosario Central. La citación es a las 9:00 hs en la puerta del club. Traer indumentaria blanca.',
-                'category': 'Sub-12',
-                'priority': 'normal',
-                'date': dateStr,
-                'read': false,
-                'authorId': 'usr_dt_01',
-                'authorName': 'Pablo Ramírez',
-                'authorRole': 'dt',
-              });
-
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Comunicados de prueba cargados!'),
-                    backgroundColor: context.colors.success,
-                  ),
-                );
-              }
-            },
-            child: const Text('Cargar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final sessionUser = ref.watch(currentUserProvider) ??
         const UserSession(
-          id: 'mock',
-          name: 'Mock',
-          lastName: 'User',
-          email: 'mock@mock.com',
+          id: '',
+          name: 'Usuario',
+          lastName: '',
+          email: '',
           role: 'tutor',
         );
     final isNormalUser = sessionUser.isNormalUser;
+    final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
     final query = UserAnnouncementQuery(category: sessionUser.category, isAdmin: sessionUser.isAdmin);
     final announcementsAsync = ref.watch(userAnnouncementsStreamProvider(query));
-    final clubs = ref.watch(clubsStreamProvider).value ?? [];
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -456,8 +396,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
           unselectedLabelColor: context.colors.textSecondary,
           tabs: const [
             Tab(text: 'Todos'),
-            Tab(text: 'Deportivo'),
-            Tab(text: 'Administrativo'),
+            Tab(text: 'Deportivos'),
+            Tab(text: 'Administrativos'),
           ],
         ),
       ),
@@ -466,14 +406,14 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
               onPressed: () => _showCreateAnnouncementDialog(context, sessionUser, clubs),
               backgroundColor: context.colors.primary,
               child: const Icon(Icons.add, color: Colors.white),
-            ).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack)
+            )
           : null,
       body: announcementsAsync.when(
         data: (announcements) {
           if (announcements.isEmpty) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(32.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -496,13 +436,6 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                       style: context.typography.bodyMedium.copyWith(color: context.colors.textSecondary),
                       textAlign: TextAlign.center,
                     ),
-                    if (!isNormalUser) ...[
-                      const SizedBox(height: 24),
-                      JNButton(
-                        label: 'Cargar Comunicados de Prueba',
-                        onPressed: () => _showSeedDialog(context),
-                      ),
-                    ]
                   ],
                 ),
               ),
@@ -1118,12 +1051,19 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
   }
 
   String _formatDate(String dateStr) {
-    final parts = dateStr.split('-');
-    if (parts.length != 3) return dateStr;
-    final months = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    final day = int.parse(parts[2]);
-    final month = int.parse(parts[1]);
-    return '$day ${months[month]}';
+    try {
+      final parts = dateStr.trim().split('-');
+      if (parts.length != 3) return dateStr;
+      final months = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      final month = int.tryParse(parts[1]) ?? 0;
+      final day = int.tryParse(parts[2].split('T').first.split(' ').first) ?? 0;
+      if (month >= 1 && month <= 12 && day > 0) {
+        return '$day ${months[month]}';
+      }
+      return dateStr;
+    } catch (_) {
+      return dateStr;
+    }
   }
 
   Widget _buildClubLogo(Map<String, dynamic>? club) {

@@ -167,6 +167,6 @@ export const exportPostImage = functions.https.onCall(async (data, context) => {
     };
   } catch (error: any) {
     console.error('Error generating image:', error);
-    throw new functions.https.HttpsError('internal', 'Error interno al generar la imagen', error.message);
+    throw new functions.https.HttpsError('internal', 'No se pudo generar la imagen para exportar. Intente nuevamente.');
   }
 });

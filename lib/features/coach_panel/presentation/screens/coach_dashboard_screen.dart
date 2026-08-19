@@ -19,11 +19,18 @@ import '../../../results/presentation/screens/manage_scorers_screen.dart';
 import 'create_coach_report_screen.dart';
 import 'formation_screen.dart';
 
-class CoachDashboardScreen extends ConsumerWidget {
+class CoachDashboardScreen extends ConsumerStatefulWidget {
   const CoachDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CoachDashboardScreen> createState() => _CoachDashboardScreenState();
+}
+
+class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
+  String? _selectedCategory; // null or 'Todas' means all assigned categories
+
+  @override
+  Widget build(BuildContext context) {
     final sessionUser = ref.watch(currentUserProvider);
     if (sessionUser == null) {
       return Scaffold(
@@ -32,25 +39,61 @@ class CoachDashboardScreen extends ConsumerWidget {
       );
     }
 
+    final List<String> coachCategories = (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty)
+        ? sessionUser.assignedCategories!
+        : (sessionUser.category != null && sessionUser.category!.isNotEmpty
+            ? [sessionUser.category!]
+            : <String>[]);
+
+    if (_selectedCategory != null && _selectedCategory != 'Todas' && !coachCategories.contains(_selectedCategory)) {
+      _selectedCategory = coachCategories.isNotEmpty ? coachCategories.first : 'Todas';
+    }
+
+    final isAllSelected = _selectedCategory == null || _selectedCategory == 'Todas';
+    final activeCategoriesList = isAllSelected ? coachCategories : [_selectedCategory!];
+    final String? effectiveCategory = isAllSelected ? null : _selectedCategory;
+
     final playersAsync = ref.watch(playersStreamProvider);
     final List<Map<String, dynamic>> allPlayers = (playersAsync.valueOrNull ?? [])
         .where((p) => p['role'] == null || p['role'] == 'jugador')
         .where((p) => p['role'] != 'directivo' && p['role'] != 'secretario' && p['role'] != 'dt' && p['role'] != 'tutor' && p['role'] != 'socio')
         .toList();
     
-    // Filter players by assignedCategories or category
+    // Filter players by activeCategoriesList
     final List<Map<String, dynamic>> players = allPlayers.where((p) {
-      if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
-        return sessionUser.assignedCategories!.contains(p['category']);
+      if (activeCategoriesList.isNotEmpty) {
+        return activeCategoriesList.contains(p['category']);
       }
-      return p['category'] == sessionUser.category;
+      return sessionUser.category != null ? p['category'] == sessionUser.category : true;
     }).toList();
     
-    final String activeCat = (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty)
-        ? sessionUser.assignedCategories!.first
-        : (sessionUser.category ?? '');
-    final Map<String, dynamic>? nextMatch = ref.watch(nextMatchProvider(activeCat));
+    final Map<String, dynamic>? nextMatch;
+    if (!isAllSelected) {
+      nextMatch = ref.watch(nextMatchProvider(_selectedCategory!));
+    } else {
+      Map<String, dynamic>? soonest;
+      for (final cat in coachCategories) {
+        final m = ref.watch(nextMatchProvider(cat));
+        if (m != null) {
+          if (soonest == null) {
+            soonest = m;
+          } else {
+            final dateA = soonest['date']?.toString() ?? '';
+            final dateB = m['date']?.toString() ?? '';
+            if (dateB.isNotEmpty && (dateA.isEmpty || dateB.compareTo(dateA) < 0)) {
+              soonest = m;
+            }
+          }
+        }
+      }
+      nextMatch = soonest ?? (coachCategories.isEmpty ? ref.watch(nextMatchProvider('')) : null);
+    }
     final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
+
+    final allMatches = ref.watch(matchesStreamProvider).valueOrNull ?? [];
+    final categoryMatches = allMatches
+        .where((m) => activeCategoriesList.contains(m['category']?.toString()))
+        .toList();
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -60,7 +103,13 @@ class CoachDashboardScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.add_circle_outline, size: 24),
             tooltip: 'Programar Partido',
-            onPressed: () => _showCreateMatchDialog(context, ref, sessionUser, clubs),
+            onPressed: () => _showCreateMatchDialog(
+              context,
+              ref,
+              sessionUser,
+              clubs,
+              defaultCategory: effectiveCategory,
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined, size: 22),
@@ -91,7 +140,7 @@ class CoachDashboardScreen extends ConsumerWidget {
                         style: context.typography.titleLarge,
                       ),
                       Text(
-                        '${sessionUser.assignedCategories?.join(', ') ?? sessionUser.category ?? 'Sin categoría'} • Temporada ${DateTime.now().year}',
+                        '${coachCategories.isNotEmpty ? coachCategories.join(', ') : (sessionUser.category ?? 'Sin categoría')} • Temporada ${DateTime.now().year}',
                         style: context.typography.bodySmall,
                       ),
                     ],
@@ -101,6 +150,63 @@ class CoachDashboardScreen extends ConsumerWidget {
               ],
             ),
           ).animate().fadeIn(duration: 400.ms),
+
+          // ─── Category Filter Selector (if multiple categories) ───────
+          if (coachCategories.length > 1) ...[
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text('Todas (${coachCategories.length})'),
+                      selected: isAllSelected,
+                      selectedColor: context.colors.primary.withValues(alpha: 0.2),
+                      side: BorderSide(
+                        color: isAllSelected ? context.colors.primary : context.colors.border,
+                        width: isAllSelected ? 1.5 : 0.5,
+                      ),
+                      labelStyle: TextStyle(
+                        color: isAllSelected ? context.colors.primary : context.colors.textSecondary,
+                        fontWeight: isAllSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() => _selectedCategory = 'Todas');
+                        }
+                      },
+                    ),
+                  ),
+                  ...coachCategories.map((cat) {
+                    final isSelected = !isAllSelected && _selectedCategory == cat;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text('Categoría $cat'),
+                        selected: isSelected,
+                        selectedColor: context.colors.primary.withValues(alpha: 0.2),
+                        side: BorderSide(
+                          color: isSelected ? context.colors.primary : context.colors.border,
+                          width: isSelected ? 1.5 : 0.5,
+                        ),
+                        labelStyle: TextStyle(
+                          color: isSelected ? context.colors.primary : context.colors.textSecondary,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() => _selectedCategory = cat);
+                          }
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ).animate().fadeIn(duration: 300.ms),
+          ],
 
           const SizedBox(height: 20),
 
@@ -115,27 +221,29 @@ class CoachDashboardScreen extends ConsumerWidget {
             children: [
               JNStatCard(
                 value: '${players.length}',
-                label: 'Jugadores',
+                label: isAllSelected ? 'Jugadores' : 'Jugadores ($effectiveCategory)',
                 icon: Icons.groups,
                 color: context.colors.info,
               ),
               JNStatCard(
-                value: '13',
-                label: 'Puntos',
-                icon: Icons.emoji_events,
-                color: context.colors.accent,
-              ),
-              JNStatCard(
-                value: '1°',
-                label: 'Posición',
-                icon: Icons.leaderboard,
-                color: context.colors.success,
-              ),
-              JNStatCard(
-                value: '5',
+                value: '${categoryMatches.length}',
                 label: 'Partidos',
                 icon: Icons.sports_soccer,
                 color: context.colors.primary,
+              ),
+              JNStatCard(
+                value: isAllSelected
+                    ? '${coachCategories.where((c) => c.isNotEmpty).length}'
+                    : 'Cat. $effectiveCategory',
+                label: isAllSelected ? 'Categorías' : 'Categoría Activa',
+                icon: Icons.category,
+                color: context.colors.accent,
+              ),
+              JNStatCard(
+                value: nextMatch != null ? 'Programado' : 'Sin fecha',
+                label: 'Próximo Partido',
+                icon: Icons.event,
+                color: nextMatch != null ? context.colors.success : context.colors.textTertiary,
               ),
             ],
           ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
@@ -224,123 +332,178 @@ class CoachDashboardScreen extends ConsumerWidget {
           JNSectionHeader(
             title: 'Próximo partido',
             actionLabel: '+ Programar Partido',
-            onAction: () => _showCreateMatchDialog(context, ref, sessionUser, clubs),
+            onAction: () => _showCreateMatchDialog(
+              context,
+              ref,
+              sessionUser,
+              clubs,
+              defaultCategory: effectiveCategory,
+            ),
             padding: EdgeInsets.zero,
           ),
           const SizedBox(height: 12),
           if (nextMatch != null) ...[
-            JNCard(
-              padding: const EdgeInsets.all(16),
-              border: Border.all(
-                color: context.colors.primary.withValues(alpha: 0.2),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Builder(
+              builder: (context) {
+                final currentMatch = nextMatch!;
+                return JNCard(
+                  padding: const EdgeInsets.all(16),
+                  border: Border.all(
+                    color: context.colors.primary.withValues(alpha: 0.2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.sports_soccer,
-                              size: 18,
-                              color: context.colors.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
-                                style: context.typography.titleMedium,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.edit_outlined, color: context.colors.primary, size: 20),
-                        tooltip: 'Editar Partido',
-                        onPressed: () => _showEditMatchDialog(context, ref, sessionUser, clubs, nextMatch),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete_outline, color: context.colors.error, size: 20),
-                        tooltip: 'Eliminar Partido',
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Eliminar Partido'),
-                              content: const Text('¿Estás seguro de que deseas eliminar este partido programado?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.sports_soccer,
+                                  size: 18,
+                                  color: context.colors.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${currentMatch['homeTeam']} vs ${currentMatch['awayTeam']}',
+                                    style: context.typography.titleMedium,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
-                          );
-                          if (confirm == true) {
-                            if (nextMatch['source'] == 'novedad') {
-                              await ref.read(firestoreServiceProvider).deleteNovedad(nextMatch['id']);
-                            }
-                          }
-                        },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.edit_outlined, color: context.colors.primary, size: 20),
+                            tooltip: 'Editar Partido',
+                            onPressed: () => _showEditMatchDialog(context, ref, sessionUser, clubs, currentMatch),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete_outline, color: context.colors.error, size: 20),
+                            tooltip: 'Eliminar Partido',
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Eliminar Partido'),
+                                  content: const Text('¿Estás seguro de que deseas eliminar este partido programado?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                if (currentMatch['source'] == 'novedad') {
+                                  await ref.read(firestoreServiceProvider).deleteNovedad(currentMatch['id']);
+                                }
+                              }
+                            },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${nextMatch['date']} · ${nextMatch['time']} · ${nextMatch['venue']}',
-                    style: context.typography.bodySmall,
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.list_alt,
-                          label: 'Convocatoria',
-                          color: context.colors.primary,
-                          onTap: () {},
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.format_list_numbered,
-                          label: 'Formación',
-                          color: context.colors.accent,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => FormationScreen(matchId: nextMatch['id']),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          if (currentMatch['category'] != null && currentMatch['category'].toString().isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: context.colors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                            );
-                          },
-                        ),
+                              child: Text(
+                                'Cat. ${currentMatch['category']}',
+                                style: context.typography.labelSmall.copyWith(
+                                  color: context.colors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(
+                            child: Text(
+                              '${currentMatch['date']} · ${currentMatch['time']} · ${currentMatch['venue']}',
+                              style: context.typography.bodySmall,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.note_add,
-                          label: 'Notas',
-                          color: context.colors.info,
-                          onTap: () {},
-                        ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ActionButton(
+                              icon: Icons.list_alt,
+                              label: 'Convocatoria',
+                              color: context.colors.primary,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const LineupScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _ActionButton(
+                              icon: Icons.format_list_numbered,
+                              label: 'Formación',
+                              color: context.colors.accent,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FormationScreen(matchId: currentMatch['id']),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _ActionButton(
+                              icon: Icons.note_add,
+                              label: 'Notas',
+                              color: context.colors.info,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CreateCoachReportScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             ).animate(delay: 200.ms).fadeIn(duration: 400.ms),
           ] else ...[
             JNCard(
               padding: const EdgeInsets.all(16),
-              onTap: () => _showCreateMatchDialog(context, ref, sessionUser, clubs),
+              onTap: () => _showCreateMatchDialog(
+                context,
+                ref,
+                sessionUser,
+                clubs,
+                defaultCategory: effectiveCategory,
+              ),
               child: Row(
                 children: [
                   Icon(Icons.add_circle_outline, color: context.colors.primary, size: 28),
@@ -364,7 +527,11 @@ class CoachDashboardScreen extends ConsumerWidget {
 
           // ─── Squad ────────────────────────────────
           JNSectionHeader(
-            title: 'Plantel ${sessionUser.assignedCategories?.join(', ') ?? sessionUser.category ?? 'Sin categoría'}',
+            title: !isAllSelected
+                ? 'Plantel Categoría $_selectedCategory'
+                : (coachCategories.length > 1
+                    ? 'Plantel (${coachCategories.join(', ')})'
+                    : 'Plantel ${coachCategories.isNotEmpty ? coachCategories.first : 'General'}'),
             actionLabel: '${players.length} jugadores',
             padding: EdgeInsets.zero,
           ),
@@ -423,13 +590,33 @@ class CoachDashboardScreen extends ConsumerWidget {
                                         player['position']?.toString() ?? 'Sin Posición',
                                         style: context.typography.bodySmall,
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 6),
                                       Text('·', style: context.typography.bodySmall),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 6),
                                       Text(
                                         '${player['age'] ?? '-'} años',
                                         style: context.typography.bodySmall,
                                       ),
+                                      if (isAllSelected && coachCategories.length > 1 && player['category'] != null) ...[
+                                        const SizedBox(width: 6),
+                                        Text('·', style: context.typography.bodySmall),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: context.colors.primary.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'Cat. ${player['category']}',
+                                            style: context.typography.labelSmall.copyWith(
+                                              color: context.colors.primary,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ],
@@ -597,20 +784,29 @@ void _showCreateMatchDialog(
   BuildContext context,
   WidgetRef ref,
   dynamic sessionUser,
-  List<Map<String, dynamic>> clubs,
-) {
+  List<Map<String, dynamic>> clubs, {
+  String? defaultCategory,
+}) {
   final titleController = TextEditingController(text: 'Partido Amistoso');
   final bodyController = TextEditingController(text: 'Convocatoria y detalles del partido');
   final venueController = TextEditingController(text: 'Cancha Principal JN');
   final formKey = GlobalKey<FormState>();
 
+  final appCategories = ref.read(appCategoriesProvider);
+  final List<String> coachCategories = (sessionUser.assignedCategories != null && (sessionUser.assignedCategories as List).isNotEmpty)
+      ? List<String>.from(sessionUser.assignedCategories)
+      : (sessionUser.category != null && sessionUser.category.toString().isNotEmpty
+          ? [sessionUser.category.toString()]
+          : <String>[]);
+  final availableCategories = coachCategories.isNotEmpty ? coachCategories : appCategories;
+
   DateTime? eventDate;
   TimeOfDay? eventTime;
   bool hasTransport = false;
   String? selectedOpponentId;
-  String selectedCategory = (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty)
-      ? sessionUser.assignedCategories!.first
-      : (sessionUser.category ?? 'Sub-12');
+  String selectedCategory = (defaultCategory != null && defaultCategory != 'Todas' && availableCategories.contains(defaultCategory))
+      ? defaultCategory
+      : (availableCategories.isNotEmpty ? availableCategories.first : '');
 
   showDialog(
     context: context,
@@ -634,6 +830,31 @@ void _showCreateMatchDialog(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (availableCategories.isNotEmpty) ...[
+                      DropdownButtonFormField<String>(
+                        dropdownColor: context.colors.surface,
+                        initialValue: selectedCategory.isNotEmpty && availableCategories.contains(selectedCategory) ? selectedCategory : availableCategories.first,
+                        decoration: const InputDecoration(
+                          labelText: 'Categoría del Partido *',
+                          prefixIcon: Icon(Icons.category),
+                        ),
+                        items: availableCategories.map((cat) {
+                          return DropdownMenuItem<String>(
+                            value: cat,
+                            child: Text('Categoría $cat', style: context.typography.bodyLarge),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedCategory = val;
+                            });
+                          }
+                        },
+                        validator: (val) => (val == null || val.isEmpty) ? 'Selecciona una categoría' : null,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     TextFormField(
                       controller: titleController,
                       style: context.typography.bodyLarge,
@@ -663,6 +884,7 @@ void _showCreateMatchDialog(
                           initialDate: eventDate ?? DateTime.now(),
                           firstDate: DateTime.now().subtract(const Duration(days: 30)),
                           lastDate: DateTime.now().add(const Duration(days: 365)),
+                          locale: const Locale('es', 'ES'),
                         );
                         if (picked != null) {
                           setDialogState(() {
@@ -836,10 +1058,18 @@ void _showEditMatchDialog(
   List<Map<String, dynamic>> clubs,
   Map<String, dynamic> match,
 ) {
-  final titleController = TextEditingController(text: match['title'] ?? match['homeTeam'] != null ? '${match['homeTeam']} vs ${match['awayTeam']}' : 'Partido');
+  final titleController = TextEditingController(text: match['title'] ?? (match['homeTeam'] != null ? '${match['homeTeam']} vs ${match['awayTeam']}' : 'Partido'));
   final bodyController = TextEditingController(text: match['body'] ?? '');
   final venueController = TextEditingController(text: match['venue'] ?? match['location'] ?? 'Cancha Principal JN');
   final formKey = GlobalKey<FormState>();
+
+  final appCategories = ref.read(appCategoriesProvider);
+  final List<String> coachCategories = (sessionUser.assignedCategories != null && (sessionUser.assignedCategories as List).isNotEmpty)
+      ? List<String>.from(sessionUser.assignedCategories)
+      : (sessionUser.category != null && sessionUser.category.toString().isNotEmpty
+          ? [sessionUser.category.toString()]
+          : <String>[]);
+  final availableCategories = coachCategories.isNotEmpty ? coachCategories : appCategories;
 
   DateTime? eventDate;
   if (match['date'] != null) {
@@ -866,9 +1096,12 @@ void _showEditMatchDialog(
 
   bool hasTransport = match['hasTransport'] == true;
   String? selectedOpponentId = match['opponentClubId'];
-  String selectedCategory = match['category'] ?? (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty
-      ? sessionUser.assignedCategories!.first
-      : (sessionUser.category ?? 'Sub-12'));
+  String selectedCategory = (match['category'] != null && match['category'].toString().isNotEmpty)
+      ? match['category'].toString()
+      : (availableCategories.isNotEmpty ? availableCategories.first : '');
+  if (!availableCategories.contains(selectedCategory) && selectedCategory.isNotEmpty) {
+    availableCategories.insert(0, selectedCategory);
+  }
 
   showDialog(
     context: context,
@@ -892,6 +1125,31 @@ void _showEditMatchDialog(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (availableCategories.isNotEmpty) ...[
+                      DropdownButtonFormField<String>(
+                        dropdownColor: context.colors.surface,
+                        initialValue: selectedCategory.isNotEmpty && availableCategories.contains(selectedCategory) ? selectedCategory : availableCategories.first,
+                        decoration: const InputDecoration(
+                          labelText: 'Categoría del Partido *',
+                          prefixIcon: Icon(Icons.category),
+                        ),
+                        items: availableCategories.map((cat) {
+                          return DropdownMenuItem<String>(
+                            value: cat,
+                            child: Text('Categoría $cat', style: context.typography.bodyLarge),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedCategory = val;
+                            });
+                          }
+                        },
+                        validator: (val) => (val == null || val.isEmpty) ? 'Selecciona una categoría' : null,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     TextFormField(
                       controller: titleController,
                       style: context.typography.bodyLarge,

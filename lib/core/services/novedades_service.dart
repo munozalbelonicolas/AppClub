@@ -5,40 +5,77 @@ class NovedadesService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   Stream<List<Map<String, dynamic>>> getAllNovedades() {
-    return _db
-        .collection('novedades')
-        .orderBy('createdAt', descending: true)
-        .limit(20)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => {'id': doc.id, ...doc.data()})
-              .toList(),
-        );
+    return _db.collection('novedades').snapshots().map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => {'id': doc.id, ...doc.data()})
+          .toList();
+      _sortNovedades(list);
+      return list;
+    });
   }
 
-  Stream<List<Map<String, dynamic>>> getNovedadesForUser(List<String>? userCategories) {
-    final List<String> categoriesToQuery = ['all'];
-    if (userCategories != null && userCategories.isNotEmpty) {
-      categoriesToQuery.addAll(userCategories.where((c) => c.isNotEmpty));
-    }
-    return _db
-        .collection('novedades')
-        .where('category', whereIn: categoriesToQuery)
-        .snapshots()
-        .map((snapshot) {
-          final list = snapshot.docs
-              .map((doc) => {'id': doc.id, ...doc.data()})
-              .toList();
-          list.sort((a, b) {
-            final aTime = a['createdAt'] as Timestamp?;
-            final bTime = b['createdAt'] as Timestamp?;
-            if (aTime == null) return 1;
-            if (bTime == null) return -1;
-            return bTime.compareTo(aTime);
-          });
-          return list;
-        });
+  Stream<List<Map<String, dynamic>>> getNovedadesForUser(
+    List<String>? userCategories,
+  ) {
+    return _db.collection('novedades').snapshots().map((snapshot) {
+      final userCats = (userCategories ?? [])
+          .map((c) => c.toString().trim().toLowerCase())
+          .where((c) => c.isNotEmpty)
+          .toSet();
+
+      final list = snapshot.docs
+          .map((doc) => {'id': doc.id, ...doc.data()})
+          .where((doc) {
+        final rawCat =
+            (doc['category'] ?? 'all').toString().trim().toLowerCase();
+
+        final bool isGlobal = rawCat.isEmpty ||
+            rawCat == 'all' ||
+            rawCat == 'todos' ||
+            rawCat == 'general' ||
+            rawCat == 'club' ||
+            rawCat == 'sin categoría' ||
+            rawCat == 'sin categoria';
+
+        if (isGlobal) return true;
+        if (userCats.isEmpty) return true;
+        return userCats.contains(rawCat);
+      }).toList();
+
+      _sortNovedades(list);
+      return list;
+    });
+  }
+
+  void _sortNovedades(List<Map<String, dynamic>> list) {
+    list.sort((a, b) {
+      DateTime? timeA;
+      DateTime? timeB;
+
+      final rawA = a['createdAt'] ?? a['date'] ?? a['postedAt'];
+      final rawB = b['createdAt'] ?? b['date'] ?? b['postedAt'];
+
+      if (rawA is Timestamp) {
+        timeA = rawA.toDate();
+      } else if (rawA is DateTime) {
+        timeA = rawA;
+      } else if (rawA is String) {
+        timeA = DateTime.tryParse(rawA);
+      }
+
+      if (rawB is Timestamp) {
+        timeB = rawB.toDate();
+      } else if (rawB is DateTime) {
+        timeB = rawB;
+      } else if (rawB is String) {
+        timeB = DateTime.tryParse(rawB);
+      }
+
+      if (timeA == null && timeB == null) return 0;
+      if (timeA == null) return 1;
+      if (timeB == null) return -1;
+      return timeB.compareTo(timeA); // Newest first
+    });
   }
 
   Future<void> addNovedad(Map<String, dynamic> novedadData) async {

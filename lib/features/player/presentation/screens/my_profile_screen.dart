@@ -7,7 +7,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/models/user_session.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/app_logger.dart';
 import '../../../../core/services/firestore_service.dart';
@@ -183,17 +182,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           .doc(user.id)
           .update(updatedData);
 
-      // Update local state
-      final updatedSession = UserSession(
-        id: user.id,
+      final updatedSession = user.copyWith(
         name: _nameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        email: user.email,
-        role: user.role,
         category: (user.role == 'directivo' || user.role == 'secretario')
             ? null
             : (user.role == 'jugador' ? (computedCategory ?? user.category) : user.category),
-        childId: user.childId,
         dni: _dniController.text.trim(),
         weight: user.role == 'jugador' ? _weightController.text.trim() : null,
         height: user.role == 'jugador' ? _heightController.text.trim() : null,
@@ -203,7 +197,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         motherName: user.role == 'jugador' ? _motherNameController.text.trim() : null,
         aptoFisicoUrl: user.role == 'jugador' ? _aptoFisicoPath : null,
         aptoFisicoExpiry: user.role == 'jugador' ? _aptoFisicoExpiry : null,
-        hasPendingDebt: user.hasPendingDebt,
         avatarUrl: _avatarPath,
         phone1: _phone1Controller.text.trim(),
         phone2: _phone2Controller.text.trim(),
@@ -603,7 +596,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
                   const SizedBox(height: 20),
 
-                  if (user.role != 'jugador') ...[
+                  if (user.role == 'tutor') ...[
                     // Hijos / Jugadores a cargo
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
