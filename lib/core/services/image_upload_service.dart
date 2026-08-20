@@ -61,19 +61,26 @@ class ImageUploadService {
   }
 
   static Future<File> _compressFile(File file) async {
-    final dir = await getTemporaryDirectory();
-    final targetPath = '${dir.absolute.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    try {
+      final dir = await getTemporaryDirectory();
+      final targetPath = '${dir.absolute.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-    final result = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path,
-      targetPath,
-      quality: 80,
-      minWidth: 800,
-      minHeight: 800,
-    );
+      final result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        targetPath,
+        quality: 80,
+        minWidth: 1080,
+        minHeight: 1080,
+      );
 
-    if (result != null) {
-      return File(result.path);
+      if (result != null) {
+        final compressedFile = File(result.path);
+        if (await compressedFile.exists() && await compressedFile.length() > 0) {
+          return compressedFile;
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Image compression failed, proceeding with original file', error: e, tag: 'ImageUpload');
     }
     return file;
   }

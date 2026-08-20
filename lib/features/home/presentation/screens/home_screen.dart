@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/providers/convocatoria_provider.dart';
 import '../../../../core/providers/session_provider.dart';
@@ -43,7 +42,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Set<String> _markedSeenPostIds = {};
   final Map<String, TextEditingController> _commentControllers = {};
 
-  void _confirmAttendance(String matchId, String playerId, String playerName) async {
+  void _confirmAttendance(
+    String matchId,
+    String playerId,
+    String playerName,
+  ) async {
     try {
       await updateConvocatoriaStatus(
         matchId: matchId,
@@ -111,7 +114,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: context.colors.textSecondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -133,7 +139,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Aviso enviado al DT: $playerName no asistirá.'),
+                      content: Text(
+                        'Aviso enviado al DT: $playerName no asistirá.',
+                      ),
                       backgroundColor: context.colors.error,
                       duration: const Duration(seconds: 2),
                     ),
@@ -160,17 +168,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildTutorConvocatoriaCard(Map<String, dynamic> item) {
     final match = item['match'] as Map<String, dynamic>? ?? {};
     final conv = item['convocatoria'] as Map<String, dynamic>? ?? {};
-    final matchId = item['matchId'] as String? ?? match['id'] as String? ?? item['id'] as String? ?? '';
-    final playerId = item['playerId'] as String? ?? conv['playerId'] as String? ?? conv['id'] as String? ?? '';
-    final playerName = item['playerName'] ?? conv['name'] ?? item['name'] ?? 'Jugador';
-    final category = item['category'] as String? ?? conv['category'] as String? ?? '';
-    final rival = item['awayTeam'] ?? match['awayTeam'] ?? item['homeTeam'] ?? match['homeTeam'] ?? 'Partido';
+    final matchId =
+        item['matchId'] as String? ??
+        match['id'] as String? ??
+        item['id'] as String? ??
+        '';
+    final playerId =
+        item['playerId'] as String? ??
+        conv['playerId'] as String? ??
+        conv['id'] as String? ??
+        '';
+    final playerName =
+        item['playerName'] ?? conv['name'] ?? item['name'] ?? 'Jugador';
+    final category =
+        item['category'] as String? ?? conv['category'] as String? ?? '';
+    final rival =
+        item['awayTeam'] ??
+        match['awayTeam'] ??
+        item['homeTeam'] ??
+        match['homeTeam'] ??
+        'Partido';
     final venue = item['venue'] ?? match['venue'] ?? 'Cancha Principal';
     final rawDate = item['date'] ?? match['date'];
     String dateStr = '';
     if (rawDate is Timestamp) {
       final d = rawDate.toDate();
-      dateStr = '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+      dateStr =
+          '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
     } else if (rawDate != null) {
       dateStr = rawDate.toString();
     }
@@ -182,13 +206,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF163D2D),
-            Color(0xFF0D241A),
-          ],
+          colors: [Color(0xFF163D2D), Color(0xFF0D241A)],
         ),
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: const Color(0xFF34D399).withValues(alpha: 0.5), width: 1.5),
+        border: Border.all(
+          color: const Color(0xFF34D399).withValues(alpha: 0.5),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.35),
@@ -206,7 +230,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF34D399).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -215,7 +242,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.sports_soccer, size: 14, color: Color(0xFF34D399)),
+                      Icon(
+                        Icons.sports_soccer,
+                        size: 14,
+                        color: Color(0xFF34D399),
+                      ),
                       SizedBox(width: 5),
                       Text(
                         '¡CONVOCATORIA AL PARTIDO!',
@@ -232,7 +263,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 if (category.isNotEmpty)
                   Text(
                     'Cat. $category',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
               ],
             ),
@@ -248,12 +283,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.shield_outlined, size: 15, color: Colors.white70),
+                const Icon(
+                  Icons.shield_outlined,
+                  size: 15,
+                  color: Colors.white70,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'vs $rival',
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -261,14 +304,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.calendar_today, size: 13, color: Colors.white60),
+                const Icon(
+                  Icons.calendar_today,
+                  size: 13,
+                  color: Colors.white60,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   '$dateStr${timeStr.isNotEmpty ? " · $timeStr hs" : ""}',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(width: 14),
-                const Icon(Icons.location_on_outlined, size: 14, color: Colors.white60),
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: Colors.white60,
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -294,11 +345,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       elevation: 2,
                     ),
-                    onPressed: () => _confirmAttendance(matchId, playerId, playerName),
+                    onPressed: () =>
+                        _confirmAttendance(matchId, playerId, playerName),
                     icon: const Icon(Icons.check_circle_outline, size: 18),
                     label: const Text(
                       'Confirmar',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
@@ -313,11 +368,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: () => _rejectAttendance(matchId, playerId, playerName),
+                    onPressed: () =>
+                        _rejectAttendance(matchId, playerId, playerName),
                     icon: const Icon(Icons.cancel_outlined, size: 18),
                     label: const Text(
                       'No puede ir',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
@@ -433,9 +492,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final titleController = TextEditingController();
     final bodyController = TextEditingController();
     final formKey = GlobalKey<FormState>();
-
     String? selectedImagePath;
-    String? selectedPresetImage;
     DateTime? eventDate;
     TimeOfDay? eventTime;
     final venueController = TextEditingController(text: 'Cancha Principal JN');
@@ -444,7 +501,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String selectedCategory = 'all';
     final bool isDT = sessionUser.role == 'dt';
     if (isDT) {
-      if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
+      if (sessionUser.assignedCategories != null &&
+          sessionUser.assignedCategories!.isNotEmpty) {
         selectedCategory = sessionUser.assignedCategories!.first;
       } else if (sessionUser.category != null) {
         selectedCategory = sessionUser.category!;
@@ -458,29 +516,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final appCategories = ref.read(appCategoriesProvider);
     final List<String> categories = ['all', ...appCategories];
-
-    final List<Map<String, String>> imagePresets = [
-      {
-        'label': 'Comunicado',
-        'url':
-            'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-      },
-      {
-        'label': 'Entrenamiento',
-        'url':
-            'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-      },
-      {
-        'label': 'Partido',
-        'url':
-            'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-      },
-      {
-        'label': 'Festejo',
-        'url':
-            'https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-      },
-    ];
 
     showDialog(
       context: context,
@@ -532,7 +567,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Imagen de la publicación',
+                        'Foto de la publicación (opcional)',
                         style: context.typography.labelSmall.copyWith(
                           color: context.colors.textTertiary,
                         ),
@@ -548,21 +583,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           if (file != null) {
                             setDialogState(() {
                               selectedImagePath = file.path;
-                              selectedPresetImage = null; // Clear preset
                             });
                           }
                         },
                         child: Container(
-                          height: 120,
+                          height: 140,
                           decoration: BoxDecoration(
                             color: context.colors.surfaceLight,
                             borderRadius: BorderRadius.circular(
                               AppSpacing.radiusMd,
                             ),
                             border: Border.all(
-                              color:
-                                  selectedImagePath == null &&
-                                      selectedPresetImage == null
+                              color: selectedImagePath == null
                                   ? context.colors.border
                                   : context.colors.primary,
                             ),
@@ -570,68 +602,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           clipBehavior: Clip.antiAlias,
                           child: _buildImagePreview(
                             selectedImagePath,
-                            selectedPresetImage,
                             context,
+                            onRemove: selectedImagePath != null
+                                ? () {
+                                    setDialogState(() {
+                                      selectedImagePath = null;
+                                    });
+                                  }
+                                : null,
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // Presets image selection
-                      Text(
-                        'Imágenes rápidas:',
-                        style: context.typography.labelSmall.copyWith(
-                          color: context.colors.textTertiary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        children: imagePresets.map((preset) {
-                          final bool isSelected =
-                              selectedPresetImage == preset['url'];
-                          return ChoiceChip(
-                            selected: isSelected,
-                            label: Text(preset['label']!),
-                            labelStyle: context.typography.labelSmall.copyWith(
-                              color: isSelected
-                                  ? Colors.white
-                                  : context.colors.textPrimary,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.w500,
-                            ),
-                            selectedColor: context.colors.primary,
-                            backgroundColor: context.colors.surface,
-                            side: BorderSide(
-                              color: isSelected
-                                  ? context.colors.primary
-                                  : context.colors.border,
-                            ),
-                            onSelected: (selected) {
-                              setDialogState(() {
-                                selectedPresetImage = preset['url']!;
-                                selectedImagePath = null; // Clear local image
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 12),
-                      // Category selection
+                      // Category selectionategory selection
                       if (isDT) ...[
-                        if ((sessionUser.assignedCategories?.length ?? 0) > 1) ...[
+                        if ((sessionUser.assignedCategories?.length ?? 0) >
+                            1) ...[
                           DropdownButtonFormField<String>(
                             dropdownColor: context.colors.surface,
                             value: selectedCategory,
                             decoration: const InputDecoration(
                               labelText: 'Categoría',
                             ),
-                            items: List<String>.from(sessionUser.assignedCategories!).map((cat) {
-                              return DropdownMenuItem<String>(
-                                value: cat,
-                                child: Text(cat, style: context.typography.bodyLarge),
-                              );
-                            }).toList(),
+                            items:
+                                List<String>.from(
+                                  sessionUser.assignedCategories!,
+                                ).map((cat) {
+                                  return DropdownMenuItem<String>(
+                                    value: cat,
+                                    child: Text(
+                                      cat,
+                                      style: context.typography.bodyLarge,
+                                    ),
+                                  );
+                                }).toList(),
                             onChanged: (val) {
                               if (val != null) {
                                 setDialogState(() => selectedCategory = val);
@@ -741,8 +745,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             final picked = await showDatePicker(
                               context: context,
                               initialDate: eventDate ?? DateTime.now(),
-                              firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                              firstDate: DateTime.now().subtract(
+                                const Duration(days: 30),
+                              ),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
                             );
                             if (picked != null) {
                               setDialogState(() {
@@ -760,7 +768,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ? '${eventDate!.day.toString().padLeft(2, '0')}/${eventDate!.month.toString().padLeft(2, '0')}/${eventDate!.year}'
                                   : 'Seleccionar Fecha',
                               style: context.typography.bodyLarge.copyWith(
-                                color: eventDate != null ? null : context.colors.textTertiary,
+                                color: eventDate != null
+                                    ? null
+                                    : context.colors.textTertiary,
                               ),
                             ),
                           ),
@@ -789,7 +799,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ? '${eventTime!.hour.toString().padLeft(2, '0')}:${eventTime!.minute.toString().padLeft(2, '0')} hs'
                                   : 'Seleccionar Hora',
                               style: context.typography.bodyLarge.copyWith(
-                                color: eventTime != null ? null : context.colors.textTertiary,
+                                color: eventTime != null
+                                    ? null
+                                    : context.colors.textTertiary,
                               ),
                             ),
                           ),
@@ -887,26 +899,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   : 'A confirmar';
                               final venueStr =
                                   venueController.text.trim().isNotEmpty
-                                      ? venueController.text.trim()
-                                      : 'Cancha Principal JN';
+                                  ? venueController.text.trim()
+                                  : 'Cancha Principal JN';
 
-                              String? finalImageUrl = selectedPresetImage;
+                              String? finalImageUrl;
                               if (selectedImagePath != null &&
-                                  selectedImagePath!.isNotEmpty) {
+                                  selectedImagePath!.trim().isNotEmpty) {
                                 if (selectedImagePath!.startsWith('http://') ||
-                                    selectedImagePath!
-                                        .startsWith('https://')) {
-                                  finalImageUrl = selectedImagePath;
+                                    selectedImagePath!.startsWith('https://')) {
+                                  finalImageUrl = selectedImagePath!.trim();
                                 } else {
                                   final localFile = File(selectedImagePath!);
                                   if (await localFile.exists()) {
                                     finalImageUrl =
                                         await ImageUploadService.uploadPostImage(
-                                      localFile,
-                                    );
+                                          localFile,
+                                        );
                                   }
                                 }
                               }
+
+                              final opponentClub = selectedOpponentId != null
+                                  ? clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull
+                                  : null;
+                              final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
 
                               await firestoreService.addNovedad({
                                 'title': titleController.text.trim(),
@@ -916,30 +932,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 'authorId': sessionUser.id,
                                 'authorName': sessionUser.fullName,
                                 'authorRole':
-                                    (sessionUser.role ?? '').toString().isNotEmpty
-                                        ? sessionUser.role
-                                        : 'directivo',
+                                    (sessionUser.role ?? '')
+                                        .toString()
+                                        .isNotEmpty
+                                    ? sessionUser.role
+                                    : 'directivo',
                                 'type': eventType == 'comunicado'
                                     ? 'comunicado'
                                     : (eventType == 'partido'
-                                        ? 'partido'
-                                        : 'novedad'),
+                                          ? 'partido'
+                                          : 'novedad'),
                                 'isMatch':
                                     eventType ==
                                     'partido', // Kept for backwards compatibility
                                 'eventType': eventType,
                                 'hasTransport': hasTransport,
-                                'opponentClubId': (eventType != 'ninguno' &&
+                                'opponentClubId':
+                                    (eventType != 'ninguno' &&
                                         eventType != 'comunicado')
                                     ? selectedOpponentId
                                     : null,
-                                'awayTeam': (selectedOpponentId != null)
-                                    ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                                    : 'Rival',
-                                'opponentName': (selectedOpponentId != null)
-                                    ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                                    : null,
+                                'awayTeam': opponentClub?['name'] ?? 'Rival',
+                                'opponentName': opponentClub?['name'] ?? 'Rival',
+                                'awayLogoUrl': opponentClub?['logoUrl'],
+                                'homeTeam': localClub?['name'] ?? 'Jorge Newbery',
+                                'homeLogoUrl': localClub?['logoUrl'] ?? 'assets/images/app_logo.jpg',
                                 'eventDate': dateStr,
+                                'date': dateStr,
                                 'read': false,
                                 'eventTime': timeStr,
                                 'time': timeStr,
@@ -951,7 +970,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: const Text(
-                                        'Novedad publicada con éxito!'),
+                                      'Novedad publicada con éxito!',
+                                    ),
                                     backgroundColor: context.colors.success,
                                   ),
                                 );
@@ -1004,15 +1024,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final selectedChild = ref.watch(selectedChildProvider);
     final selectedCoachCat = ref.watch(selectedCoachCategoryProvider);
-    final List<String> coachCategories = (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty)
+    final List<String> coachCategories =
+        (sessionUser.assignedCategories != null &&
+            sessionUser.assignedCategories!.isNotEmpty)
         ? List<String>.from(sessionUser.assignedCategories!)
-        : (sessionUser.category != null && sessionUser.category!.isNotEmpty ? [sessionUser.category!] : <String>[]);
+        : (sessionUser.category != null && sessionUser.category!.isNotEmpty
+              ? [sessionUser.category!]
+              : <String>[]);
 
     if (sessionUser.role == 'dt' && coachCategories.isNotEmpty) {
-      if (selectedCoachCat == null || !coachCategories.contains(selectedCoachCat)) {
+      if (selectedCoachCat == null ||
+          !coachCategories.contains(selectedCoachCat)) {
         Future.microtask(() {
           if (mounted) {
-            ref.read(selectedCoachCategoryProvider.notifier).state = coachCategories.first;
+            ref.read(selectedCoachCategoryProvider.notifier).state =
+                coachCategories.first;
           }
         });
       }
@@ -1039,7 +1065,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     String activeCategory = '';
     if (sessionUser.role == 'dt') {
-      activeCategory = selectedCoachCat ?? (coachCategories.isNotEmpty ? coachCategories.first : '');
+      activeCategory =
+          selectedCoachCat ??
+          (coachCategories.isNotEmpty ? coachCategories.first : '');
     } else if (sessionUser.role == 'tutor' &&
         selectedChild != null &&
         selectedChild['category'] != null) {
@@ -1055,14 +1083,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final List<String> relevantCategories = [];
     if (sessionUser.assignedCategories?.isNotEmpty == true) {
       relevantCategories.addAll(sessionUser.assignedCategories!);
-    } else if (sessionUser.category != null && sessionUser.category!.isNotEmpty) {
+    } else if (sessionUser.category != null &&
+        sessionUser.category!.isNotEmpty) {
       relevantCategories.add(sessionUser.category!);
     }
 
     if (sessionUser.role == 'tutor') {
       final tutorPlayers =
           ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ??
-              [];
+          [];
       for (final p in tutorPlayers) {
         final cat = p['category']?.toString();
         if (cat != null && cat.isNotEmpty) {
@@ -1130,10 +1159,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           firstPlayer['id']) {
                                         Future.microtask(() {
                                           ref
-                                              .read(
-                                                selectedChildProvider.notifier,
-                                              )
-                                              .state = firstPlayer;
+                                                  .read(
+                                                    selectedChildProvider
+                                                        .notifier,
+                                                  )
+                                                  .state =
+                                              firstPlayer;
                                         });
                                       }
                                     }
@@ -1193,9 +1224,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (coachCategories.length > 1)
                               DropdownButtonHideUnderline(
                                 child: DropdownButton<String>(
-                                  value: (selectedCoachCat != null && coachCategories.contains(selectedCoachCat))
+                                  value:
+                                      (selectedCoachCat != null &&
+                                          coachCategories.contains(
+                                            selectedCoachCat,
+                                          ))
                                       ? selectedCoachCat
-                                      : (coachCategories.isNotEmpty ? coachCategories.first : null),
+                                      : (coachCategories.isNotEmpty
+                                            ? coachCategories.first
+                                            : null),
                                   isDense: true,
                                   icon: const Icon(
                                     Icons.keyboard_arrow_down,
@@ -1213,7 +1250,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   }).toList(),
                                   onChanged: (val) {
                                     if (val != null) {
-                                      ref.read(selectedCoachCategoryProvider.notifier).state = val;
+                                      ref
+                                              .read(
+                                                selectedCoachCategoryProvider
+                                                    .notifier,
+                                              )
+                                              .state =
+                                          val;
                                     }
                                   },
                                 ),
@@ -1386,9 +1429,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             date: _formatDate(nextMatch['date'] as String),
                             time: nextMatch['time'] as String,
                             venue: nextMatch['venue'] as String,
-                            status: nextMatch['status'] as String? ?? 'upcoming',
+                            status:
+                                nextMatch['status'] as String? ?? 'upcoming',
                             isHero: true,
-                            onTap: () => widget.onNavigate(2), // Formación tab index
+                            onTap: () =>
+                                widget.onNavigate(2), // Formación tab index
                           ),
                         )
                         .animate(delay: 100.ms)
@@ -1709,26 +1754,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       return 0;
                     });
 
-                    final rawAuthor = (post['authorName'] ?? post['author'] ?? '')
-                        .toString()
-                        .trim();
-                    final String displayAuthor = (rawAuthor.isNotEmpty &&
+                    final rawAuthor =
+                        (post['authorName'] ?? post['author'] ?? '')
+                            .toString()
+                            .trim();
+                    final String displayAuthor =
+                        (rawAuthor.isNotEmpty &&
                             rawAuthor.toLowerCase() != 'autor')
                         ? rawAuthor
                         : 'Club Jorge Newbery';
 
-                    final rawRole =
-                        (post['authorRole'] ?? '').toString().trim();
+                    final rawRole = (post['authorRole'] ?? '')
+                        .toString()
+                        .trim();
                     final String displayRole = rawRole.isNotEmpty
                         ? rawRole.toUpperCase()
-                        : (post['type'] == 'birthday' ? 'SISTEMA' : 'DIRECTIVA');
+                        : (post['type'] == 'birthday'
+                              ? 'SISTEMA'
+                              : 'DIRECTIVA');
 
-                    final rawCat =
-                        (post['category'] ?? 'all').toString().trim();
+                    final rawCat = (post['category'] ?? 'all')
+                        .toString()
+                        .trim();
                     final String displayCategory =
                         (rawCat.isEmpty || rawCat.toLowerCase() == 'all')
-                            ? 'Global'
-                            : rawCat;
+                        ? 'Global'
+                        : rawCat;
 
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -1740,10 +1791,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             // Post Header
                             Row(
                               children: [
-                                JNAvatar(
-                                  name: displayAuthor,
-                                  size: 36,
-                                ),
+                                JNAvatar(name: displayAuthor, size: 36),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
@@ -1868,16 +1916,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: (post['eventType'] ==
+                                        color:
+                                            (post['eventType'] ==
                                                     'comunicado' ||
                                                 post['type'] == 'comunicado')
-                                            ? const Color(0xFFD4AF37)
-                                                .withValues(alpha: 0.15)
-                                            : context.colors.primary
-                                                .withValues(alpha: 0.1),
+                                            ? const Color(
+                                                0xFFD4AF37,
+                                              ).withValues(alpha: 0.15)
+                                            : context.colors.primary.withValues(
+                                                alpha: 0.1,
+                                              ),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: (post['eventType'] ==
+                                          color:
+                                              (post['eventType'] ==
                                                       'comunicado' ||
                                                   post['type'] == 'comunicado')
                                               ? const Color(0xFFD4AF37)
@@ -1889,10 +1941,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                 post['type'] == 'comunicado')
                                             ? 'COMUNICADO OFICIAL 📢'
                                             : (post['eventType'] as String)
-                                                .toUpperCase(),
+                                                  .toUpperCase(),
                                         style: context.typography.labelSmall
                                             .copyWith(
-                                              color: (post['eventType'] ==
+                                              color:
+                                                  (post['eventType'] ==
                                                           'comunicado' ||
                                                       post['type'] ==
                                                           'comunicado')
@@ -2052,7 +2105,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           Text(
                                             post['title'] ??
                                                 '¡Feliz Cumpleaños!',
-                                            style: context.typography
+                                            style: context
+                                                .typography
                                                 .headlineMedium
                                                 .copyWith(
                                                   color: Colors.black,
@@ -2112,6 +2166,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ],
                                 ),
                               ),
+                            ] else if (post['eventType'] == 'partido' ||
+                                post['isMatch'] == true ||
+                                post['type'] == 'partido') ...[
+                              _buildMatchPostCard(post, clubs, context),
                             ] else ...[
                               Text(
                                 post['title'] ?? '',
@@ -2122,14 +2180,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 post['body'] ?? '',
                                 style: context.typography.bodyMedium,
                               ),
-                              if (post['imageUrl'] != null) ...[
+                              if (post['imageUrl'] != null &&
+                                  post['imageUrl'].toString().trim().isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(
                                     AppSpacing.radiusMd,
                                   ),
                                   child: _buildPostImage(
-                                    post['imageUrl'],
+                                    post['imageUrl'].toString(),
                                     context,
                                   ),
                                 ),
@@ -2733,38 +2792,68 @@ class _MiniStatCard extends StatelessWidget {
 
 Widget _buildImagePreview(
   String? localPath,
-  String? presetPath,
-  BuildContext context,
-) {
-  if (localPath != null) {
+  BuildContext context, {
+  VoidCallback? onRemove,
+}) {
+  if (localPath != null && localPath.trim().isNotEmpty) {
+    final cleanPath = localPath.trim();
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.file(File(localPath), fit: BoxFit.cover),
-        Container(
-          color: Colors.black.withValues(alpha: 0.3),
-          child: const Center(
-            child: Icon(Icons.edit, color: Colors.white, size: 32),
+        if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://'))
+          CachedNetworkImage(
+            imageUrl: cleanPath,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(color: context.colors.surfaceLight),
+            errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+          )
+        else
+          Image.file(
+            File(cleanPath),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => const Center(
+              child: Icon(Icons.broken_image, color: Colors.grey, size: 36),
+            ),
           ),
-        ),
-      ],
-    );
-  } else if (presetPath != null) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        CachedNetworkImage(
-          imageUrl: presetPath,
-          fit: BoxFit.cover,
-          memCacheWidth: 600,
-          placeholder: (context, url) =>
-              Container(color: context.colors.surfaceLight),
-          errorWidget: (context, url, error) => const Icon(Icons.broken_image),
-        ),
         Container(
-          color: Colors.black.withValues(alpha: 0.3),
-          child: const Center(
-            child: Icon(Icons.edit, color: Colors.white, size: 32),
+          color: Colors.black.withValues(alpha: 0.35),
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit, color: Colors.white, size: 16),
+                    SizedBox(width: 6),
+                    Text(
+                      'Cambiar',
+                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              if (onRemove != null) ...[
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: onRemove,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.8),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close, color: Colors.white, size: 16),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -2775,15 +2864,16 @@ Widget _buildImagePreview(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          Icons.add_photo_alternate,
-          size: 40,
+          Icons.add_photo_alternate_outlined,
+          size: 38,
           color: context.colors.primary,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
-          'Toca para subir imagen',
+          'Toca para subir una foto desde la galería',
           style: context.typography.bodyMedium.copyWith(
             color: context.colors.primary,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
@@ -2792,30 +2882,332 @@ Widget _buildImagePreview(
 }
 
 Widget _buildPostImage(String url, BuildContext context) {
-  if (!url.startsWith('http')) {
+  final cleanUrl = url.trim();
+  if (cleanUrl.isEmpty) {
+    return const SizedBox.shrink();
+  }
+
+  if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
     return Image.file(
-      File(url),
+      File(cleanUrl),
       width: double.infinity,
-      height: 160,
       fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => const SizedBox(
+      errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+    );
+  }
+
+  return CachedNetworkImage(
+    imageUrl: cleanUrl,
+    fit: BoxFit.cover,
+    width: double.infinity,
+    placeholder: (context, url) => Container(
+      width: double.infinity,
+      height: 180,
+      color: context.colors.surfaceLight,
+      child: const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+    ),
+    errorWidget: (context, url, error) => Container(
+      width: double.infinity,
+      height: 140,
+      color: context.colors.surfaceLight,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.broken_image_outlined, color: context.colors.textTertiary, size: 32),
+            const SizedBox(height: 4),
+            Text(
+              'No se pudo cargar la imagen',
+              style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildMatchPostCard(
+  Map<String, dynamic> post,
+  List<Map<String, dynamic>> clubs,
+  BuildContext context,
+) {
+  final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
+  final String homeTeamName = post['homeTeam'] ?? localClub?['name'] ?? 'Jorge Newbery';
+  final String? homeLogoUrl = post['homeLogoUrl'] ?? localClub?['logoUrl'];
+
+  final opponentClub = clubs.where((c) =>
+      c['id'] == post['opponentClubId'] ||
+      (post['awayTeam'] != null && c['name']?.toString().toLowerCase() == post['awayTeam'].toString().toLowerCase()) ||
+      (post['opponentName'] != null && c['name']?.toString().toLowerCase() == post['opponentName'].toString().toLowerCase())
+  ).firstOrNull;
+
+  final String awayTeamName = opponentClub?['name'] ?? post['awayTeam'] ?? post['opponentName'] ?? 'Rival';
+  final String? awayLogoUrl = post['awayLogoUrl'] ?? opponentClub?['logoUrl'];
+
+  final String dateStr = post['eventDate'] ?? post['date'] ?? '';
+  final String timeStr = post['eventTime'] ?? post['time'] ?? 'A confirmar';
+  final String venueStr = post['venue'] ?? post['location'] ?? 'Cancha Principal JN';
+  final String catStr = post['category'] ?? '';
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Match Hero Banner
+      Container(
         width: double.infinity,
-        height: 160,
-        child: Icon(Icons.broken_image, color: Colors.grey),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              context.colors.surfaceLight,
+              context.colors.surface,
+              context.colors.primary.withValues(alpha: 0.08),
+            ],
+          ),
+          border: Border.all(
+            color: context.colors.primary.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Top Match Header Badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: context.colors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.sports_soccer, size: 14, color: context.colors.primary),
+                      const SizedBox(width: 5),
+                      Text(
+                        catStr.isNotEmpty && catStr != 'all' ? 'PARTIDO AMISTOSO · CAT. $catStr' : 'PARTIDO AMISTOSO',
+                        style: context.typography.labelSmall.copyWith(
+                          color: context.colors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (dateStr.isNotEmpty)
+                  Text(
+                    '$dateStr${timeStr.isNotEmpty ? " · $timeStr" : ""}',
+                    style: context.typography.bodySmall.copyWith(
+                      color: context.colors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Teams Row (Local VS Away with Logos)
+            Row(
+              children: [
+                // Local Club
+                Expanded(
+                  child: Column(
+                    children: [
+                      _buildTeamLogo(context, homeTeamName, homeLogoUrl),
+                      const SizedBox(height: 8),
+                      Text(
+                        homeTeamName,
+                        style: context.typography.titleSmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // VS Badge
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: context.colors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'VS',
+                      style: context.typography.titleMedium.copyWith(
+                        color: context.colors.textTertiary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Away Club
+                Expanded(
+                  child: Column(
+                    children: [
+                      _buildTeamLogo(context, awayTeamName, awayLogoUrl),
+                      const SizedBox(height: 8),
+                      Text(
+                        awayTeamName,
+                        style: context.typography.titleSmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+            // Location / Venue
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.location_on_outlined, size: 15, color: context.colors.textTertiary),
+                const SizedBox(width: 4),
+                Text(
+                  venueStr,
+                  style: context.typography.bodySmall.copyWith(
+                    color: context.colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+
+      // Post Title & Body if different or extra notes
+      if (post['title'] != null &&
+          post['title'].toString().trim().isNotEmpty &&
+          post['title'].toString().trim() != 'Partido Amistoso') ...[
+        const SizedBox(height: 12),
+        Text(
+          post['title'],
+          style: context.typography.titleMedium,
+        ),
+      ],
+      if (post['body'] != null &&
+          post['body'].toString().trim().isNotEmpty &&
+          post['body'].toString().trim() != 'Convocatoria y detalles del partido') ...[
+        const SizedBox(height: 6),
+        Text(
+          post['body'],
+          style: context.typography.bodyMedium,
+        ),
+      ],
+
+      // Attached photo (if any was uploaded)
+      if (post['imageUrl'] != null && post['imageUrl'].toString().trim().isNotEmpty) ...[
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          child: _buildPostImage(
+            post['imageUrl'].toString(),
+            context,
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
+Widget _buildTeamLogo(BuildContext context, String team, String? logoUrl) {
+  if (logoUrl != null && logoUrl.trim().isNotEmpty) {
+    final cleanLogo = logoUrl.trim();
+    if (cleanLogo.startsWith('assets/')) {
+      return Container(
+        width: 50,
+        height: 50,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        padding: const EdgeInsets.all(2),
+        child: ClipOval(
+          child: Image.asset(cleanLogo, fit: BoxFit.cover),
+        ),
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: cleanLogo,
+      width: 50,
+      height: 50,
+      fit: BoxFit.contain,
+      placeholder: (context, url) => Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: context.colors.surfaceVariant,
+          shape: BoxShape.circle,
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      errorWidget: (context, url, error) => Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: context.colors.surfaceVariant,
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Icon(Icons.shield_outlined, color: context.colors.primary, size: 28),
+        ),
       ),
     );
   }
-  return CachedNetworkImage(
-    imageUrl: url,
-    fit: BoxFit.cover,
-    width: double.infinity,
-    height: 160,
-    memCacheWidth: 800,
-    placeholder: (context, url) => Shimmer.fromColors(
-      baseColor: context.colors.surfaceLight,
-      highlightColor: context.colors.surface,
-      child: Container(color: context.colors.surfaceLight, height: 160),
+
+  if (team.toLowerCase().contains('newbery') || team.toLowerCase().contains('jorge newbery')) {
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+      ),
+      padding: const EdgeInsets.all(2),
+      child: ClipOval(
+        child: Image.asset('assets/images/app_logo.jpg', fit: BoxFit.cover),
+      ),
+    );
+  }
+
+  return Container(
+    width: 50,
+    height: 50,
+    decoration: BoxDecoration(
+      color: context.colors.surfaceVariant,
+      shape: BoxShape.circle,
     ),
-    errorWidget: (context, url, error) => const SizedBox.shrink(),
+    child: Center(
+      child: Icon(Icons.shield_outlined, color: context.colors.primary, size: 28),
+    ),
   );
 }

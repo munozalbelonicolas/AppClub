@@ -37,48 +37,52 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   void _startNewChatDialog(BuildContext context, dynamic currentUser) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: context.colors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (modalContext) {
-        return _NewChatUserSelector(
-          currentUserId: currentUser.id,
-          currentUserRole: currentUser.role,
-          currentUserCategory: currentUser.category,
-          currentUserAssignedCategories: currentUser.assignedCategories,
-          onUserSelected: (selectedUser) async {
-            Navigator.pop(modalContext);
-            try {
-              final threadId = await _getOrCreateThread(
-                currentUser,
-                selectedUser,
-              );
-              if (mounted) {
-                final otherName =
-                    '${selectedUser['name'] ?? ''} ${selectedUser['lastName'] ?? ''}'.trim();
-                Navigator.push(
-                  this.context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatScreen(
-                      threadId: threadId,
-                      otherUserName: otherName.isNotEmpty ? otherName : 'Usuario',
-                      otherUserRole: selectedUser['role'] ?? 'tutor',
+        return FractionallySizedBox(
+          heightFactor: 0.85,
+          child: _NewChatUserSelector(
+            currentUserId: currentUser.id,
+            currentUserRole: currentUser.role,
+            currentUserCategory: currentUser.category,
+            currentUserAssignedCategories: currentUser.assignedCategories,
+            onUserSelected: (selectedUser) async {
+              Navigator.pop(modalContext);
+              try {
+                final threadId = await _getOrCreateThread(
+                  currentUser,
+                  selectedUser,
+                );
+                if (mounted) {
+                  final otherName =
+                      '${selectedUser['name'] ?? ''} ${selectedUser['lastName'] ?? ''}'.trim();
+                  Navigator.push(
+                    this.context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(
+                        threadId: threadId,
+                        otherUserName: otherName.isNotEmpty ? otherName : 'Usuario',
+                        otherUserRole: selectedUser['role'] ?? 'tutor',
+                      ),
                     ),
-                  ),
-                );
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error al abrir conversación: $e'),
+                      backgroundColor: Theme.of(this.context).colorScheme.error,
+                    ),
+                  );
+                }
               }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error al abrir conversación: $e'),
-                    backgroundColor: Theme.of(this.context).colorScheme.error,
-                  ),
-                );
-              }
-            }
-          },
+            },
+          ),
         );
       },
     );
@@ -755,7 +759,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   }
 }
 
-class _NewChatUserSelector extends StatelessWidget {
+class _NewChatUserSelector extends StatefulWidget {
   final String currentUserId;
   final String currentUserRole;
   final String? currentUserCategory;
@@ -771,9 +775,34 @@ class _NewChatUserSelector extends StatelessWidget {
   });
 
   @override
+  State<_NewChatUserSelector> createState() => _NewChatUserSelectorState();
+}
+
+class _NewChatUserSelectorState extends State<_NewChatUserSelector> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _selectedRoleFilter = 'Todos';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    final bool isDT = widget.currentUserRole == 'dt';
+    final List<String> roleFilters = isDT
+        ? ['Todos', 'Tutores', 'Jugadores', 'Directivos']
+        : ['Todos', 'Tutores', 'Jugadores', 'DTs', 'Directivos', 'Secretarios'];
+
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 16,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -787,7 +816,63 @@ class _NewChatUserSelector extends StatelessWidget {
               ),
             ],
           ),
-          const Divider(),
+          const SizedBox(height: 12),
+          // Search Input
+          TextField(
+            controller: _searchController,
+            style: context.typography.bodyMedium,
+            decoration: InputDecoration(
+              hintText: 'Buscar por nombre, apellido, DNI o categoría...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        setState(() {
+                          _searchController.clear();
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+            ),
+            onChanged: (val) {
+              setState(() {
+                _searchQuery = val.trim().toLowerCase();
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          // Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: roleFilters.map((filter) {
+                final isSelected = _selectedRoleFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: ChoiceChip(
+                    label: Text(filter),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _selectedRoleFilter = filter);
+                      }
+                    },
+                    labelStyle: context.typography.labelSmall.copyWith(
+                      color: isSelected ? Colors.white : context.colors.textSecondary,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    ),
+                    selectedColor: context.colors.primary,
+                    backgroundColor: context.colors.surfaceLight,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1),
           const SizedBox(height: 8),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
@@ -801,7 +886,7 @@ class _NewChatUserSelector extends StatelessWidget {
                 if (snapshot.hasError) {
                   return Center(
                     child: Text(
-                      'Error: ${snapshot.error}',
+                      'Error al cargar usuarios: ${snapshot.error}',
                       style: TextStyle(color: context.colors.error),
                     ),
                   );
@@ -809,70 +894,155 @@ class _NewChatUserSelector extends StatelessWidget {
 
                 final docs = snapshot.data?.docs ?? [];
 
-                // Convert to Maps and filter
-                final users = docs
+                // Convert to Maps and filter by permissions
+                final List<Map<String, dynamic>> allAllowedUsers = docs
                     .map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       return <String, dynamic>{'id': doc.id, ...data};
                     })
                     .where((u) {
                       // Don't chat with self
-                      if (u['id'] == currentUserId) return false;
+                      if (u['id'] == widget.currentUserId) return false;
 
                       // Coaches (DT) can only message users of their category OR secretaries/directors
-                      if (currentUserRole == 'dt') {
-                        final uRole = u['role'] ?? '';
-                        final hasAssignedCategory = (currentUserAssignedCategories != null && currentUserAssignedCategories!.isNotEmpty)
-                            ? currentUserAssignedCategories!.contains(u['category'])
-                            : u['category'] == currentUserCategory;
-                        return hasAssignedCategory || uRole == 'secretario' || uRole == 'directivo';
+                      if (widget.currentUserRole == 'dt') {
+                        final uRole = (u['role'] ?? '').toString().toLowerCase();
+                        final isStaff = uRole == 'secretario' || uRole == 'directivo' || uRole == 'admin';
+                        if (isStaff) return true;
+
+                        final uCategory = (u['category'] ?? '').toString();
+                        final hasAssignedCategory = (widget.currentUserAssignedCategories != null && widget.currentUserAssignedCategories!.isNotEmpty)
+                            ? widget.currentUserAssignedCategories!.contains(uCategory)
+                            : uCategory == widget.currentUserCategory;
+
+                        return hasAssignedCategory;
                       }
 
                       return true;
                     })
                     .toList();
 
-                if (users.isEmpty) {
+                // Apply role filter and search query
+                final filteredUsers = allAllowedUsers.where((u) {
+                  final uRole = (u['role'] ?? 'tutor').toString().toLowerCase();
+                  if (_selectedRoleFilter == 'Tutores' && uRole != 'tutor') return false;
+                  if (_selectedRoleFilter == 'Jugadores' && uRole != 'jugador') return false;
+                  if (_selectedRoleFilter == 'DTs' && uRole != 'dt' && uRole != 'coach' && uRole != 'profesor') return false;
+                  if (_selectedRoleFilter == 'Directivos' && uRole != 'directivo' && uRole != 'admin' && uRole != 'administrator') return false;
+                  if (_selectedRoleFilter == 'Secretarios' && uRole != 'secretario') return false;
+
+                  if (_searchQuery.isNotEmpty) {
+                    final name = (u['name'] ?? '').toString().toLowerCase();
+                    final lastName = (u['lastName'] ?? '').toString().toLowerCase();
+                    final fullName = '$name $lastName';
+                    final dni = (u['dni'] ?? '').toString().toLowerCase();
+                    final category = (u['category'] ?? '').toString().toLowerCase();
+                    final role = uRole;
+
+                    final matches = fullName.contains(_searchQuery) ||
+                        name.contains(_searchQuery) ||
+                        lastName.contains(_searchQuery) ||
+                        dni.contains(_searchQuery) ||
+                        category.contains(_searchQuery) ||
+                        role.contains(_searchQuery);
+
+                    if (!matches) return false;
+                  }
+
+                  return true;
+                }).toList();
+
+                // Sort alphabetically by last name / name
+                filteredUsers.sort((a, b) {
+                  final nameA = '${a['lastName'] ?? ''} ${a['name'] ?? ''}'.trim().toLowerCase();
+                  final nameB = '${b['lastName'] ?? ''} ${b['name'] ?? ''}'.trim().toLowerCase();
+                  return nameA.compareTo(nameB);
+                });
+
+                if (filteredUsers.isEmpty) {
                   return Center(
-                    child: Text(
-                      'No hay usuarios disponibles para mensajería.',
-                      style: context.typography.bodySmall,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.person_search_outlined,
+                            size: 48,
+                            color: context.colors.textTertiary,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _searchQuery.isNotEmpty
+                                ? 'No se encontraron usuarios para "$_searchQuery"'
+                                : 'No hay usuarios en este filtro.',
+                            style: context.typography.bodyMedium.copyWith(
+                              color: context.colors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
 
                 return ListView.separated(
-                  itemCount: users.length,
+                  itemCount: filteredUsers.length,
                   separatorBuilder: (context, index) =>
                       Divider(height: 1, color: context.colors.divider),
                   itemBuilder: (context, index) {
-                    final user = users[index];
-                    final String name = '${user['name']} ${user['lastName']}';
+                    final user = filteredUsers[index];
+                    final String name = '${user['name'] ?? ''} ${user['lastName'] ?? ''}'.trim();
+                    final String displayName = name.isNotEmpty ? name : (user['email'] ?? 'Usuario');
                     final String role = user['role'] ?? 'tutor';
                     final String category = user['category'] ?? '';
 
                     return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: JNAvatar(name: name, size: 38),
-                      title: Text(name, style: context.typography.titleMedium),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      leading: JNAvatar(name: displayName, size: 40),
+                      title: Text(displayName, style: context.typography.titleSmall),
                       subtitle: Row(
                         children: [
-                          Text(
-                            role.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: context.colors.accent,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: role == 'directivo' || role == 'admin'
+                                  ? context.colors.error.withValues(alpha: 0.15)
+                                  : role == 'secretario'
+                                      ? context.colors.info.withValues(alpha: 0.15)
+                                      : role == 'dt'
+                                          ? context.colors.accent.withValues(alpha: 0.15)
+                                          : context.colors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              role.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: role == 'directivo' || role == 'admin'
+                                    ? context.colors.error
+                                    : role == 'secretario'
+                                        ? context.colors.info
+                                        : role == 'dt'
+                                            ? context.colors.accent
+                                            : context.colors.textSecondary,
+                              ),
                             ),
                           ),
-                          if (category.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            Text('·', style: context.typography.bodySmall),
-                            const SizedBox(width: 6),
-                            Text(category, style: context.typography.bodySmall),
+                          if (category.isNotEmpty && category != 'Todos') ...[
+                            const SizedBox(width: 8),
+                            Text('Cat. $category', style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary)),
                           ],
                         ],
                       ),
-                      onTap: () => onUserSelected(user),
+                      trailing: Icon(
+                        Icons.chat_bubble_outline,
+                        size: 18,
+                        color: context.colors.primary,
+                      ),
+                      onTap: () => widget.onUserSelected(user),
                     );
                   },
                 );
