@@ -37,7 +37,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final sessionUser = ref.read(currentUserProvider);
     if (sessionUser == null) return;
 
-    if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
+    final selectedCoachCat = ref.read(selectedCoachCategoryProvider);
+    if (sessionUser.role == 'dt' && selectedCoachCat != null) {
+      setState(() => _selectedCategory = selectedCoachCat);
+    } else if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
       setState(() => _selectedCategory = sessionUser.assignedCategories!.first);
     } else if (sessionUser.category != null) {
       setState(() => _selectedCategory = sessionUser.category);
@@ -525,6 +528,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                           _customDateColumns.clear();
                           _activeDateColumnForBulk = null;
                         });
+                        if (isCoach) {
+                          ref.read(selectedCoachCategoryProvider.notifier).state = val;
+                        }
                       }
                     },
                   ),

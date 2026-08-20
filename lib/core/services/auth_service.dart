@@ -233,7 +233,22 @@ class AuthService {
       final data = docSnap.data()!;
       final userRole = data['role'] ?? 'tutor';
       final bool isAdminRole = userRole == 'directivo' || userRole == 'secretario';
-      final String? userCategory = isAdminRole ? null : data['category'];
+      final List<String>? rawAssignedCats = isAdminRole
+          ? null
+          : (data['assignedCategories'] as List<dynamic>?)
+              ?.map((e) => e.toString().trim())
+              .where((c) => !c.toLowerCase().contains('sub-12') && !c.toLowerCase().contains('sub12'))
+              .toList();
+      String? userCategory = isAdminRole ? null : data['category'];
+      if (userCategory != null &&
+          (userCategory.toLowerCase().contains('sub-12') || userCategory.toLowerCase().contains('sub12'))) {
+        userCategory = (rawAssignedCats != null && rawAssignedCats.isNotEmpty) ? rawAssignedCats.first : null;
+      }
+      if (userRole == 'dt' && rawAssignedCats != null && rawAssignedCats.isNotEmpty) {
+        if (userCategory == null || !rawAssignedCats.contains(userCategory)) {
+          userCategory = rawAssignedCats.first;
+        }
+      }
 
       String resolvedName = (data['name']?.toString() ?? '').trim();
       String resolvedLastName = (data['lastName']?.toString() ?? '').trim();
@@ -262,9 +277,7 @@ class AuthService {
         status: data['status'] ?? 'active',
         emailVerified: emailVerified,
         category: userCategory,
-        assignedCategories: isAdminRole
-            ? null
-            : (data['assignedCategories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+        assignedCategories: rawAssignedCats,
         dni: data['dni'],
         weight: data['weight'],
         height: data['height'],
@@ -288,7 +301,8 @@ class AuthService {
         termsVersion: data['termsVersion'],
       );
 
-      // Clean up category from Firestore if user is admin role but had category stored
+      // Clean up category from Firestore if user is admin role but had category stored,
+      // or if DT has stale category / assignedCategories
       final Map<String, dynamic> updates = {};
       if (data['emailVerified'] != emailVerified) {
         updates['emailVerified'] = emailVerified;
@@ -298,6 +312,15 @@ class AuthService {
       }
       if (isAdminRole && data['assignedCategories'] != null) {
         updates['assignedCategories'] = FieldValue.delete();
+      }
+      if (userRole == 'dt') {
+        if (data['category'] != userCategory) {
+          updates['category'] = userCategory ?? FieldValue.delete();
+        }
+        final List<dynamic>? currentAssigned = data['assignedCategories'] as List<dynamic>?;
+        if (currentAssigned != null && rawAssignedCats != null && currentAssigned.length != rawAssignedCats.length) {
+          updates['assignedCategories'] = rawAssignedCats;
+        }
       }
       if (updates.isNotEmpty) {
         await docRef.update(updates);
@@ -374,6 +397,23 @@ class AuthService {
           }
         }
 
+        final rawSnapAssigned = isSnapshotAdmin
+            ? null
+            : (snapshotData['assignedCategories'] as List<dynamic>?)
+                ?.map((e) => e.toString().trim())
+                .where((c) => !c.toLowerCase().contains('sub-12') && !c.toLowerCase().contains('sub12'))
+                .toList();
+        String? resolvedSnapCat = isSnapshotAdmin ? null : snapshotData['category'];
+        if (resolvedSnapCat != null &&
+            (resolvedSnapCat.toLowerCase().contains('sub-12') || resolvedSnapCat.toLowerCase().contains('sub12'))) {
+          resolvedSnapCat = (rawSnapAssigned != null && rawSnapAssigned.isNotEmpty) ? rawSnapAssigned.first : null;
+        }
+        if (snapshotRole == 'dt' && rawSnapAssigned != null && rawSnapAssigned.isNotEmpty) {
+          if (resolvedSnapCat == null || !rawSnapAssigned.contains(resolvedSnapCat)) {
+            resolvedSnapCat = rawSnapAssigned.first;
+          }
+        }
+
         final updatedSession = UserSession(
           id: uid,
           name: resolvedSnapName,
@@ -382,10 +422,8 @@ class AuthService {
           role: snapshotRole,
           status: snapshotData['status'] ?? 'active',
           emailVerified: snapshotData['emailVerified'] ?? emailVerified,
-          category: isSnapshotAdmin ? null : snapshotData['category'],
-          assignedCategories: isSnapshotAdmin
-              ? null
-              : (snapshotData['assignedCategories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+          category: resolvedSnapCat,
+          assignedCategories: rawSnapAssigned,
           dni: snapshotData['dni'],
           weight: snapshotData['weight'],
           height: snapshotData['height'],

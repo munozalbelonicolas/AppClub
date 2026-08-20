@@ -40,7 +40,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
     }
 
     final List<String> coachCategories = (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty)
-        ? sessionUser.assignedCategories!
+        ? List<String>.from(sessionUser.assignedCategories!)
         : (sessionUser.category != null && sessionUser.category!.isNotEmpty
             ? [sessionUser.category!]
             : <String>[]);
@@ -217,7 +217,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.4,
+            childAspectRatio: 1.25,
             children: [
               JNStatCard(
                 value: '${players.length}',
@@ -455,7 +455,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: _ActionButton(
                               icon: Icons.format_list_numbered,
@@ -471,7 +471,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: _ActionButton(
                               icon: Icons.note_add,
@@ -763,16 +763,29 @@ class _ActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: color),
+            Icon(icon, size: 18, color: color),
             const SizedBox(height: 4),
-            Text(label, style: context.typography.labelSmall.copyWith(color: color)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: context.typography.labelSmall.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+                maxLines: 1,
+              ),
+            ),
           ],
         ),
       ),
@@ -1023,6 +1036,12 @@ void _showCreateMatchDialog(
                       'eventType': 'partido',
                       'hasTransport': hasTransport,
                       'opponentClubId': selectedOpponentId,
+                      'awayTeam': (selectedOpponentId != null)
+                          ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                          : 'Rival',
+                      'opponentName': (selectedOpponentId != null)
+                          ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                          : null,
                       'eventDate': dateStr,
                       'date': dateStr,
                       'eventTime': timeStr,
@@ -1314,6 +1333,12 @@ void _showEditMatchDialog(
                         'category': selectedCategory,
                         'hasTransport': hasTransport,
                         'opponentClubId': selectedOpponentId,
+                        'awayTeam': (selectedOpponentId != null)
+                            ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                            : 'Rival',
+                        'opponentName': (selectedOpponentId != null)
+                            ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                            : null,
                         'eventDate': dateStr,
                         'date': dateStr,
                         'eventTime': timeStr,

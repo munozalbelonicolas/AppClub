@@ -251,8 +251,12 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
     String? selectedCategory = data['category'];
     List<String> selectedCategories = [];
     if (data['assignedCategories'] != null) {
-      selectedCategories = List<String>.from(data['assignedCategories']);
-    } else if (data['category'] != null) {
+      selectedCategories = List<String>.from(data['assignedCategories'])
+          .where((c) => !c.toLowerCase().contains('sub-12') && !c.toLowerCase().contains('sub12'))
+          .toList();
+    } else if (data['category'] != null &&
+        !data['category'].toString().toLowerCase().contains('sub-12') &&
+        !data['category'].toString().toLowerCase().contains('sub12')) {
       selectedCategories = [data['category']];
     }
     final roles = ['tutor', 'jugador', 'dt', 'secretario', 'directivo'];

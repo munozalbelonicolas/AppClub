@@ -98,10 +98,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     if (!isAdmin && sessionUser != null) {
       if (sessionUser.role == 'dt') {
-        if (sessionUser.assignedCategories != null) {
+        if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
           allowedCategories.addAll(sessionUser.assignedCategories!);
-        }
-        if (sessionUser.category != null) {
+        } else if (sessionUser.category != null) {
           allowedCategories.add(sessionUser.category!);
         }
       } else if (sessionUser.role == 'jugador') {

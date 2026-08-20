@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/convocatoria_provider.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
@@ -23,8 +25,10 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
   final Map<String, String> _positions = {};
   // Set of playerIds marked as convocado for this match
   final Set<String> _convocadosIds = {};
-  bool _isSaving = false;
+
   String? _selectedCategory;
+  String? _selectedMatchId;
+  bool _isSaving = false;
 
   Future<void> _saveLineup(Map<String, dynamic>? nextMatch) async {
     setState(() {
@@ -32,6 +36,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     });
 
     final docId = nextMatch?['id'] ?? 'next_match_${_selectedCategory ?? 'all'}';
+    final currentUser = ref.read(currentUserProvider);
 
     try {
       final matchRef = FirebaseFirestore.instance.collection('match_lineups').doc(docId);
@@ -43,41 +48,142 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
         'convocadosIds': _convocadosIds.toList(),
       }, SetOptions(merge: true));
 
-      if (nextMatch != null) {
-        final convocatoriaRef = FirebaseFirestore.instance
-            .collection('matches')
-            .doc(nextMatch['id'])
-            .collection('convocatoria');
+      final effectiveMatchId = nextMatch?['id'] ?? docId;
+      final convocatoriaRef = FirebaseFirestore.instance
+          .collection('matches')
+          .doc(effectiveMatchId)
+          .collection('convocatoria');
 
-        final snapshot = await convocatoriaRef.get();
-        final batch = FirebaseFirestore.instance.batch();
-        for (var doc in snapshot.docs) {
-          batch.delete(doc.reference);
+      // Read existing convocatoria to detect NEWLY added players
+      final existingSnap = await convocatoriaRef.get();
+      final previouslyConvocadoIds = existingSnap.docs.map((d) => d.id).toSet();
+
+      final batch = FirebaseFirestore.instance.batch();
+      for (var doc in existingSnap.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Delete tutor_convocatorias for unconvoked players
+      try {
+        final existingTutorConvs = await FirebaseFirestore.instance
+            .collection('tutor_convocatorias')
+            .where('matchId', isEqualTo: effectiveMatchId)
+            .get();
+
+        for (final doc in existingTutorConvs.docs) {
+          final pid = doc.data()['playerId'] as String?;
+          if (pid != null && !_convocadosIds.contains(pid)) {
+            batch.delete(doc.reference);
+          }
         }
+      } catch (_) {}
 
-        final playersAsync = ref.read(playersStreamProvider);
-        final categoryPlayers = (playersAsync.valueOrNull ?? [])
-            .where((p) => p['category'] == _selectedCategory)
-            .toList();
+      final playersAsync = ref.read(playersStreamProvider);
+      final categoryPlayers = (playersAsync.valueOrNull ?? [])
+          .where((p) => p['category'] == _selectedCategory)
+          .toList();
 
-        for (var p in categoryPlayers) {
-          if (_convocadosIds.contains(p['id'])) {
-            final isStarter = _positions.values.contains(p['id']);
-            final cDoc = convocatoriaRef.doc(p['id']);
-            batch.set(cDoc, {
-              'playerId': p['id'],
-              'name': '${p['name']} ${p['lastName']}',
+      final List<Future<void>> notificationFutures = [];
+
+      final matchDate = nextMatch?['date'];
+      String dateStr = '';
+      if (matchDate is Timestamp) {
+        final d = matchDate.toDate();
+        dateStr = '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+      } else if (matchDate != null) {
+        dateStr = matchDate.toString();
+      }
+      final rival = nextMatch?['awayTeam'] ?? nextMatch?['homeTeam'] ?? 'Próximo Partido';
+      final venue = nextMatch?['venue'] ?? nextMatch?['location'] ?? 'Cancha Principal JN';
+      final timeStr = nextMatch?['time']?.toString() ?? '';
+
+      for (var p in categoryPlayers) {
+        if (_convocadosIds.contains(p['id'])) {
+          final isStarter = _positions.values.contains(p['id']);
+          final playerId = p['id'] as String;
+
+          // Look up ALL tutors for this player
+          final List<String> tutorIds = [];
+          try {
+            final tutorLinksSnap = await FirebaseFirestore.instance
+                .collection('player_tutor_links')
+                .where('playerId', isEqualTo: playerId)
+                .get();
+            for (final tdoc in tutorLinksSnap.docs) {
+              final tid = tdoc.data()['tutorId'] as String?;
+              if (tid != null && tid.isNotEmpty && !tutorIds.contains(tid)) {
+                tutorIds.add(tid);
+              }
+            }
+          } catch (_) {}
+
+          // Fallbacks from player doc
+          if (tutorIds.isEmpty) {
+            if (p['tutorId'] != null) tutorIds.add(p['tutorId'] as String);
+            if (p['parentId'] != null) tutorIds.add(p['parentId'] as String);
+            if (p['fatherId'] != null) tutorIds.add(p['fatherId'] as String);
+          }
+
+          final cDoc = convocatoriaRef.doc(playerId);
+          batch.set(cDoc, {
+            'playerId': playerId,
+            'name': '${p['name']} ${p['lastName']}',
+            'number': p['number'] ?? p['jerseyNumber'] ?? '',
+            'position': p['position'] ?? 'Jugador',
+            'category': p['category'],
+            'role': p['role'] ?? 'jugador',
+            'isStarter': isStarter,
+            'status': 'pending',
+            'tutorId': tutorIds.isNotEmpty ? tutorIds.first : null,
+            'tutorIds': tutorIds,
+            'matchId': effectiveMatchId,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          // Write to tutor_convocatorias collection for real-time tutor dashboard
+          for (final tId in tutorIds) {
+            final tDoc = FirebaseFirestore.instance
+                .collection('tutor_convocatorias')
+                .doc('${effectiveMatchId}_${tId}_$playerId');
+
+            batch.set(tDoc, {
+              'tutorId': tId,
+              'playerId': playerId,
+              'playerName': '${p['name']} ${p['lastName']}',
               'number': p['number'] ?? p['jerseyNumber'] ?? '',
               'position': p['position'] ?? 'Jugador',
-              'category': p['category'],
-              'role': p['role'] ?? 'jugador',
-              'isStarter': isStarter,
+              'category': p['category'] ?? _selectedCategory ?? '',
+              'matchId': effectiveMatchId,
+              'homeTeam': nextMatch?['homeTeam'] ?? 'Jorge Newbery',
+              'awayTeam': rival,
+              'venue': venue,
+              'date': dateStr,
+              'time': timeStr,
+              'status': 'pending',
               'updatedAt': FieldValue.serverTimestamp(),
             });
           }
+
+          // Send push notification ONLY to newly added players' tutors
+          final isNew = !previouslyConvocadoIds.contains(playerId);
+          if (isNew && tutorIds.isNotEmpty) {
+            final playerName = '${p['name']} ${p['lastName']}';
+            for (final tId in tutorIds) {
+              notificationFutures.add(
+                NotificationService().sendNotification(
+                  title: '⚽ ¡Convocatoria!',
+                  body: '$playerName fue convocado/a para el partido vs $rival${dateStr.isNotEmpty ? " ($dateStr)" : ""}. Confirmá su asistencia en la app.',
+                  authorId: currentUser?.id ?? '',
+                  targetUserId: tId,
+                ),
+              );
+            }
+          }
         }
-        await batch.commit();
       }
+
+      await batch.commit();
+      await Future.wait(notificationFutures);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -269,7 +375,26 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
       _selectedCategory = categories.first;
     }
 
-    final nextMatch = ref.watch(nextMatchProvider(_selectedCategory ?? ''));
+    final allMatches = ref.watch(allUpcomingMatchesProvider(_selectedCategory ?? ''));
+
+    // Deduplicate matches to prevent any Dropdown duplicate value assertion error
+    final uniqueMatches = <String, Map<String, dynamic>>{};
+    for (final m in allMatches) {
+      final id = m['id']?.toString();
+      if (id != null && id.isNotEmpty && !uniqueMatches.containsKey(id)) {
+        uniqueMatches[id] = m;
+      }
+    }
+    final matchItems = uniqueMatches.values.toList();
+
+    final nextMatch = matchItems.where((m) => m['id'] == _selectedMatchId).firstOrNull ??
+        (matchItems.isNotEmpty ? matchItems.first : null);
+
+    if (_selectedMatchId == null && nextMatch != null) {
+      _selectedMatchId = nextMatch['id'] as String?;
+    } else if (_selectedMatchId != null && !matchItems.any((m) => m['id'] == _selectedMatchId)) {
+      _selectedMatchId = matchItems.isNotEmpty ? matchItems.first['id'] as String? : null;
+    }
 
     final playersAsync = ref.watch(playersStreamProvider);
     final allCategoryPlayers = (playersAsync.valueOrNull ?? [])
@@ -286,6 +411,27 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
         .toList();
 
     final docId = nextMatch?['id'] ?? 'next_match_${_selectedCategory ?? 'all'}';
+
+    final convocatoriaAsync = ref.watch(convocatoriaStreamProvider(docId));
+    final tutorConvsStatusAsync = ref.watch(coachConvocatoriaStatusProvider(_selectedCategory ?? ''));
+
+    final Map<String, String> convocatoriaStatusMap = {};
+    if (convocatoriaAsync.valueOrNull != null) {
+      for (final doc in convocatoriaAsync.valueOrNull!) {
+        final pid = (doc['playerId'] ?? doc['id']) as String?;
+        final st = doc['status'] as String? ?? 'pending';
+        if (pid != null) {
+          convocatoriaStatusMap[pid] = st;
+        }
+      }
+    }
+    if (tutorConvsStatusAsync.valueOrNull != null) {
+      tutorConvsStatusAsync.valueOrNull!.forEach((pid, st) {
+        if (st != 'pending' || !convocatoriaStatusMap.containsKey(pid)) {
+          convocatoriaStatusMap[pid] = st;
+        }
+      });
+    }
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -341,6 +487,50 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                       if (val != null && val != _selectedCategory) {
                         setState(() {
                           _selectedCategory = val;
+                          _selectedMatchId = null;
+                          _positions.clear();
+                          _convocadosIds.clear();
+                        });
+                      }
+                    },
+                  ),
+                ),
+
+              // Match / Event Selector Dropdown
+              if (matchItems.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: DropdownButtonFormField<String>(
+                    value: matchItems.any((m) => m['id'] == _selectedMatchId)
+                        ? _selectedMatchId
+                        : matchItems.first['id'] as String?,
+                    decoration: InputDecoration(
+                      labelText: 'Partido / Evento para Convocatoria',
+                      prefixIcon: const Icon(Icons.emoji_events_outlined, color: Colors.blueAccent),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    isExpanded: true,
+                    items: matchItems.map((m) {
+                      final isFriendly = m['source'] == 'novedad';
+                      final typeLabel = isFriendly ? 'Amistoso' : 'Oficial';
+                      final dateLabel = (m['date']?.toString().isNotEmpty == true) ? m['date'] : 'A confirmar';
+                      final titleText = '${m['homeTeam']} vs ${m['awayTeam']} · $dateLabel ($typeLabel)';
+                      return DropdownMenuItem<String>(
+                        value: m['id'] as String,
+                        child: Text(
+                          titleText,
+                          style: context.typography.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null && val != _selectedMatchId) {
+                        setState(() {
+                          _selectedMatchId = val;
                           _positions.clear();
                           _convocadosIds.clear();
                         });
@@ -623,6 +813,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   isStarter: _positions.values.contains(p['playerId']),
                   isCoach: isCoach,
                   nextMatch: nextMatch,
+                  convocatoriaStatus: convocatoriaStatusMap[p['playerId']],
                 )),
                 const SizedBox(height: 16),
               ],
@@ -660,8 +851,48 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     required bool isStarter,
     required bool isCoach,
     required Map<String, dynamic>? nextMatch,
+    String? convocatoriaStatus,
   }) {
     final playerId = player['playerId'] as String;
+
+    // Status chip widget shown next to convocado players
+    Widget? statusChip;
+    if (isCoach && isConvocado) {
+      switch (convocatoriaStatus) {
+        case 'confirmed':
+          statusChip = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.green.shade400),
+            ),
+            child: const Text('✅ Confirmó', style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+          );
+          break;
+        case 'rejected':
+          statusChip = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.red.shade400),
+            ),
+            child: const Text('❌ No puede', style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
+          );
+          break;
+        default:
+          statusChip = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange.shade400),
+            ),
+            child: const Text('🟡 Pendiente', style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
+          );
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -684,18 +915,28 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 children: [
                   Text(
                     '${isStarter ? '⭐ ' : ''}${player['name']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: context.typography.titleMedium.copyWith(
                       color: isStarter ? context.colors.accent : context.colors.textPrimary,
                       fontWeight: isStarter ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     '#${player['number']} · ${player['position']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: context.typography.bodySmall,
                   ),
+                  if (statusChip != null) ...[
+                    const SizedBox(height: 4),
+                    statusChip,
+                  ],
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             if (isCoach) ...[
               // Button to Convocar / Desconvocar
               ElevatedButton.icon(
@@ -710,27 +951,32 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   side: BorderSide(
                     color: isConvocado ? context.colors.primary : context.colors.divider,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 onPressed: () => _toggleConvocado(playerId, nextMatch),
                 icon: Icon(
                   isConvocado ? Icons.check_circle : Icons.add_circle_outline,
-                  size: 16,
+                  size: 14,
                   color: isConvocado ? context.colors.primary : context.colors.textSecondary,
                 ),
                 label: Text(
                   isConvocado ? 'Convocado' : '+ Convocar',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: isConvocado ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
 
               // Optional Starter Toggle Button (only when convocado)
-              if (isConvocado)
+              if (isConvocado) ...[
+                const SizedBox(width: 4),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   tooltip: isStarter ? 'Quitar Titular' : 'Marcar Titular ⭐',
                   icon: Icon(
                     Icons.star,
@@ -739,6 +985,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   ),
                   onPressed: () => _toggleTitular(playerId, nextMatch),
                 ),
+              ],
             ],
           ],
         ),

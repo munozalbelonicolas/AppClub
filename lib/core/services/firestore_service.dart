@@ -320,39 +320,149 @@ final allTrainingSchedulesStreamProvider = StreamProvider<List<Map<String, dynam
   return ref.watch(firestoreServiceProvider).getAllTrainingSchedules();
 });
 
-final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, category) {
+final allUpcomingMatchesProvider = Provider.family<List<Map<String, dynamic>>, String>((ref, category) {
   final matches = ref.watch(matchesStreamProvider).valueOrNull ?? [];
   final fixtures = ref.watch(fixturesStreamProvider(category)).valueOrNull ?? [];
   final novedades = ref.watch(allNovedadesStreamProvider).valueOrNull ?? [];
   final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
 
+  // Identify local club
+  final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull ??
+      clubs.where((c) => (c['name'] as String?)?.toLowerCase().contains('los pibes') == true).firstOrNull ??
+      clubs.where((c) => (c['name'] as String?)?.toLowerCase().contains('newbery') == true).firstOrNull ??
+      (clubs.isNotEmpty ? clubs.first : null);
+
+  final String defaultLocalName = localClub?['name'] ?? 'Los Pibes';
+  final String? defaultLocalLogo = localClub?['logoUrl'] ?? localClub?['logo'] ?? localClub?['imageUrl'];
+
   final List<Map<String, dynamic>> candidates = [];
+
+  // Helper to extract match details cleanly
+  Map<String, dynamic> buildCandidate({
+    required String id,
+    required Map<String, dynamic> raw,
+    required String source,
+    String? cat,
+    int? homeScore,
+    int? awayScore,
+  }) {
+    String homeTeamName = defaultLocalName;
+    String? homeLogoUrl = defaultLocalLogo;
+    String awayTeamName = 'Rival';
+    String? awayLogoUrl;
+
+    // 1. Resolve opponent from opponentClubId / awayClubId
+    final opponentId = raw['opponentClubId'] ?? raw['awayClubId'] ?? raw['rivalClubId'] ?? raw['opponentId'];
+    if (opponentId != null) {
+      final club = clubs.where((c) => c['id'] == opponentId || c['name'] == opponentId).firstOrNull;
+      if (club != null && club['name'] != null) {
+        awayTeamName = club['name'] as String;
+        awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+      }
+    }
+
+    // 2. Check direct fields (awayTeam, opponentName, rival, opponent)
+    if (awayTeamName == 'Rival') {
+      for (final k in ['awayTeam', 'opponentName', 'rival', 'opponent']) {
+        final val = raw[k]?.toString().trim();
+        if (val != null && val.isNotEmpty && val != 'Rival') {
+          awayTeamName = val;
+          final club = clubs.where((c) => c['name'] == val || c['id'] == val).firstOrNull;
+          if (club != null) {
+            awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+          }
+          break;
+        }
+      }
+    }
+
+    // 3. If raw['homeTeam'] was saved as a rival club name (e.g. 'Reina Mora'), swap it to awayTeam
+    final rawHome = raw['homeTeam']?.toString().trim();
+    if (rawHome != null && rawHome.isNotEmpty && rawHome != defaultLocalName && rawHome != 'Jorge Newbery') {
+      final club = clubs.where((c) => c['name'] == rawHome || c['id'] == rawHome).firstOrNull;
+      if (club != null && club['isLocal'] != true) {
+        awayTeamName = club['name'] as String;
+        awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+      } else if (awayTeamName == 'Rival') {
+        awayTeamName = rawHome;
+      }
+    }
+
+    // 4. Check if any club name is mentioned in title or body
+    if (awayTeamName == 'Rival') {
+      for (final club in clubs) {
+        final clubName = (club['name'] as String?)?.trim();
+        if (clubName != null && clubName.isNotEmpty && club['isLocal'] != true) {
+          final titleStr = (raw['title']?.toString() ?? '').toLowerCase();
+          final bodyStr = (raw['body']?.toString() ?? '').toLowerCase();
+          if (titleStr.contains(clubName.toLowerCase()) || bodyStr.contains(clubName.toLowerCase())) {
+            awayTeamName = clubName;
+            awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+            break;
+          }
+        }
+      }
+    }
+
+    // 5. Look for "vs X" pattern in title, or use title if it's a specific name
+    if (awayTeamName == 'Rival' && raw['title'] != null) {
+      final title = raw['title'].toString().trim();
+      final vsIndex = title.toLowerCase().indexOf('vs');
+      if (vsIndex != -1 && vsIndex + 2 < title.length) {
+        final candidate = title.substring(vsIndex + 2).trim();
+        if (candidate.isNotEmpty) {
+          awayTeamName = candidate;
+          final club = clubs.where((c) => c['name']?.toString().toLowerCase() == candidate.toLowerCase()).firstOrNull;
+          if (club != null) {
+            awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+          }
+        }
+      } else if (title.isNotEmpty &&
+          title.toLowerCase() != 'partido' &&
+          title.toLowerCase() != 'partido amistoso' &&
+          title.toLowerCase() != 'convocatoria' &&
+          title.toLowerCase() != 'novedad') {
+        awayTeamName = title;
+        final club = clubs.where((c) => c['name']?.toString().toLowerCase() == title.toLowerCase()).firstOrNull;
+        if (club != null) {
+          awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+        }
+      }
+    }
+
+    return {
+      'id': id,
+      'homeTeam': homeTeamName,
+      'awayTeam': awayTeamName,
+      'homeLogoUrl': homeLogoUrl,
+      'awayLogoUrl': awayLogoUrl,
+      'homeScore': homeScore,
+      'awayScore': awayScore,
+      'category': cat ?? category,
+      'venue': raw['venue'] ?? raw['location'] ?? 'Cancha Principal JN',
+      'date': raw['eventDate'] ?? raw['date'] ?? '',
+      'time': raw['eventTime'] ?? raw['time'] ?? 'A confirmar',
+      'status': raw['status'] ?? 'upcoming',
+      'source': source,
+      'title': raw['title'] ?? 'Partido',
+      'body': raw['body'] ?? '',
+      'opponentClubId': raw['opponentClubId'],
+      'hasTransport': raw['hasTransport'] ?? false,
+    };
+  }
 
   // 1. From 'matches' collection
   for (final m in matches) {
     final cat = m['category']?.toString();
     if (cat == null || cat == 'all' || cat == 'todos' || cat == category || category.isEmpty) {
-      final homeTeamName = m['homeTeam'] ?? 'Jorge Newbery';
-      final awayTeamName = m['awayTeam'] ?? 'Rival';
-
-      final homeClub = clubs.where((c) => c['name'] == homeTeamName || c['id'] == m['homeClubId']).firstOrNull;
-      final awayClub = clubs.where((c) => c['name'] == awayTeamName || c['id'] == m['awayClubId']).firstOrNull;
-
-      candidates.add({
-        'id': m['id'],
-        'homeTeam': homeTeamName,
-        'awayTeam': awayTeamName,
-        'homeLogoUrl': homeClub?['logoUrl'] ?? homeClub?['logo'] ?? homeClub?['imageUrl'],
-        'awayLogoUrl': awayClub?['logoUrl'] ?? awayClub?['logo'] ?? awayClub?['imageUrl'],
-        'homeScore': m['homeScore'],
-        'awayScore': m['awayScore'],
-        'category': cat ?? category,
-        'venue': m['venue'] ?? m['location'] ?? 'Cancha Principal JN',
-        'date': m['date'] ?? '',
-        'time': m['time'] ?? 'A confirmar',
-        'status': 'upcoming',
-        'source': 'matches',
-      });
+      candidates.add(buildCandidate(
+        id: m['id'],
+        raw: m,
+        source: 'matches',
+        cat: cat,
+        homeScore: m['homeScore'] as int?,
+        awayScore: m['awayScore'] as int?,
+      ));
     }
   }
 
@@ -362,88 +472,46 @@ final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, c
     if (cat == null || cat == 'all' || cat == 'todos' || cat == category || category.isEmpty) {
       final matchesList = List<Map<String, dynamic>>.from(f['matches'] ?? []);
       for (final m in matchesList) {
-        final homeClub = clubs.where((c) => c['id'] == m['homeClubId']).firstOrNull;
-        final awayClub = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
-        final homeName = homeClub?['name'] ?? 'Jorge Newbery';
-        final awayName = awayClub?['name'] ?? 'Rival';
-
-        candidates.add({
-          'id': '${f['id']}_${m['homeClubId']}_${m['awayClubId']}',
-          'homeTeam': homeName,
-          'awayTeam': awayName,
-          'homeLogoUrl': homeClub?['logoUrl'] ?? homeClub?['logo'] ?? homeClub?['imageUrl'],
-          'awayLogoUrl': awayClub?['logoUrl'] ?? awayClub?['logo'] ?? awayClub?['imageUrl'],
-          'homeScore': m['homeScore'],
-          'awayScore': m['awayScore'],
-          'category': cat ?? category,
-          'venue': m['venue'] ?? m['location'] ?? 'Cancha Principal JN',
-          'date': m['date'] ?? '',
-          'time': m['time'] ?? 'A confirmar',
-          'status': 'upcoming',
-          'source': 'fixture',
-          'fixtureName': f['name'] ?? 'Fecha Fixture',
-        });
+        candidates.add(buildCandidate(
+          id: '${f['id']}_${m['homeClubId']}_${m['awayClubId']}',
+          raw: m,
+          source: 'fixture',
+          cat: cat,
+          homeScore: m['homeScore'] as int?,
+          awayScore: m['awayScore'] as int?,
+        ));
       }
     }
   }
 
-  // 3. From 'novedades' collection (partidos / amistosos creados por DT o ADMIN)
+  // 3. From 'novedades' collection
   for (final n in novedades) {
     final bool isMatch = n['isMatch'] == true || n['eventType'] == 'partido';
     if (!isMatch) continue;
 
     final cat = n['category']?.toString() ?? n['eventCategory']?.toString();
     if (cat == null || cat == 'all' || cat == 'todos' || cat == category || category.isEmpty) {
-      String awayTeam = 'Rival';
-      String? awayLogoUrl;
-
-      if (n['opponentClubId'] != null) {
-        final club = clubs.where((c) => c['id'] == n['opponentClubId']).firstOrNull;
-        if (club != null && club['name'] != null) {
-          awayTeam = club['name'] as String;
-          awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
-        }
-      }
-      if (awayTeam == 'Rival' && n['title'] != null && n['title'].toString().isNotEmpty) {
-        awayTeam = n['title'] as String;
-        final club = clubs.where((c) => c['name'] == awayTeam).firstOrNull;
-        if (club != null) {
-          awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
-        }
-      }
-
-      final homeClub = clubs.where((c) => (c['name'] as String?)?.contains('Newbery') == true).firstOrNull;
-      final String? homeLogoUrl = homeClub?['logoUrl'] ?? homeClub?['logo'] ?? homeClub?['imageUrl'];
-
-      candidates.add({
-        'id': n['id'],
-        'homeTeam': 'Jorge Newbery',
-        'awayTeam': awayTeam,
-        'homeLogoUrl': homeLogoUrl,
-        'awayLogoUrl': awayLogoUrl,
-        'homeScore': null,
-        'awayScore': null,
-        'category': cat ?? category,
-        'venue': n['location'] ?? 'Cancha Principal JN',
-        'date': n['eventDate'] ?? n['date'] ?? '',
-        'time': n['eventTime'] ?? n['time'] ?? 'A confirmar',
-        'status': 'upcoming',
-        'source': 'novedad',
-        'title': n['title'] ?? 'Partido Amistoso',
-        'body': n['body'] ?? '',
-        'opponentClubId': n['opponentClubId'],
-        'hasTransport': n['hasTransport'] ?? false,
-      });
+      candidates.add(buildCandidate(
+        id: n['id'],
+        raw: n,
+        source: 'novedad',
+        cat: cat,
+      ));
     }
   }
 
-  if (candidates.isEmpty) return null;
-
-  final now = DateTime.now();
-  final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  // Deduplicate candidates by unique id
+  final seenIds = <String>{};
+  final List<Map<String, dynamic>> uniqueCandidates = [];
+  for (final c in candidates) {
+    final id = c['id']?.toString() ?? '';
+    if (id.isNotEmpty && seenIds.add(id)) {
+      uniqueCandidates.add(c);
+    }
+  }
 
   // Sort candidates by date. Non-empty valid dates come first.
-  candidates.sort((a, b) {
+  uniqueCandidates.sort((a, b) {
     final dateA = a['date']?.toString() ?? '';
     final dateB = b['date']?.toString() ?? '';
     if (dateA.isEmpty && dateB.isEmpty) return 0;
@@ -451,6 +519,16 @@ final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, c
     if (dateB.isEmpty) return -1;
     return dateA.compareTo(dateB);
   });
+
+  return uniqueCandidates;
+});
+
+final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, category) {
+  final candidates = ref.watch(allUpcomingMatchesProvider(category));
+  if (candidates.isEmpty) return null;
+
+  final now = DateTime.now();
+  final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
   // Upcoming matches on or after today with valid date
   final upcomingWithDate = candidates.where((c) {

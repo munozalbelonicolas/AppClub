@@ -69,8 +69,12 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     String selectedCategory = 'deportivo';
     String selectedPriority = 'normal';
     bool commentsEnabled = true;
-    if (isDT && sessionUser.category != null) {
-      selectedCategory = sessionUser.category!;
+    if (isDT) {
+      if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
+        selectedCategory = sessionUser.assignedCategories!.first;
+      } else if (sessionUser.category != null) {
+        selectedCategory = sessionUser.category!;
+      }
     }
     
     String? selectedEventCategory;
@@ -122,10 +126,29 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                       ),
                       const SizedBox(height: 12),
                       if (isDT) ...[
-                        Text(
-                          'Categoría/Visibilidad: ${sessionUser.category ?? 'Asignada'} (Perfil DT)',
-                          style: context.typography.bodyMedium.copyWith(color: context.colors.primary, fontWeight: FontWeight.bold),
-                        ),
+                        if ((sessionUser.assignedCategories?.length ?? 0) > 1) ...[
+                          DropdownButtonFormField<String>(
+                            dropdownColor: context.colors.surface,
+                            value: selectedCategory,
+                            decoration: const InputDecoration(labelText: 'Categoría/Visibilidad'),
+                            items: List<String>.from(sessionUser.assignedCategories!).map((cat) {
+                              return DropdownMenuItem<String>(
+                                value: cat,
+                                child: Text(cat.toUpperCase(), style: context.typography.bodyLarge),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setDialogState(() => selectedCategory = val);
+                              }
+                            },
+                          ),
+                        ] else ...[
+                          Text(
+                            'Categoría/Visibilidad: ${sessionUser.displayCategory} (Perfil DT)',
+                            style: context.typography.bodyMedium.copyWith(color: context.colors.primary, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ] else ...[
                         DropdownButtonFormField<String>(
                           dropdownColor: context.colors.surface,
@@ -214,8 +237,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           initialValue: selectedEventCategory,
                           decoration: const InputDecoration(labelText: 'Categoría del Evento/Partido'),
                           items: (isDT 
-                            ? (sessionUser.assignedCategories ?? (sessionUser.category != null ? [sessionUser.category!] : <String>[])) 
-                            : appCategories).map<DropdownMenuItem<String>>((cat) {
+                            ? List<String>.from(sessionUser.assignedCategories ?? (sessionUser.category != null ? [sessionUser.category!] : <String>[])) 
+                            : List<String>.from(appCategories)).map<DropdownMenuItem<String>>((cat) {
                             return DropdownMenuItem<String>(
                               value: cat,
                               child: Text(cat.toString().toUpperCase(), style: context.typography.bodyLarge),
@@ -327,6 +350,12 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         'eventType': eventType,
                         'hasTransport': hasTransport,
                         'opponentClubId': (eventType != 'ninguno') ? selectedOpponentId : null,
+                        'awayTeam': (selectedOpponentId != null)
+                            ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                            : 'Rival',
+                        'opponentName': (selectedOpponentId != null)
+                            ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                            : null,
                         'eventDate': eventDate != null
                             ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
                             : null,

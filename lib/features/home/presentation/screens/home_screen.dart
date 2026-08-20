@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../../../../core/providers/convocatoria_provider.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/birthday_service.dart';
 import '../../../../core/services/firestore_service.dart';
@@ -41,6 +42,292 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Set<String> _expandedPostIds = {};
   final Set<String> _markedSeenPostIds = {};
   final Map<String, TextEditingController> _commentControllers = {};
+
+  void _confirmAttendance(String matchId, String playerId, String playerName) async {
+    try {
+      await updateConvocatoriaStatus(
+        matchId: matchId,
+        playerId: playerId,
+        status: 'confirmed',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ ¡Asistencia de $playerName confirmada!'),
+            backgroundColor: context.colors.success,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al confirmar asistencia: $e'),
+            backgroundColor: context.colors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _rejectAttendance(String matchId, String playerId, String playerName) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          side: BorderSide(color: context.colors.border, width: 0.5),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.cancel_outlined, color: Colors.red, size: 24),
+            const SizedBox(width: 8),
+            Text('No puede asistir', style: context.typography.titleLarge),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Confirmas que $playerName no podrá asistir al partido?',
+              style: context.typography.bodyMedium,
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: reasonController,
+              maxLines: 2,
+              style: context.typography.bodyMedium,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (opcional)',
+                hintText: 'Ej: Viaje familiar / Lesión / Compromiso',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.colors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await updateConvocatoriaStatus(
+                  matchId: matchId,
+                  playerId: playerId,
+                  status: 'rejected',
+                  rejectionReason: reasonController.text.trim(),
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Aviso enviado al DT: $playerName no asistirá.'),
+                      backgroundColor: context.colors.error,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error al responder: $e'),
+                      backgroundColor: context.colors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Confirmar Ausencia'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTutorConvocatoriaCard(Map<String, dynamic> item) {
+    final match = item['match'] as Map<String, dynamic>? ?? {};
+    final conv = item['convocatoria'] as Map<String, dynamic>? ?? {};
+    final matchId = item['matchId'] as String? ?? match['id'] as String? ?? item['id'] as String? ?? '';
+    final playerId = item['playerId'] as String? ?? conv['playerId'] as String? ?? conv['id'] as String? ?? '';
+    final playerName = item['playerName'] ?? conv['name'] ?? item['name'] ?? 'Jugador';
+    final category = item['category'] as String? ?? conv['category'] as String? ?? '';
+    final rival = item['awayTeam'] ?? match['awayTeam'] ?? item['homeTeam'] ?? match['homeTeam'] ?? 'Partido';
+    final venue = item['venue'] ?? match['venue'] ?? 'Cancha Principal';
+    final rawDate = item['date'] ?? match['date'];
+    String dateStr = '';
+    if (rawDate is Timestamp) {
+      final d = rawDate.toDate();
+      dateStr = '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    } else if (rawDate != null) {
+      dateStr = rawDate.toString();
+    }
+    final timeStr = item['time']?.toString() ?? match['time']?.toString() ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF163D2D),
+            Color(0xFF0D241A),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: const Color(0xFF34D399).withValues(alpha: 0.5), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF34D399).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF34D399)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.sports_soccer, size: 14, color: Color(0xFF34D399)),
+                      SizedBox(width: 5),
+                      Text(
+                        '¡CONVOCATORIA AL PARTIDO!',
+                        style: TextStyle(
+                          color: Color(0xFF34D399),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (category.isNotEmpty)
+                  Text(
+                    'Cat. $category',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '$playerName fue convocado/a',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.shield_outlined, size: 15, color: Colors.white70),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'vs $rival',
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today, size: 13, color: Colors.white60),
+                const SizedBox(width: 6),
+                Text(
+                  '$dateStr${timeStr.isNotEmpty ? " · $timeStr hs" : ""}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(width: 14),
+                const Icon(Icons.location_on_outlined, size: 14, color: Colors.white60),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    venue,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 2,
+                    ),
+                    onPressed: () => _confirmAttendance(matchId, playerId, playerName),
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text(
+                      'Confirmar',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFF87171),
+                      side: const BorderSide(color: Color(0xFFF87171)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () => _rejectAttendance(matchId, playerId, playerName),
+                    icon: const Icon(Icons.cancel_outlined, size: 18),
+                    label: const Text(
+                      'No puede ir',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -156,8 +443,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Default category configuration
     String selectedCategory = 'all';
     final bool isDT = sessionUser.role == 'dt';
-    if (isDT && sessionUser.category != null) {
-      selectedCategory = sessionUser.category!;
+    if (isDT) {
+      if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
+        selectedCategory = sessionUser.assignedCategories!.first;
+      } else if (sessionUser.category != null) {
+        selectedCategory = sessionUser.category!;
+      }
     }
 
     String eventType = isDT ? 'partido' : 'ninguno';
@@ -328,13 +619,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 12),
                       // Category selection
                       if (isDT) ...[
-                        Text(
-                          'Categoría: ${sessionUser.category}',
-                          style: context.typography.bodyMedium.copyWith(
-                            color: context.colors.primary,
-                            fontWeight: FontWeight.bold,
+                        if ((sessionUser.assignedCategories?.length ?? 0) > 1) ...[
+                          DropdownButtonFormField<String>(
+                            dropdownColor: context.colors.surface,
+                            value: selectedCategory,
+                            decoration: const InputDecoration(
+                              labelText: 'Categoría',
+                            ),
+                            items: List<String>.from(sessionUser.assignedCategories!).map((cat) {
+                              return DropdownMenuItem<String>(
+                                value: cat,
+                                child: Text(cat, style: context.typography.bodyLarge),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setDialogState(() => selectedCategory = val);
+                              }
+                            },
                           ),
-                        ),
+                        ] else ...[
+                          Text(
+                            'Categoría: ${sessionUser.displayCategory}',
+                            style: context.typography.bodyMedium.copyWith(
+                              color: context.colors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ] else ...[
                         DropdownButtonFormField<String>(
                           dropdownColor: context.colors.surface,
@@ -621,6 +933,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         eventType != 'comunicado')
                                     ? selectedOpponentId
                                     : null,
+                                'awayTeam': (selectedOpponentId != null)
+                                    ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                                    : 'Rival',
+                                'opponentName': (selectedOpponentId != null)
+                                    ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                                    : null,
                                 'eventDate': dateStr,
                                 'read': false,
                                 'eventTime': timeStr,
@@ -685,6 +1003,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         sessionUser.role == 'tutor' || sessionUser.role == 'jugador';
 
     final selectedChild = ref.watch(selectedChildProvider);
+    final selectedCoachCat = ref.watch(selectedCoachCategoryProvider);
+    final List<String> coachCategories = (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty)
+        ? List<String>.from(sessionUser.assignedCategories!)
+        : (sessionUser.category != null && sessionUser.category!.isNotEmpty ? [sessionUser.category!] : <String>[]);
+
+    if (sessionUser.role == 'dt' && coachCategories.isNotEmpty) {
+      if (selectedCoachCat == null || !coachCategories.contains(selectedCoachCat)) {
+        Future.microtask(() {
+          if (mounted) {
+            ref.read(selectedCoachCategoryProvider.notifier).state = coachCategories.first;
+          }
+        });
+      }
+    }
 
     int unpaidQuotasCount = 0;
     if (sessionUser.role == 'tutor' || sessionUser.role == 'jugador') {
@@ -705,14 +1037,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     }
 
-    String activeCategory = sessionUser.assignedCategories?.isNotEmpty == true
-        ? sessionUser.assignedCategories!.first
-        : (sessionUser.category ?? '');
-
-    if (sessionUser.role == 'tutor' &&
+    String activeCategory = '';
+    if (sessionUser.role == 'dt') {
+      activeCategory = selectedCoachCat ?? (coachCategories.isNotEmpty ? coachCategories.first : '');
+    } else if (sessionUser.role == 'tutor' &&
         selectedChild != null &&
         selectedChild['category'] != null) {
       activeCategory = selectedChild['category'] as String;
+    } else {
+      activeCategory = sessionUser.category ?? '';
     }
 
     final nextMatch = ref.watch(nextMatchProvider(activeCategory));
@@ -742,6 +1075,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     final String categoriesStr = relevantCategories.toSet().join(',');
+
+    final tutorConvocatoriasAsync = sessionUser.role == 'tutor'
+        ? ref.watch(tutorConvocatoriasProvider(sessionUser.id))
+        : null;
+    final List<Map<String, dynamic>> pendingConvocatorias =
+        tutorConvocatoriasAsync?.valueOrNull ?? [];
 
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin
@@ -850,6 +1189,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     style: context.typography.bodyMedium,
                                   ),
                                 )
+                          else if (sessionUser.role == 'dt')
+                            if (coachCategories.length > 1)
+                              DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: (selectedCoachCat != null && coachCategories.contains(selectedCoachCat))
+                                      ? selectedCoachCat
+                                      : (coachCategories.isNotEmpty ? coachCategories.first : null),
+                                  isDense: true,
+                                  icon: const Icon(
+                                    Icons.keyboard_arrow_down,
+                                    size: 20,
+                                  ),
+                                  style: context.typography.bodyMedium.copyWith(
+                                    color: context.colors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  items: coachCategories.map((cat) {
+                                    return DropdownMenuItem<String>(
+                                      value: cat,
+                                      child: Text('DT · Categoría $cat'),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      ref.read(selectedCoachCategoryProvider.notifier).state = val;
+                                    }
+                                  },
+                                ),
+                              )
+                            else
+                              Text(
+                                coachCategories.isNotEmpty
+                                    ? 'DT · Categoría ${coachCategories.first}'
+                                    : 'DT · Sin Categoría',
+                                style: context.typography.bodyMedium.copyWith(
+                                  color: context.colors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
                           else
                             Text(
                               hasPlayer
@@ -974,6 +1352,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             // ─── Sponsor Carousel ────────────────────────
             const SliverToBoxAdapter(child: SponsorCarousel()),
+
+            // ─── Convocatoria Pending Cards (For Tutors) ───
+            if (pendingConvocatorias.isNotEmpty) ...[
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: pendingConvocatorias
+                        .map((c) => _buildTutorConvocatoriaCard(c))
+                        .toList(),
+                  ),
+                ),
+              ),
+            ],
 
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
@@ -1255,7 +1648,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             const SizedBox(height: 6),
                             Text(
                               sessionUser.role == 'dt'
-                                  ? 'Comienza publicando una novedad para la categoría ${sessionUser.category}.'
+                                  ? 'Comienza publicando una novedad para tus categorías (${sessionUser.displayCategory}).'
                                   : 'Los entrenadores o directivos subirán novedades pronto.',
                               style: context.typography.bodySmall,
                               textAlign: TextAlign.center,

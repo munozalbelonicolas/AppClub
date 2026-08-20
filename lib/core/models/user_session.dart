@@ -183,11 +183,29 @@ class UserSession {
     return aptoFisicoExpiry!.isBefore(DateTime.now());
   }
 
+  /// Get formatted categories for display
+  String get displayCategory {
+    if (role == 'dt') {
+      if (assignedCategories != null && assignedCategories!.isNotEmpty) {
+        return assignedCategories!.join(', ');
+      }
+      return category ?? 'Sin Categoría';
+    }
+    return category ?? 'Sin Categoría';
+  }
+
   /// Check if user has access to a specific category
   bool hasCategoryAccess(String? targetCategory) {
     if (isAdmin) return true;
-    if (category == null || targetCategory == null) return false;
-    return category == targetCategory;
+    if (targetCategory == null) return false;
+    if (isCoach) {
+      if (assignedCategories != null && assignedCategories!.isNotEmpty) {
+        return assignedCategories!.any((c) => c.toLowerCase() == targetCategory.toLowerCase());
+      }
+      return category?.toLowerCase() == targetCategory.toLowerCase();
+    }
+    if (category == null) return false;
+    return category!.toLowerCase() == targetCategory.toLowerCase();
   }
 
   /// Hierarchical permission check:
@@ -200,7 +218,11 @@ class UserSession {
       return other.role != 'directivo';
     }
     if (isCoach) {
-      return other.isNormalUser && category == other.category;
+      if (!other.isNormalUser) return false;
+      if (assignedCategories != null && assignedCategories!.isNotEmpty) {
+        return assignedCategories!.any((c) => c.toLowerCase() == (other.category ?? '').toLowerCase());
+      }
+      return category?.toLowerCase() == other.category?.toLowerCase();
     }
     return false;
   }

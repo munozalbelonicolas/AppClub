@@ -193,8 +193,13 @@ class NotificationService {
             }
 
             if (isForMe) {
-              // OneSignal se encarga de mostrar la notificación Push oficial.
-              // No se llama a showLocalNotification aquí para evitar notificaciones duplicadas.
+              final title = data['title']?.toString() ?? 'Nueva Notificación';
+              final body = data['body']?.toString() ?? '';
+              showLocalNotification(
+                id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                title: title,
+                body: body,
+              );
             }
           }
         }

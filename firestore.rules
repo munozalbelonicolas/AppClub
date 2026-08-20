@@ -15,13 +15,13 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['directivo', 'secretario'];
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['directivo', 'secretario', 'admin', 'administrador', 'DIRECTIVO', 'SECRETARIO', 'ADMIN'];
     }
 
     function isCoach() {
       return isAuthenticated() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'dt';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['dt', 'DT', 'profesor', 'entrenador', 'coach', 'Profesor', 'Entrenador'];
     }
 
     function isOwner(userId) {
@@ -47,19 +47,16 @@ service cloud.firestore {
 
     // ─── Player Tutor Links ───
     match /player_tutor_links/{linkId} {
-      allow read: if isAuthenticated() && (
-        resource.data.tutorId == request.auth.uid ||
-        resource.data.playerId == request.auth.uid ||
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.tutorId == request.auth.uid ||
         isAdmin() ||
         isCoach()
       );
-      allow create: if isAuthenticated() && (
-        request.resource.data.tutorId == request.auth.uid ||
-        isAdmin()
-      );
       allow update, delete: if isAuthenticated() && (
         resource.data.tutorId == request.auth.uid ||
-        isAdmin()
+        isAdmin() ||
+        isCoach()
       );
     }
 
@@ -160,10 +157,8 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isCoach();
       
-      // Subcollections for match
       match /convocatoria/{playerId} {
-        allow read: if isAuthenticated();
-        allow write: if isAdmin() || isCoach();
+        allow read, write: if isAuthenticated();
       }
       match /lineup/{playerId} {
         allow read: if isAuthenticated();
@@ -212,6 +207,10 @@ service cloud.firestore {
     }
 
     match /birthday_logs/{logId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /tutor_convocatorias/{convId} {
       allow read, write: if isAuthenticated();
     }
 

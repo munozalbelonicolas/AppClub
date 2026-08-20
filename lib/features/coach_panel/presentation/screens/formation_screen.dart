@@ -312,7 +312,7 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
         .toList();
 
     final List<String> dtCategories = isCoach
-        ? (sessionUser?.assignedCategories ?? (sessionUser?.category != null ? [sessionUser!.category!] : <String>[]))
+        ? List<String>.from(sessionUser?.assignedCategories ?? (sessionUser?.category != null ? [sessionUser!.category!] : <String>[]))
         : [];
 
     final allPlayers = (isCoach && !isAdmin && dtCategories.isNotEmpty)
@@ -324,7 +324,12 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
         ? dtCategories
         : ['Todas', ...appCategories];
 
-    if (!categories.contains(_selectedCategoryFilter)) {
+    final selectedCoachCat = ref.watch(selectedCoachCategoryProvider);
+    if ((_selectedCategoryFilter == 'Todas' || !categories.contains(_selectedCategoryFilter)) &&
+        selectedCoachCat != null &&
+        categories.contains(selectedCoachCat)) {
+      _selectedCategoryFilter = selectedCoachCat;
+    } else if (!categories.contains(_selectedCategoryFilter)) {
       _selectedCategoryFilter = categories.first;
     }
 
@@ -358,7 +363,7 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: _selectedCategoryFilter,
+                        value: _selectedCategoryFilter,
                         decoration: const InputDecoration(
                           labelText: 'Filtrar Jugadores por Categoría',
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -370,6 +375,9 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                             setState(() {
                               _selectedCategoryFilter = val;
                             });
+                            if (val != 'Todas') {
+                              ref.read(selectedCoachCategoryProvider.notifier).state = val;
+                            }
                           }
                         },
                       ),

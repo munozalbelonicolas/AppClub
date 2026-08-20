@@ -1,0 +1,100 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Streams all pending convocatorias for a tutor.
+/// Listens in real-time to the 'tutor_convocatorias' collection.
+final tutorConvocatoriasProvider =
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, tutorId) {
+  if (tutorId.isEmpty) {
+    return Stream.value([]);
+  }
+
+  final db = FirebaseFirestore.instance;
+
+  return db
+      .collection('tutor_convocatorias')
+      .where('tutorId', isEqualTo: tutorId)
+      .snapshots()
+      .map((snapshot) {
+    return snapshot.docs
+        .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
+        .where((d) => d['status'] == 'pending' || d['status'] == null)
+        .toList();
+  });
+});
+
+/// Streams all tutor convocatorias for a specific category to show live status to the coach
+final coachConvocatoriaStatusProvider =
+    StreamProvider.family<Map<String, String>, String>((ref, category) {
+  final db = FirebaseFirestore.instance;
+
+  return db
+      .collection('tutor_convocatorias')
+      .where('category', isEqualTo: category)
+      .snapshots()
+      .map((snapshot) {
+    final Map<String, String> statusMap = {};
+    for (final doc in snapshot.docs) {
+      final pid = doc.data()['playerId'] as String?;
+      final st = doc.data()['status'] as String? ?? 'pending';
+      if (pid != null) {
+        statusMap[pid] = st;
+      }
+    }
+    return statusMap;
+  });
+});
+
+/// Updates the convocatoria status for a specific player in a match.
+/// Updates both 'tutor_convocatorias' and 'matches/{matchId}/convocatoria/{playerId}'.
+Future<void> updateConvocatoriaStatus({
+  required String matchId,
+  required String playerId,
+  required String status, // 'confirmed' or 'rejected'
+  String? tutorId,
+  String? rejectionReason,
+}) async {
+  final db = FirebaseFirestore.instance;
+  final updateData = <String, dynamic>{
+    'status': status,
+    'confirmedAt': FieldValue.serverTimestamp(),
+  };
+  if (rejectionReason != null && rejectionReason.isNotEmpty) {
+    updateData['rejectionReason'] = rejectionReason;
+  }
+
+  // 1. Update in matches/{matchId}/convocatoria/{playerId}
+  try {
+    await db
+        .collection('matches')
+        .doc(matchId)
+        .collection('convocatoria')
+        .doc(playerId)
+        .set(updateData, SetOptions(merge: true));
+  } catch (_) {}
+
+  // 2. Update all matching documents in tutor_convocatorias collection
+  try {
+    final query = await db
+        .collection('tutor_convocatorias')
+        .where('playerId', isEqualTo: playerId)
+        .get();
+
+    for (final doc in query.docs) {
+      await doc.reference.update(updateData);
+      // Also update the match convocatoria subcollection pointed by this doc
+      final docMatchId = doc.data()['matchId'] as String?;
+      if (docMatchId != null && docMatchId != matchId) {
+        try {
+          await db
+              .collection('matches')
+              .doc(docMatchId)
+              .collection('convocatoria')
+              .doc(playerId)
+              .set(updateData, SetOptions(merge: true));
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+}
+
