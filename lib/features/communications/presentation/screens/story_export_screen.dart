@@ -49,7 +49,7 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
 
       // The Container is already 1080x1920, pixelRatio 1.0 yields full HD 1080x1920 image
       final image = await boundary
-          .toImage(pixelRatio: 1.0)
+          .toImage()
           .timeout(const Duration(seconds: 4), onTimeout: () {
         throw Exception('Tiempo de espera agotado al renderizar imagen.');
       });
@@ -78,6 +78,7 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
 
       final title = widget.announcement['title']?.toString() ?? 'Novedad Club';
 
+      // ignore: deprecated_member_use
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'image/png')],
         text: title,
@@ -93,7 +94,7 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
         );
       }
     } finally {
-      if (mounted && _isExporting) {
+      if (mounted) {
         setState(() => _isExporting = false);
       }
     }
@@ -110,9 +111,8 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
         if (createdAt is DateTime) {
           return DateFormat('dd/MM/yyyy').format(createdAt);
         }
-        // Timestamp from Firestore
-        final dt = createdAt.toDate();
-        return DateFormat('dd/MM/yyyy').format(dt);
+        final dt = (createdAt as dynamic).toDate();
+        return DateFormat('dd/MM/yyyy').format(dt as DateTime);
       } catch (_) {}
     }
     return DateFormat('dd/MM/yyyy').format(DateTime.now());
@@ -134,9 +134,9 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text(
-          'Previsualizar Historia',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          isBirthday ? 'Exportar Saludo de Cumpleaños' : 'Exportar para Historia',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -148,7 +148,6 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
             Expanded(
               child: Center(
                 child: FittedBox(
-                  fit: BoxFit.contain,
                   child: RepaintBoundary(
                     key: _globalKey,
                     child: Container(
@@ -181,7 +180,7 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
                                   'assets/images/app_logo.jpg',
                                   width: 800,
                                   height: 800,
-                                  errorBuilder: (_, __, ___) =>
+                                  errorBuilder: (context, error, stackTrace) =>
                                       const SizedBox(),
                                 ),
                               ),

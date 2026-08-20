@@ -195,7 +195,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
               if (dt != null) catB = dt.year.toString();
             }
 
-            int catComp = catA.compareTo(catB);
+            final catComp = catA.compareTo(catB);
             if (catComp != 0) return catComp;
 
             final nameA = '${dataA['name'] ?? ''} ${dataA['lastName'] ?? ''}'.trim().toLowerCase();

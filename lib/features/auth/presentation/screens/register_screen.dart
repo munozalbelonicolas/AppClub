@@ -93,7 +93,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           SnackBar(
             content: Text(msg),
             backgroundColor: context.colors.error,
-            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -117,7 +116,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           SnackBar(
             content: Text('Error al registrarse: $e'),
             backgroundColor: context.colors.error,
-            duration: const Duration(seconds: 4),
           ),
         );
       }

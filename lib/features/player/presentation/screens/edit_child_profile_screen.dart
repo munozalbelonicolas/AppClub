@@ -142,9 +142,9 @@ class _EditChildProfileScreenState extends ConsumerState<EditChildProfileScreen>
         'lastName': _lastNameController.text.trim(),
         'weight': _weightController.text.trim(),
         'height': _heightController.text.trim(),
-        if (age != null) 'age': age,
+        'age': ?age,
         if (_birthDate != null) 'birthDate': Timestamp.fromDate(_birthDate!),
-        if (computedCategory != null) 'category': computedCategory,
+        'category': ?computedCategory,
         'avatarUrl': finalAvatarUrl,
         'aptoFisicoUrl': finalAptoUrl,
         'aptoFisicoExpiry': _aptoFisicoExpiry != null

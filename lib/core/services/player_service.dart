@@ -158,7 +158,7 @@ class PlayerService {
     }
 
     // 1. Create the link request
-    final linkRef = await _db.collection('player_tutor_links').add({
+    await _db.collection('player_tutor_links').add({
       'tutorId': tutorId,
       'playerId': playerId,
       'isEnabledByTutor': enableAccount,

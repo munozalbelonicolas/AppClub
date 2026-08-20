@@ -166,7 +166,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: 12,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final monthStr = '${index + 1}'.padLeft(2, '0');
                 final quotaMonth = '$monthStr/$currentYear';

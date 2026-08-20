@@ -143,7 +143,6 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                     decoration: const InputDecoration(labelText: 'Profe / DT a cargo'),
                     items: [
                       const DropdownMenuItem<String?>(
-                        value: null,
                         child: Text('Sin Profe Asignado'),
                       ),
                       ...coaches.map((c) {

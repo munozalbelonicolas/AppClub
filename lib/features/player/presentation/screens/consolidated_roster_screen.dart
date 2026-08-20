@@ -86,15 +86,14 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
                       }
 
                       return DropdownButtonFormField<String>(
-                        // ignore: deprecated_member_use
-                        value: _selectedCategory,
+                        initialValue: _selectedCategory,
                         decoration: const InputDecoration(
                           labelText: 'Filtrar por Categoría',
                           prefixIcon: Icon(Icons.filter_list),
                         ),
                         items: [
                           if (isAdmin || (isCoach && displayCategories.length > 1))
-                            DropdownMenuItem(value: null, child: Text(isCoach ? 'Mis categorías' : 'Todas las categorías')),
+                            DropdownMenuItem(child: Text(isCoach ? 'Mis categorías' : 'Todas las categorías')),
                           ...displayCategories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
                         ],
                         onChanged: (val) {

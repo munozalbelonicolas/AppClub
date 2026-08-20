@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import '../config/onesignal_config.dart';
+import 'app_logger.dart';
 
 class OneSignalService {
   static final OneSignalService _instance = OneSignalService._internal();
@@ -17,20 +17,17 @@ class OneSignalService {
 
     if (OneSignalConfig.appId == 'YOUR_ONESIGNAL_APP_ID' ||
         OneSignalConfig.appId.isEmpty) {
-      if (kDebugMode) {
-        print(
-          '⚠️ OneSignal Warning: App ID no configurado en lib/core/config/onesignal_config.dart',
-        );
-      }
+      AppLogger.warning(
+        'OneSignal Warning: App ID no configurado en lib/core/config/onesignal_config.dart',
+        tag: 'OneSignal',
+      );
       return;
     }
 
     _initialized = true;
 
     try {
-      if (kDebugMode) {
-        OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-      }
+      OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
 
       // Inicializar el SDK con el App ID
       OneSignal.initialize(OneSignalConfig.appId);
@@ -40,32 +37,26 @@ class OneSignalService {
 
       // Listener para cuando el usuario hace clic/tap en una notificación
       OneSignal.Notifications.addClickListener((OSNotificationClickEvent event) {
-        if (kDebugMode) {
-          print(
-            '🔔 OneSignal Notification Clicked: ${event.notification.title} - ${event.notification.additionalData}',
-          );
-        }
+        AppLogger.debug(
+          '🔔 OneSignal Notification Clicked: ${event.notification.title} - ${event.notification.additionalData}',
+          tag: 'OneSignal',
+        );
         _handleNotificationClick(event.notification.additionalData);
       });
 
       // Listener para cuando se recibe una notificación en primer plano
       OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-        if (kDebugMode) {
-          print(
-            '🔔 OneSignal Notification Foreground Received: ${event.notification.title}',
-          );
-        }
+        AppLogger.debug(
+          '🔔 OneSignal Notification Foreground Received: ${event.notification.title}',
+          tag: 'OneSignal',
+        );
         // Permitir que la notificación se muestre en pantalla
         event.notification.display();
       });
 
-      if (kDebugMode) {
-        print('✅ OneSignal Service inicializado correctamente.');
-      }
+      AppLogger.debug('✅ OneSignal Service inicializado correctamente.', tag: 'OneSignal');
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error al inicializar OneSignal: $e');
-      }
+      AppLogger.error('❌ Error al inicializar OneSignal', error: e, tag: 'OneSignal');
     }
   }
 
@@ -74,13 +65,9 @@ class OneSignalService {
     if (!_initialized) return;
     try {
       await OneSignal.login(userId);
-      if (kDebugMode) {
-        print('👤 OneSignal User logged in: $userId');
-      }
+      AppLogger.debug('👤 OneSignal User logged in: $userId', tag: 'OneSignal');
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error en OneSignal.login: $e');
-      }
+      AppLogger.error('❌ Error en OneSignal.login', error: e, tag: 'OneSignal');
     }
   }
 
@@ -89,13 +76,9 @@ class OneSignalService {
     if (!_initialized) return;
     try {
       await OneSignal.logout();
-      if (kDebugMode) {
-        print('🚪 OneSignal User logged out');
-      }
+      AppLogger.debug('🚪 OneSignal User logged out', tag: 'OneSignal');
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error en OneSignal.logout: $e');
-      }
+      AppLogger.error('❌ Error en OneSignal.logout', error: e, tag: 'OneSignal');
     }
   }
 
@@ -104,13 +87,9 @@ class OneSignalService {
     if (!_initialized) return;
     try {
       await OneSignal.User.addTags(tags);
-      if (kDebugMode) {
-        print('🏷️ OneSignal Tags guardadas: $tags');
-      }
+      AppLogger.debug('🏷️ OneSignal Tags guardadas: $tags', tag: 'OneSignal');
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error en OneSignal.setUserTags: $e');
-      }
+      AppLogger.error('❌ Error en OneSignal.setUserTags', error: e, tag: 'OneSignal');
     }
   }
 
@@ -143,7 +122,7 @@ class OneSignalService {
         'contents': {'es': body, 'en': body},
         'small_icon': 'ic_stat_onesignal_default',
         'target_channel': 'push',
-        if (data != null) 'data': data,
+        'data': ?data,
       };
 
       if (targetUserId != null &&
@@ -182,17 +161,14 @@ class OneSignalService {
         body: jsonEncode(payload),
       );
 
-      if (kDebugMode) {
-        print(
-          '📡 OneSignal Push Response [${response.statusCode}]: ${response.body}',
-        );
-      }
+      AppLogger.debug(
+        '📡 OneSignal Push Response [${response.statusCode}]: ${response.body}',
+        tag: 'OneSignal',
+      );
 
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error enviando Push por OneSignal: $e');
-      }
+      AppLogger.error('❌ Error enviando Push por OneSignal', error: e, tag: 'OneSignal');
       return false;
     }
   }
@@ -203,8 +179,8 @@ class OneSignalService {
 
     // Aquí se procesan rutas o acciones avanzadas al tocar una notificación
     final route = additionalData['route'];
-    if (route != null && kDebugMode) {
-      print('🚀 Navegar a ruta desde notificación OneSignal: $route');
+    if (route != null) {
+      AppLogger.debug('🚀 Navegar a ruta desde notificación OneSignal: $route', tag: 'OneSignal');
     }
   }
 }

@@ -409,19 +409,16 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.notifications,
                 label: 'Notificaciones push',
                 prefKey: 'pref_push_notifications',
-                defaultValue: true,
               ),
               _SettingToggle(
                 icon: Icons.campaign,
                 label: 'Comunicados',
                 prefKey: 'pref_announcements_notifications',
-                defaultValue: true,
               ),
               _SettingToggle(
                 icon: Icons.sports_soccer,
                 label: 'Resultados de partidos',
                 prefKey: 'pref_match_notifications',
-                defaultValue: true,
               ),
               _SettingToggle(
                 icon: Icons.payment,

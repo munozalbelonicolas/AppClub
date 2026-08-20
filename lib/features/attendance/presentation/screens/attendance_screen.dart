@@ -21,7 +21,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   String? _selectedCategory;
   final Set<String> _customDateColumns = {};
   String? _activeDateColumnForBulk;
-  bool _isLoading = false;
 
   final List<String> _daysList = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -111,7 +110,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         return 'late';
       case 'late':
       case 'T':
-        return '';
+        return 'present';
       default:
         return 'present';
     }
@@ -574,7 +573,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 );
               },
               loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
             ),
 
           const SizedBox(height: 16),

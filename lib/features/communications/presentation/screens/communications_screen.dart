@@ -129,7 +129,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         if ((sessionUser.assignedCategories?.length ?? 0) > 1) ...[
                           DropdownButtonFormField<String>(
                             dropdownColor: context.colors.surface,
-                            value: selectedCategory,
+                            initialValue: selectedCategory,
                             decoration: const InputDecoration(labelText: 'Categoría/Visibilidad'),
                             items: List<String>.from(sessionUser.assignedCategories!).map((cat) {
                               return DropdownMenuItem<String>(

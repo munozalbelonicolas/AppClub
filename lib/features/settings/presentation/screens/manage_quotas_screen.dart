@@ -46,7 +46,7 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ];
     
-    List<String> currentPaidQuotas = List<String>.from(player['paidQuotas'] ?? []);
+    final currentPaidQuotas = List<String>.from(player['paidQuotas'] ?? []);
 
     showDialog(
       context: context,
@@ -148,7 +148,7 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedCategory,
+                        initialValue: _selectedCategory,
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           border: OutlineInputBorder(),
@@ -173,7 +173,7 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedStatus,
+                        initialValue: _selectedStatus,
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           border: OutlineInputBorder(),

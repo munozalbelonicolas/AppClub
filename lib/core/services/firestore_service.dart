@@ -115,7 +115,7 @@ class FirestoreService {
       'absent': absent,
       'records': records,
       'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    });
   }
 
   // ─── Training Schedule ────────────────────────────
@@ -346,8 +346,8 @@ final allUpcomingMatchesProvider = Provider.family<List<Map<String, dynamic>>, S
     int? homeScore,
     int? awayScore,
   }) {
-    String homeTeamName = defaultLocalName;
-    String? homeLogoUrl = defaultLocalLogo;
+    final homeTeamName = defaultLocalName;
+    final homeLogoUrl = defaultLocalLogo;
     String awayTeamName = 'Rival';
     String? awayLogoUrl;
 

@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'app_logger.dart';
+import 'notification_service.dart';
 
 /// Service for feed/novedades operations (SRP: handles only news feed domain)
 class NovedadesService {
@@ -84,6 +86,64 @@ class NovedadesService {
       'createdAt': FieldValue.serverTimestamp(),
       'comments': [],
     });
+
+    // Enviar notificación Push (FCM / OneSignal / In-app)
+    try {
+      final rawTitle = (novedadData['title'] ?? '').toString().trim();
+      final rawBody = (novedadData['body'] ?? '').toString().trim();
+      final authorId = (novedadData['authorId'] ?? '').toString();
+      final rawCategory = (novedadData['category'] ?? '').toString().trim();
+      final type = (novedadData['type'] ?? novedadData['eventType'] ?? '').toString().toLowerCase();
+      final isMatch = novedadData['isMatch'] == true || type == 'partido';
+
+      String notifTitle;
+      String notifBody;
+
+      if (isMatch) {
+        final awayTeam = (novedadData['awayTeam'] ?? novedadData['opponentName'] ?? 'Rival').toString();
+        final catLabel = (rawCategory.isNotEmpty && rawCategory.toLowerCase() != 'all' && rawCategory.toLowerCase() != 'todos')
+            ? ' (Cat. $rawCategory)'
+            : '';
+        notifTitle = '⚽ Partido Amistoso$catLabel';
+        final date = (novedadData['date'] ?? novedadData['eventDate'] ?? '').toString();
+        final time = (novedadData['time'] ?? novedadData['eventTime'] ?? '').toString();
+        final venue = (novedadData['venue'] ?? novedadData['location'] ?? '').toString();
+
+        final details = [
+          'Jorge Newbery vs $awayTeam',
+          if (date.isNotEmpty) '📅 $date',
+          if (time.isNotEmpty) '⏰ $time',
+          if (venue.isNotEmpty) '📍 $venue',
+        ].join(' · ');
+
+        notifBody = rawBody.isNotEmpty ? '$details\n$rawBody' : details;
+      } else if (type == 'comunicado') {
+        notifTitle = rawTitle.isNotEmpty ? '📢 Comunicado: $rawTitle' : '📢 Nuevo Comunicado Oficial';
+        notifBody = rawBody.isNotEmpty ? rawBody : 'Se ha publicado un nuevo comunicado oficial del club.';
+      } else {
+        final catLabel = (rawCategory.isNotEmpty && rawCategory.toLowerCase() != 'all' && rawCategory.toLowerCase() != 'todos')
+            ? ' [Cat. $rawCategory]'
+            : '';
+        notifTitle = rawTitle.isNotEmpty ? '📰$catLabel $rawTitle' : '📰 Nueva Noticia del Club';
+        notifBody = rawBody.isNotEmpty ? rawBody : 'Hay una nueva publicación en el club.';
+      }
+
+      final targetCategory = (rawCategory.isEmpty ||
+              rawCategory.toLowerCase() == 'all' ||
+              rawCategory.toLowerCase() == 'todos' ||
+              rawCategory.toLowerCase() == 'general')
+          ? 'all'
+          : rawCategory;
+
+      await NotificationService().sendNotification(
+        title: notifTitle,
+        body: notifBody.length > 200 ? '${notifBody.substring(0, 197)}...' : notifBody,
+        authorId: authorId,
+        targetCategory: targetCategory,
+      );
+    } catch (e) {
+      AppLogger.error('Error al disparar notificación push para novedad', error: e, tag: 'Novedades');
+    }
   }
 
   Future<void> updateNovedad(String id, Map<String, dynamic> data) async {

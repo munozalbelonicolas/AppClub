@@ -12,6 +12,7 @@ import '../../../../core/services/app_logger.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 import 'edit_child_profile_screen.dart';
@@ -129,6 +130,47 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     });
   }
 
+  Stream<List<Map<String, dynamic>>> _fetchTutors(String playerId) {
+    return FirebaseFirestore.instance
+        .collection('player_tutor_links')
+        .where('playerId', isEqualTo: playerId)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      final List<Map<String, dynamic>> tutors = [];
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final tutorId = data['tutorId'] as String?;
+        final status = data['status'] as String?;
+        final relationship = data['relationship'] as String? ?? 'Tutor/a';
+        if (tutorId != null) {
+          final tutorDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(tutorId)
+              .get();
+          if (tutorDoc.exists) {
+            final tData = tutorDoc.data() ?? {};
+            tutors.add({
+              'id': tutorDoc.id,
+              'name': '${tData['name'] ?? ''} ${tData['lastName'] ?? ''}'.trim(),
+              'email': tData['email'] ?? '',
+              'phone': tData['phone1'] ?? tData['phone'] ?? '',
+              'relationship': relationship,
+              'status': status,
+            });
+          } else if (data['tutorName'] != null) {
+            tutors.add({
+              'id': tutorId,
+              'name': data['tutorName'],
+              'relationship': relationship,
+              'status': status,
+            });
+          }
+        }
+      }
+      return tutors;
+    });
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -164,11 +206,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               'dni': _dniController.text.trim(),
               'weight': _weightController.text.trim(),
               'height': _heightController.text.trim(),
-              if (ageInt != null) 'age': ageInt,
+              'age': ?ageInt,
               if (_birthDate != null) 'birthDate': Timestamp.fromDate(_birthDate!),
-              if (computedCategory != null) 'category': computedCategory,
-              'fatherName': _fatherNameController.text.trim(),
-              'motherName': _motherNameController.text.trim(),
+              'category': ?computedCategory,
               'avatarUrl': _avatarPath,
               'aptoFisicoUrl': _aptoFisicoPath,
               'aptoFisicoExpiry': _aptoFisicoExpiry != null
@@ -193,8 +233,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         height: user.role == 'jugador' ? _heightController.text.trim() : null,
         age: user.role == 'jugador' ? ageInt : null,
         birthDate: user.role == 'jugador' ? _birthDate : null,
-        fatherName: user.role == 'jugador' ? _fatherNameController.text.trim() : null,
-        motherName: user.role == 'jugador' ? _motherNameController.text.trim() : null,
         aptoFisicoUrl: user.role == 'jugador' ? _aptoFisicoPath : null,
         aptoFisicoExpiry: user.role == 'jugador' ? _aptoFisicoExpiry : null,
         avatarUrl: _avatarPath,
@@ -736,31 +774,190 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   ],
                   
                   if (user.role == 'jugador') ...[
-                    // ─── Parents Data Section ─────────────────
-                    Text('Datos Familiares', style: context.typography.labelMedium),
+                    // ─── Parents / Assigned Tutors Section ─────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Tutores Asignados / Datos Familiares', style: context.typography.labelMedium),
+                        Row(
+                          children: [
+                            Icon(Icons.lock_outline, size: 14, color: context.colors.textTertiary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Solo lectura',
+                              style: context.typography.bodySmall.copyWith(
+                                color: context.colors.textTertiary,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
 
-                    JNCard(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          TextFormField(
-                            controller: _fatherNameController,
-                            style: context.typography.bodyLarge,
-                            decoration: const InputDecoration(
-                              labelText: 'Nombre y Apellido del Tutor/a 1',
+                    StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: _fetchTutors(user.id),
+                      builder: (context, snapshot) {
+                        final tutors = snapshot.data ?? [];
+                        final hasFather = (user.fatherName ?? '').isNotEmpty;
+                        final hasMother = (user.motherName ?? '').isNotEmpty;
+
+                        if (tutors.isEmpty && !hasFather && !hasMother) {
+                          return JNCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Icon(Icons.family_restroom_outlined, color: context.colors.textTertiary, size: 28),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Sin tutores vinculados',
+                                        style: context.typography.titleSmall,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Para vincular a tus padres o tutores, ellos deben solicitar la vinculación desde su cuenta de tutor o en secretaría.',
+                                        style: context.typography.bodySmall.copyWith(
+                                          color: context.colors.textSecondary,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
+                          );
+                        }
+
+                        return JNCard(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (tutors.isNotEmpty) ...[
+                                ...tutors.map((tutor) {
+                                  final tName = tutor['name']?.toString() ?? 'Tutor/a';
+                                  final tRel = tutor['relationship']?.toString() ?? 'Tutor/a';
+                                  final tPhone = tutor['phone']?.toString() ?? '';
+                                  final tEmail = tutor['email']?.toString() ?? '';
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12.0),
+                                    child: Row(
+                                      children: [
+                                        JNAvatar(name: tName, size: 40),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      tName,
+                                                      style: context.typography.titleMedium,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: context.colors.accent.withValues(alpha: 0.15),
+                                                      borderRadius: BorderRadius.circular(4),
+                                                    ),
+                                                    child: Text(
+                                                      tRel.toUpperCase(),
+                                                      style: TextStyle(
+                                                        color: context.colors.accent,
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              if (tPhone.isNotEmpty || tEmail.isNotEmpty) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  [if (tPhone.isNotEmpty) '📞 $tPhone', if (tEmail.isNotEmpty) '✉️ $tEmail'].join(' · '),
+                                                  style: context.typography.bodySmall.copyWith(
+                                                    color: context.colors.textSecondary,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ] else ...[
+                                if (hasFather)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.person_outline, color: context.colors.primary, size: 20),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Tutor/a 1', style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary)),
+                                              Text(user.fatherName!, style: context.typography.titleSmall),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                if (hasMother)
+                                  Row(
+                                    children: [
+                                      Icon(Icons.person_2_outlined, color: context.colors.primary, size: 20),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Tutor/a 2', style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary)),
+                                            Text(user.motherName!, style: context.typography.titleSmall),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                              const Divider(height: 16),
+                              Row(
+                                children: [
+                                  Icon(Icons.info_outline, size: 14, color: context.colors.textTertiary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Los datos familiares solo pueden ser modificados por tus tutores o la administración.',
+                                      style: context.typography.bodySmall.copyWith(
+                                        color: context.colors.textTertiary,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _motherNameController,
-                            style: context.typography.bodyLarge,
-                            decoration: const InputDecoration(
-                              labelText: 'Nombre y Apellido del Tutor/a 2 (Opcional)',
-                            ),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
 
                     const SizedBox(height: 20),

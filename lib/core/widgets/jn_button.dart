@@ -61,11 +61,11 @@ class JNButton extends StatelessWidget {
   EdgeInsetsGeometry get _padding {
     switch (size) {
       case JNButtonSize.small:
-        return const EdgeInsets.symmetric(horizontal: 16, vertical: 0);
+        return const EdgeInsets.symmetric(horizontal: 16);
       case JNButtonSize.medium:
-        return const EdgeInsets.symmetric(horizontal: 20, vertical: 0);
+        return const EdgeInsets.symmetric(horizontal: 20);
       case JNButtonSize.large:
-        return const EdgeInsets.symmetric(horizontal: 24, vertical: 0);
+        return const EdgeInsets.symmetric(horizontal: 24);
     }
   }
 

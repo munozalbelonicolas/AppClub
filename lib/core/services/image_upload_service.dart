@@ -70,7 +70,6 @@ class ImageUploadService {
         targetPath,
         quality: 80,
         minWidth: 1080,
-        minHeight: 1080,
       );
 
       if (result != null) {

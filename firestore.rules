@@ -26,9 +26,9 @@ service cloud.firestore {
 
     // ─── Users ───
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated() && (request.auth.uid == userId || request.resource.data.role == 'jugador' || isAdmin());
-      allow update: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin() || isCoach();
       allow delete: if isAdmin();
     }
 
@@ -188,7 +188,7 @@ service cloud.firestore {
     }
 
     match /attendance/{attendanceId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isCoach();
     }
 

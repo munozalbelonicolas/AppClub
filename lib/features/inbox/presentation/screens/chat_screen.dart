@@ -166,9 +166,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
+                  const Row(
                     children: [
-                      const Text(
+                      Text(
                         '👁️ MODO AUDITORÍA',
                         style: TextStyle(
                           fontSize: 15,
@@ -421,14 +421,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             border: Border(
               top: BorderSide(
                 color: const Color(0xFFFFD700).withValues(alpha: 0.4),
-                width: 1,
               ),
             ),
           ),
-          child: Row(
+          child: const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 2, right: 10),
                 child: Text('👁️', style: TextStyle(fontSize: 18)),
               ),
@@ -437,7 +436,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   'Modo Supervisión Institucional: Solo lectura. '
                   'Únicamente los participantes de esta conversación '
                   'pueden interactuar o responder.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFFFFD700),
                     fontWeight: FontWeight.w500,

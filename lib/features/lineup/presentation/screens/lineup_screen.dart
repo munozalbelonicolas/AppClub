@@ -317,7 +317,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   Expanded(
                     child: ListView.separated(
                       itemCount: allCategoryPlayers.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, idx) {
                         final player = allCategoryPlayers[idx];
                         final playerId = player['playerId'] as String;
@@ -329,7 +329,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                           title: Text(player['name'] as String, style: context.typography.titleMedium),
                           subtitle: Text('#${player['number']} · ${player['position']}', style: context.typography.bodySmall),
                           value: isConvocado,
-                          activeColor: context.colors.primary,
+                          activeThumbColor: context.colors.primary,
                           onChanged: (val) {
                             setState(() {
                               if (val) {
@@ -501,7 +501,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: DropdownButtonFormField<String>(
-                    value: matchItems.any((m) => m['id'] == _selectedMatchId)
+                    initialValue: matchItems.any((m) => m['id'] == _selectedMatchId)
                         ? _selectedMatchId
                         : matchItems.first['id'] as String?,
                     decoration: InputDecoration(
@@ -520,7 +520,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                         value: m['id'] as String,
                         child: Text(
                           titleText,
-                          style: context.typography.bodyMedium?.copyWith(
+                          style: context.typography.bodyMedium.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -826,7 +826,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                       'Sin Convocar (${noConvocados.length})',
                       style: context.typography.titleMedium.copyWith(color: context.colors.textSecondary),
                     ),
-                    const JNBadge(label: 'NO CONVOCADO', type: JNBadgeType.neutral),
+                    const JNBadge(label: 'NO CONVOCADO'),
                   ],
                 ),
                 const SizedBox(height: 8),

@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
-import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_card.dart';
 
 class PlayerAttendanceScreen extends ConsumerStatefulWidget {
@@ -149,7 +145,6 @@ class _PlayerAttendanceScreenState
     }
 
     final isTutor = sessionUser.role == 'tutor';
-    final isPlayer = sessionUser.role == 'jugador';
 
     if (isTutor) {
       final childrenAsync =
@@ -354,7 +349,6 @@ class _PlayerAttendanceScreenState
           int presentCount = 0;
           int absentCount = 0;
           int justifiedCount = 0;
-          int lateCount = 0;
           int totalRecordedSessions = 0;
 
           for (final s in playerSessions) {
@@ -364,7 +358,6 @@ class _PlayerAttendanceScreenState
               if (st == 'present' || st == 'P') presentCount++;
               if (st == 'absent' || st == 'A') absentCount++;
               if (st == 'justified' || st == 'J') justifiedCount++;
-              if (st == 'late' || st == 'T') lateCount++;
             }
           }
 
@@ -550,7 +543,7 @@ class _PlayerAttendanceScreenState
                     ).animate(delay: 100.ms).fadeIn(duration: 400.ms);
                   },
                   loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
 
               const SizedBox(height: 16),
@@ -661,7 +654,7 @@ class _PlayerAttendanceScreenState
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: playerSessions.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final item = playerSessions[index];
                     final dateStr = item['dateStr'] as String;

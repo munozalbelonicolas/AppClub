@@ -199,7 +199,6 @@ class AuthService {
               'No se pudo iniciar sesión con Google. Por favor ingresa con tu correo y contraseña.',
             ),
             backgroundColor: Colors.redAccent,
-            duration: Duration(seconds: 4),
           ),
         );
       }
@@ -347,7 +346,7 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
         'phone1': phone1,
         'phone2': phone2,
-        if (dni != null) 'dni': dni,
+        'dni': ?dni,
         'termsAcceptedAt':
             isNewRegistration ? FieldValue.serverTimestamp() : null,
         'termsVersion': isNewRegistration ? '1.0' : null,

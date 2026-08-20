@@ -6,10 +6,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app/app_shell.dart';
 import 'core/providers/session_provider.dart';
@@ -43,7 +42,9 @@ void main() async {
   
   try {
     await FirebaseAppCheck.instance.activate(
+      // ignore: deprecated_member_use
       androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+      // ignore: deprecated_member_use
       appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.deviceCheck,
     );
   } catch (e) {

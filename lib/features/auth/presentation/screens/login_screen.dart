@@ -74,7 +74,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SnackBar(
             content: Text(msg),
             backgroundColor: context.colors.error,
-            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -84,7 +83,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SnackBar(
             content: Text('Error al iniciar sesión: $e'),
             backgroundColor: context.colors.error,
-            duration: const Duration(seconds: 4),
           ),
         );
       }

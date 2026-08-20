@@ -3,13 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'app_logger.dart';
 import 'onesignal_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  if (kDebugMode) {
-    print('Handling background FCM message: ${message.messageId}');
-  }
+  AppLogger.debug('Handling background FCM message: ${message.messageId}', tag: 'FCM');
 }
 
 class NotificationService {
@@ -34,16 +33,9 @@ class NotificationService {
     _initialized = true;
 
     // 1. Request Permission
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
+    final settings = await _messaging.requestPermission();
 
-    if (kDebugMode) {
-      print('User granted notification permission: ${settings.authorizationStatus}');
-    }
+    AppLogger.debug('User granted notification permission: ${settings.authorizationStatus}', tag: 'FCM');
 
     // 2. Setup Local Notifications for Foreground
     const initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -56,9 +48,7 @@ class NotificationService {
     await _localNotifications.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (kDebugMode) {
-          print('Notification tapped in foreground: ${response.payload}');
-        }
+        AppLogger.debug('Notification tapped in foreground: ${response.payload}', tag: 'FCM');
       },
     );
 
@@ -108,15 +98,13 @@ class NotificationService {
 
     // 4. Listen for Background tap
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      if (kDebugMode) {
-        print('Notification clicked (App opened from background): ${message.data}');
-      }
+      AppLogger.debug('Notification clicked (App opened from background): ${message.data}', tag: 'FCM');
     });
 
     // Check if app was opened from terminated state by a notification
     final initialMessage = await _messaging.getInitialMessage();
-    if (initialMessage != null && kDebugMode) {
-      print('App launched from terminated state via notification: ${initialMessage.data}');
+    if (initialMessage != null) {
+      AppLogger.debug('App launched from terminated state via notification: ${initialMessage.data}', tag: 'FCM');
     }
   }
 
@@ -132,9 +120,7 @@ class NotificationService {
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
-        if (kDebugMode) {
-          print('FCM Token successfully registered for user $userId');
-        }
+        AppLogger.debug('FCM Token successfully registered for user $userId', tag: 'FCM');
       }
 
       // Listen for token updates
@@ -146,9 +132,7 @@ class NotificationService {
         }, SetOptions(merge: true));
       });
     } catch (e) {
-      if (kDebugMode) {
-        print('Error saving FCM Token for user $userId: $e');
-      }
+      AppLogger.error('Error saving FCM Token for user $userId', error: e, tag: 'FCM');
     }
   }
 
@@ -168,7 +152,7 @@ class NotificationService {
       (snapshot) {
         for (final change in snapshot.docChanges) {
           if (change.type == DocumentChangeType.added) {
-            final data = change.doc.data() as Map<String, dynamic>?;
+            final data = change.doc.data();
             if (data == null) continue;
 
             final authorId = data['authorId']?.toString() ?? '';
@@ -205,9 +189,7 @@ class NotificationService {
         }
       },
       onError: (error) {
-        if (kDebugMode) {
-          print('Notification stream error (non-fatal): $error');
-        }
+        AppLogger.error('Notification stream error (non-fatal)', error: error, tag: 'FCM');
         // Do NOT rethrow - errors here must not affect other Firestore streams
       },
     );
@@ -270,9 +252,7 @@ class NotificationService {
         targetCategory: targetCategory,
       );
     } catch (e) {
-      if (kDebugMode) {
-        print('Error sending notification doc: $e');
-      }
+      AppLogger.error('Error sending notification doc', error: e, tag: 'FCM');
     }
   }
 }

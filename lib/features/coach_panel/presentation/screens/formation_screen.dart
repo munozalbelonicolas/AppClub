@@ -363,7 +363,7 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        value: _selectedCategoryFilter,
+                        initialValue: _selectedCategoryFilter,
                         decoration: const InputDecoration(
                           labelText: 'Filtrar Jugadores por Categoría',
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),

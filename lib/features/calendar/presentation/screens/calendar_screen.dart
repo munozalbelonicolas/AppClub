@@ -35,19 +35,19 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     super.initState();
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
-    _currentMonth = DateTime(now.year, now.month, 1);
+    _currentMonth = DateTime(now.year, now.month);
   }
 
   void _prevMonth() {
     setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1, 1);
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
       _selectedDate = _currentMonth;
     });
   }
 
   void _nextMonth() {
     setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 1);
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
       _selectedDate = _currentMonth;
     });
   }
@@ -56,7 +56,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     setState(() {
       final now = DateTime.now();
       _selectedDate = DateTime(now.year, now.month, now.day);
-      _currentMonth = DateTime(now.year, now.month, 1);
+      _currentMonth = DateTime(now.year, now.month);
     });
   }
 
@@ -441,7 +441,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   Widget _buildCalendarGrid(List<Map<String, dynamic>> allEvents) {
     final daysInMonth = DateUtils.getDaysInMonth(_currentMonth.year, _currentMonth.month);
-    final firstDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month, 1);
+    final firstDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month);
     final startWeekday = firstDayOfMonth.weekday; // 1 (Mon) to 7 (Sun)
 
     final eventDates = allEvents.map((e) => e['date'] as String).toSet();

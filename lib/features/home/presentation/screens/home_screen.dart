@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/providers/convocatoria_provider.dart';
 import '../../../../core/providers/session_provider.dart';
@@ -22,11 +22,11 @@ import '../../../../core/widgets/jn_match_card.dart';
 import '../../../../core/widgets/jn_section_header.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../attendance/presentation/screens/player_attendance_screen.dart';
+import '../../../communications/presentation/screens/story_export_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
 import '../../../results/presentation/screens/league_report_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
-import '../../../communications/presentation/screens/story_export_screen.dart';
 import '../widgets/sponsor_carousel.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -620,7 +620,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             1) ...[
                           DropdownButtonFormField<String>(
                             dropdownColor: context.colors.surface,
-                            value: selectedCategory,
+                            initialValue: selectedCategory,
                             decoration: const InputDecoration(
                               labelText: 'Categoría',
                             ),
@@ -1081,25 +1081,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     const Map<String, dynamic>? pendingPayment = null;
 
     final List<String> relevantCategories = [];
-    if (sessionUser.assignedCategories?.isNotEmpty == true) {
-      relevantCategories.addAll(sessionUser.assignedCategories!);
-    } else if (sessionUser.category != null &&
-        sessionUser.category!.isNotEmpty) {
-      relevantCategories.add(sessionUser.category!);
-    }
-
-    if (sessionUser.role == 'tutor') {
-      final tutorPlayers =
-          ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ??
-          [];
-      for (final p in tutorPlayers) {
-        final cat = p['category']?.toString();
-        if (cat != null && cat.isNotEmpty) {
-          relevantCategories.add(cat);
+    if (sessionUser.role == 'dt') {
+      if (activeCategory.isNotEmpty) {
+        relevantCategories.add(activeCategory);
+      } else if (coachCategories.isNotEmpty) {
+        relevantCategories.add(coachCategories.first);
+      }
+    } else if (sessionUser.role == 'tutor') {
+      if (activeCategory.isNotEmpty) {
+        relevantCategories.add(activeCategory);
+      } else {
+        final tutorPlayers =
+            ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ??
+            [];
+        for (final p in tutorPlayers) {
+          final cat = p['category']?.toString();
+          if (cat != null && cat.isNotEmpty) {
+            relevantCategories.add(cat);
+          }
         }
       }
-      if (selectedChild != null && selectedChild['category'] != null) {
-        relevantCategories.add(selectedChild['category'] as String);
+    } else {
+      if (sessionUser.assignedCategories?.isNotEmpty == true) {
+        relevantCategories.addAll(sessionUser.assignedCategories!);
+      } else if (sessionUser.category != null &&
+          sessionUser.category!.isNotEmpty) {
+        relevantCategories.add(sessionUser.category!);
       }
     }
 
