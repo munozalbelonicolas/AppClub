@@ -11,7 +11,6 @@ import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_section_header.dart';
-import '../../../../core/widgets/jn_stat_card.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../lineup/presentation/screens/lineup_screen.dart';
 import '../../../player/presentation/screens/consolidated_roster_screen.dart';
@@ -90,10 +89,6 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
     }
     final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
 
-    final allMatches = ref.watch(matchesStreamProvider).valueOrNull ?? [];
-    final categoryMatches = allMatches
-        .where((m) => activeCategoriesList.contains(m['category']?.toString()))
-        .toList();
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -207,46 +202,6 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
               ),
             ).animate().fadeIn(duration: 300.ms),
           ],
-
-          const SizedBox(height: 20),
-
-          // ─── Team Stats Overview ──────────────────
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.25,
-            children: [
-              JNStatCard(
-                value: '${players.length}',
-                label: isAllSelected ? 'Jugadores' : 'Jugadores ($effectiveCategory)',
-                icon: Icons.groups,
-                color: context.colors.info,
-              ),
-              JNStatCard(
-                value: '${categoryMatches.length}',
-                label: 'Partidos',
-                icon: Icons.sports_soccer,
-                color: context.colors.primary,
-              ),
-              JNStatCard(
-                value: isAllSelected
-                    ? '${coachCategories.where((c) => c.isNotEmpty).length}'
-                    : 'Cat. $effectiveCategory',
-                label: isAllSelected ? 'Categorías' : 'Categoría Activa',
-                icon: Icons.category,
-                color: context.colors.accent,
-              ),
-              JNStatCard(
-                value: nextMatch != null ? 'Programado' : 'Sin fecha',
-                label: 'Próximo Partido',
-                icon: Icons.event,
-                color: nextMatch != null ? context.colors.success : context.colors.textTertiary,
-              ),
-            ],
-          ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
 
           const SizedBox(height: 16),
           JNCard(

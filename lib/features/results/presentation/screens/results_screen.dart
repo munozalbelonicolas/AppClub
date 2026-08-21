@@ -258,13 +258,16 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
               if (hScore != null && aScore != null && status != 'scheduled') {
                 playedCount++;
-                if (hScore > aScore) {
-                  homeTotalPts += 2;
-                } else if (hScore < aScore) {
-                  awayTotalPts += 2;
-                } else {
-                  homeTotalPts += 1;
-                  awayTotalPts += 1;
+                final isPromo = m['isPromotional'] == true;
+                if (!isPromo) {
+                  if (hScore > aScore) {
+                    homeTotalPts += 2;
+                  } else if (hScore < aScore) {
+                    awayTotalPts += 2;
+                  } else {
+                    homeTotalPts += 1;
+                    awayTotalPts += 1;
+                  }
                 }
               }
             }
@@ -456,20 +459,45 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: context.colors.primary.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    catLabel.startsWith('20') ? 'Categoría $catLabel' : catLabel,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: context.colors.primary,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: context.colors.primary.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        catLabel.startsWith('20') ? 'Categoría $catLabel' : catLabel,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: context.colors.primary,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    if (match['isPromotional'] == true) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: Colors.orange.withValues(alpha: 0.6), width: 0.5),
+                                        ),
+                                        child: const Text(
+                                          'PROMOCIONAL',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.orange,
+                                            letterSpacing: 0.4,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 if (match['time'] != null && match['time'].toString().isNotEmpty)
                                   Text(
@@ -785,12 +813,14 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     final List<TextEditingController> homeControllers = [];
     final List<TextEditingController> awayControllers = [];
     final List<String> statuses = [];
+    final List<bool> isPromoList = [];
 
     for (final m in matches) {
       homeControllers.add(TextEditingController(text: m['homeScore']?.toString() ?? '0'));
       awayControllers.add(TextEditingController(text: m['awayScore']?.toString() ?? '0'));
       final st = m['status']?.toString() ?? 'finished';
       statuses.add((st == 'finished' || st == 'live' || st == 'scheduled') ? st : 'finished');
+      isPromoList.add(m['isPromotional'] == true);
     }
 
     showDialog(
@@ -798,10 +828,11 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            // Calcular en vivo los puntos de la jornada
+            // Calcular en vivo los puntos de la jornada (excluyendo promocionales)
             int liveHomePts = 0;
             int liveAwayPts = 0;
             for (int i = 0; i < matches.length; i++) {
+              if (isPromoList[i]) continue; // Los partidos promocionales no suman puntos
               final hG = int.tryParse(homeControllers[i].text.trim()) ?? 0;
               final aG = int.tryParse(awayControllers[i].text.trim()) ?? 0;
               final st = statuses[i];
@@ -879,12 +910,45 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         ),
                         child: Row(
                           children: [
-                            // Categoría
+                            // Categoría y Chip Promo
                             SizedBox(
-                              width: 75,
-                              child: Text(
-                                cat.startsWith('20') ? 'Cat. $cat' : cat,
-                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                              width: 80,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    cat.startsWith('20') ? 'Cat. $cat' : cat,
+                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                  InkWell(
+                                    onTap: () {
+                                      setModalState(() {
+                                        isPromoList[i] = !isPromoList[i];
+                                      });
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.only(top: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: isPromoList[i] ? Colors.orange.withValues(alpha: 0.2) : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: isPromoList[i] ? Colors.orange : Colors.white24,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        isPromoList[i] ? '★ PROMO' : '+ Promo',
+                                        style: TextStyle(
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.bold,
+                                          color: isPromoList[i] ? Colors.orange : Colors.white38,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
 
@@ -984,6 +1048,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         'homeScore': hScore,
                         'awayScore': aScore,
                         'status': statuses[i],
+                        'isPromotional': isPromoList[i],
                       };
                     }
 
@@ -1029,6 +1094,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     if (status != 'finished' && status != 'live' && status != 'scheduled') {
       status = 'finished';
     }
+    bool isPromotional = match['isPromotional'] == true;
 
     showDialog(
       context: context,
@@ -1181,6 +1247,38 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 12),
+
+                    // Switch / Checkbox Promocional
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF242427),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isPromotional ? Colors.orange.withValues(alpha: 0.5) : const Color(0xFF333338),
+                        ),
+                      ),
+                      child: CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: const Text(
+                          'Categoría Promocional / Exhibición',
+                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text(
+                          'No suma puntos en la tabla ni en el total de la fecha.',
+                          style: TextStyle(color: Colors.white60, fontSize: 10),
+                        ),
+                        value: isPromotional,
+                        activeColor: const Color(0xFFE5B842),
+                        checkColor: Colors.black,
+                        onChanged: (val) {
+                          setDialogState(() => isPromotional = val ?? false);
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1203,6 +1301,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       'homeScore': hScore,
                       'awayScore': aScore,
                       'status': status,
+                      'isPromotional': isPromotional,
                     };
 
                     await ref.read(firestoreServiceProvider).updateFixture(fixture['id'], {
@@ -2085,6 +2184,11 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     for (final f in fixtures) {
       final matches = List<Map<String, dynamic>>.from(f['matches'] ?? []);
       for (final m in matches) {
+        // Los partidos de categorías promocionales son de exhibición y no suman puntos para la tabla
+        if (m['isPromotional'] == true) {
+          continue;
+        }
+
         // Filtrar por categoría si no está seleccionada 'all'
         if (_selectedCategory != 'all') {
           final cat = m['category']?.toString();

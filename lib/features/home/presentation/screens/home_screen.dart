@@ -17,10 +17,8 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
-import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_match_card.dart';
-import '../../../../core/widgets/jn_section_header.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../attendance/presentation/screens/player_attendance_screen.dart';
 import '../../../communications/presentation/screens/story_export_screen.dart';
@@ -1111,8 +1109,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     final nextMatch = ref.watch(nextMatchProvider(activeCategory));
-    const Map<String, dynamic>? player = null;
-    const Map<String, dynamic>? pendingPayment = null;
 
     final List<String> relevantCategories = [];
     if (sessionUser.role == 'dt') {
@@ -1562,124 +1558,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 28)),
 
-            // ─── Payment Status ─────────────────────────
-            if (pendingPayment != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: JNCard(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PaymentsScreen(),
-                        ),
-                      );
-                    },
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: context.colors.warning.withValues(
-                              alpha: 0.12,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.receipt_long,
-                            size: 22,
-                            color: context.colors.warning,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Cuota ${pendingPayment['month']}',
-                                style: context.typography.titleMedium,
-                              ),
-                              Text(
-                                'Vence el ${_formatDate(pendingPayment['dueDate'] as String)}',
-                                style: context.typography.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '\$${_formatNumber(pendingPayment['amount'] as int)}',
-                              style: context.typography.titleLarge.copyWith(
-                                color: context.colors.warning,
-                              ),
-                            ),
-                            JNBadge.pending(),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ).animate(delay: 300.ms).fadeIn(duration: 500.ms).slideX(begin: 0.03),
-                ),
-              ),
 
-            if (pendingPayment != null)
-              const SliverToBoxAdapter(child: SizedBox(height: 28)),
-
-            // ─── Player Quick Stats ─────────────────────
-            if (hasPlayer && player != null) ...[
-              SliverToBoxAdapter(
-                child: JNSectionHeader(
-                  title: 'Estadísticas de ${player['name']}',
-                  actionLabel: 'Ver perfil',
-                  onAction: () {},
-                ).animate(delay: 350.ms).fadeIn(duration: 400.ms),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 12)),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 90,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      _MiniStatCard(
-                        value: '${player['goals']}',
-                        label: 'Goles',
-                        icon: Icons.sports_soccer,
-                        color: context.colors.primary,
-                      ),
-                      const SizedBox(width: 10),
-                      _MiniStatCard(
-                        value: '${player['assists']}',
-                        label: 'Asistencias',
-                        icon: Icons.handshake,
-                        color: context.colors.accent,
-                      ),
-                      const SizedBox(width: 10),
-                      _MiniStatCard(
-                        value: '${player['matches']}',
-                        label: 'Partidos',
-                        icon: Icons.stadium,
-                        color: context.colors.info,
-                      ),
-                      const SizedBox(width: 10),
-                      _MiniStatCard(
-                        value: '${player['attendance']}%',
-                        label: 'Asistencia',
-                        icon: Icons.check_circle,
-                        color: context.colors.success,
-                      ),
-                    ],
-                  ),
-                ).animate(delay: 400.ms).fadeIn(duration: 500.ms),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 28)),
-            ],
 
             // ─── Feed de Novedades del Club ───────────────
             SliverToBoxAdapter(
@@ -2699,13 +2578,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  String _formatNumber(int number) {
-    if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(number % 1000 == 0 ? 0 : 1)}k'
-          .replaceAll('.', '.');
-    }
-    return number.toString();
-  }
 }
 
 // ─── Quick Action Button ──────────────────────────────
@@ -2779,53 +2651,6 @@ class _QuickAction extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─── Mini Stat Card ─────────────────────────────────
-class _MiniStatCard extends StatelessWidget {
-  final String value;
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  const _MiniStatCard({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return JNCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 18, color: color),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: context.typography.headlineMedium.copyWith(color: color),
-              ),
-              Text(label.toUpperCase(), style: context.typography.statLabel),
-            ],
-          ),
-        ],
       ),
     );
   }

@@ -273,6 +273,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     }
 
     if (!isAdmin && allowedCategories.isNotEmpty) {
+      final normalizedAllowed = allowedCategories.map((c) => c.trim().toLowerCase()).toSet();
       allEvents.removeWhere((e) {
         final rawCat = (e['category'] as String?)?.trim().toLowerCase();
         // Eventos o avisos globales sin categoría específica son visibles para todos
@@ -288,7 +289,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         }
 
         // Si el partido o evento tiene categoría asignada (ej: 2016), solo mostrar si coincide con la categoría del jugador/usuario
-        return !allowedCategories.contains(rawCat);
+        return !normalizedAllowed.contains(rawCat);
       });
     }
 

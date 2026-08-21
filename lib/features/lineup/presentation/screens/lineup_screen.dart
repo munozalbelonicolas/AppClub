@@ -581,7 +581,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                               style: context.typography.titleMedium,
                             ),
                             Text(
-                              'Fecha 6 · Cancha: ${nextMatch['venue']}',
+                              '${nextMatch['date'] != null && nextMatch['date'].toString().isNotEmpty ? "${nextMatch['date']} " : ""}${nextMatch['time'] != null && nextMatch['time'].toString().isNotEmpty && nextMatch['time'] != 'A confirmar' ? "· ${nextMatch['time']} " : ""}· Cancha: ${nextMatch['venue'] ?? 'Cancha Principal'}',
                               style: context.typography.bodySmall,
                             ),
                           ],

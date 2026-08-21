@@ -151,9 +151,46 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          if (m['category'] != null && m['category'].toString().isNotEmpty) ...[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  m['category'].toString().startsWith('20') ? 'Cat. ${m['category']}' : '${m['category']}',
+                                  style: context.typography.labelSmall.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: context.colors.primary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                if (m['isPromotional'] == true) ...[
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: Colors.orange.withValues(alpha: 0.5), width: 0.5),
+                                    ),
+                                    child: const Text(
+                                      'PROMO',
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.orange,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                          ],
                           Text('VS', style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.textTertiary)),
                           if (m['date'] != null && m['time'] != null) ...[
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text('${m['date']} ${m['time']}', style: context.typography.labelSmall.copyWith(color: context.colors.textSecondary, fontSize: 10)),
                           ],
                         ],
@@ -227,6 +264,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
   String? _homeClubId;
   String? _awayClubId;
   bool _isSaving = false;
+  final Set<String> _promotionalCategories = {};
 
   @override
   void initState() {
@@ -245,6 +283,15 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
     _awayClubId = firstMatch?['awayClubId'] ??
         widget.clubs.where((c) => c['id'] != _homeClubId).firstOrNull?['id'] ??
         (widget.clubs.length > 1 ? widget.clubs[1]['id'] : null);
+
+    for (final m in matches) {
+      if (m['isPromotional'] == true) {
+        final cat = m['category']?.toString();
+        if (cat != null && cat.isNotEmpty) {
+          _promotionalCategories.add(cat);
+        }
+      }
+    }
 
     // Parse date
     final rawDate = firstMatch?['date'] ?? f?['date'];
@@ -323,6 +370,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
 
       if (_selectedCategory == 'all' || _selectedCategory.isEmpty) {
         for (final cat in categories) {
+          final isPromo = _promotionalCategories.contains(cat);
           final existing = existingMatches.where((m) => m['category'] == cat).firstOrNull;
           if (existing != null) {
             matchesList.add({
@@ -332,6 +380,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               'awayClubId': _awayClubId,
               'date': dateIso,
               'time': existing['time'] ?? timeStr,
+              'isPromotional': isPromo,
             });
           } else {
             matchesList.add({
@@ -344,10 +393,12 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               'homeScore': null,
               'awayScore': null,
               'scorers': [],
+              'isPromotional': isPromo,
             });
           }
         }
       } else {
+        final isPromo = _promotionalCategories.contains(_selectedCategory);
         final existing = existingMatches.where((m) => m['category'] == _selectedCategory).firstOrNull ??
             (existingMatches.isNotEmpty ? existingMatches.first : null);
         if (existing != null) {
@@ -358,6 +409,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
             'awayClubId': _awayClubId,
             'date': dateIso,
             'time': timeStr,
+            'isPromotional': isPromo,
           });
         } else {
           matchesList.add({
@@ -370,6 +422,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
             'homeScore': null,
             'awayScore': null,
             'scorers': [],
+            'isPromotional': isPromo,
           });
         }
       }
@@ -586,6 +639,102 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16),
+
+              // ─── Categorías Promocionales (Exhibición) ───
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF242427),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF333338)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.star_outline, color: Color(0xFFE5B842), size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Categorías Promocionales (Exhibición)',
+                            style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Los partidos de categorías promocionales se juegan y registran resultado, pero NO suman puntos para la tabla de posiciones ni para el total de la jornada.',
+                      style: TextStyle(fontSize: 11, color: Colors.white60, height: 1.3),
+                    ),
+                    const SizedBox(height: 10),
+                    if (effectiveCategory == 'all') ...[
+                      const Text(
+                        'Tocá las categorías para marcarlas como promocionales:',
+                        style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: categories.map((cat) {
+                          final isPromo = _promotionalCategories.contains(cat);
+                          return FilterChip(
+                            label: Text(cat),
+                            selected: isPromo,
+                            selectedColor: const Color(0xFFE5B842),
+                            checkmarkColor: Colors.black,
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isPromo ? FontWeight.bold : FontWeight.normal,
+                              color: isPromo ? Colors.black : Colors.white70,
+                            ),
+                            backgroundColor: const Color(0xFF1E1E22),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              side: BorderSide(
+                                color: isPromo ? const Color(0xFFE5B842) : const Color(0xFF3A3A40),
+                              ),
+                            ),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _promotionalCategories.add(cat);
+                                } else {
+                                  _promotionalCategories.remove(cat);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ] else ...[
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(
+                          'Marcar Cat. $effectiveCategory como Promocional',
+                          style: const TextStyle(fontSize: 13, color: Colors.white),
+                        ),
+                        value: _promotionalCategories.contains(effectiveCategory),
+                        activeColor: const Color(0xFFE5B842),
+                        checkColor: Colors.black,
+                        onChanged: (val) {
+                          setState(() {
+                            if (val == true) {
+                              _promotionalCategories.add(effectiveCategory);
+                            } else {
+                              _promotionalCategories.remove(effectiveCategory);
+                            }
+                          });
+                        },
+                      ),
+                    ],
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
 
