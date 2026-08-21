@@ -71,7 +71,11 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
     final fixtures = ref.watch(fixturesStreamProvider('all')).valueOrNull ?? [];
     final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
 
-    final playerName = '${player['name'] ?? ''} ${player['lastName'] ?? ''}'.trim();
+    final pFirstName = (player['name']?.toString() ?? '').trim().toLowerCase();
+    final pLastName = (player['lastName']?.toString() ?? '').trim().toLowerCase();
+    final playerName = pLastName.isNotEmpty
+        ? (pFirstName.contains(pLastName) ? pFirstName : '$pFirstName $pLastName')
+        : pFirstName;
     final playerId = player['id']?.toString();
 
     final List<Map<String, dynamic>> goalEvents = [];
@@ -89,8 +93,13 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
           final scId = sc['playerId']?.toString();
           final targetName = playerName.toLowerCase();
 
-          final bool isMatch = (scId != null && scId == playerId) ||
-              (scName.isNotEmpty && (scName == targetName || scName.contains(targetName) || targetName.contains(scName)));
+          final bool isMatch = (scId != null && scId.isNotEmpty && scId == playerId) ||
+              (scName.isNotEmpty &&
+                  (scName == targetName ||
+                      (pFirstName.isNotEmpty && scName == pFirstName) ||
+                      (pFirstName.isNotEmpty && pLastName.isNotEmpty && scName.contains(pFirstName) && scName.contains(pLastName)) ||
+                      scName.contains(targetName) ||
+                      targetName.contains(scName)));
 
           if (isMatch) {
             final homeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull;
@@ -145,8 +154,13 @@ class _PlayerProfileScreenState extends ConsumerState<PlayerProfileScreen>
           final cId = card['playerId']?.toString();
           final targetName = playerName.toLowerCase();
 
-          final bool isMatch = (cId != null && cId == playerId) ||
-              (cName.isNotEmpty && (cName == targetName || cName.contains(targetName) || targetName.contains(cName)));
+          final bool isMatch = (cId != null && cId.isNotEmpty && cId == playerId) ||
+              (cName.isNotEmpty &&
+                  (cName == targetName ||
+                      (pFirstName.isNotEmpty && cName == pFirstName) ||
+                      (pFirstName.isNotEmpty && pLastName.isNotEmpty && cName.contains(pFirstName) && cName.contains(pLastName)) ||
+                      cName.contains(targetName) ||
+                      targetName.contains(cName)));
 
           if (isMatch) {
             final isRed = card['cardType']?.toString() == 'red';

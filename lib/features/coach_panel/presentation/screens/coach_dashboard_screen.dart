@@ -88,7 +88,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
       nextMatch = soonest ?? (coachCategories.isEmpty ? ref.watch(nextMatchProvider('')) : null);
     }
     final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
-
+    final fixtures = ref.watch(fixturesStreamProvider('all')).valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -520,6 +520,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
           ...players.asMap().entries.map((entry) {
             final index = entry.key;
             final player = entry.value;
+            final pFullName = _getPlayerFullName(player);
+            final pGoals = _getPlayerGoals(player, fixtures);
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child:
@@ -531,7 +534,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         child: Row(
                           children: [
                             JNAvatar(
-                              name: '${player['name']} ${player['lastName']}',
+                              name: pFullName,
                               size: 40,
                               number: player['number'] != null ? int.tryParse(player['number'].toString()) : null,
                             ),
@@ -541,7 +544,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${player['name']} ${player['lastName']}',
+                                    pFullName,
                                     style: context.typography.titleSmall,
                                   ),
                                   Row(
@@ -595,7 +598,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                     ),
                                     const SizedBox(width: 3),
                                     Text(
-                                      '${player['goals'] ?? 0}',
+                                      '$pGoals',
                                       style: context.typography.labelMedium.copyWith(
                                         color: context.colors.primary,
                                       ),
@@ -702,6 +705,60 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
         ],
       ),
     );
+  }
+
+  String _getPlayerFullName(Map<String, dynamic> player) {
+    final name = player['name']?.toString().trim() ?? '';
+    final lastName = player['lastName']?.toString().trim() ?? '';
+    final displayName = player['displayName']?.toString().trim() ?? '';
+    final fullName = player['fullName']?.toString().trim() ?? '';
+
+    if (name.isNotEmpty && lastName.isNotEmpty) {
+      if (name.toLowerCase().contains(lastName.toLowerCase())) {
+        return name;
+      }
+      return '$name $lastName';
+    }
+    if (name.isNotEmpty) return name;
+    if (displayName.isNotEmpty) return displayName;
+    if (fullName.isNotEmpty) return fullName;
+    final fn = player['firstName']?.toString().trim() ?? '';
+    final ln = player['lastName']?.toString().trim() ?? '';
+    if (fn.isNotEmpty || ln.isNotEmpty) return '$fn $ln'.trim();
+    return 'Jugador';
+  }
+
+  int _getPlayerGoals(Map<String, dynamic> player, List<Map<String, dynamic>> fixtures) {
+    final pId = player['id']?.toString() ?? '';
+    final pFullName = _getPlayerFullName(player).toLowerCase();
+    final pFirstName = (player['name']?.toString() ?? '').trim().toLowerCase();
+    final pLastName = (player['lastName']?.toString() ?? '').trim().toLowerCase();
+
+    int computedGoals = 0;
+    for (final fixture in fixtures) {
+      final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+      for (final match in matches) {
+        final scorers = List<Map<String, dynamic>>.from(match['scorers'] ?? []);
+        for (final sc in scorers) {
+          final scId = sc['playerId']?.toString();
+          final scName = sc['name']?.toString().trim().toLowerCase() ?? '';
+          final bool isMatch = (pId.isNotEmpty && scId == pId) ||
+              (scName.isNotEmpty &&
+                  (scName == pFullName ||
+                      (pFirstName.isNotEmpty && scName == pFirstName) ||
+                      (pFirstName.isNotEmpty && pLastName.isNotEmpty && scName.contains(pFirstName) && scName.contains(pLastName)) ||
+                      pFullName.contains(scName) ||
+                      scName.contains(pFullName)));
+          if (isMatch) {
+            final g = (sc['goals'] is int) ? sc['goals'] as int : int.tryParse(sc['goals']?.toString() ?? '') ?? 1;
+            computedGoals += g;
+          }
+        }
+      }
+    }
+
+    final int directGoals = (player['goals'] is int) ? player['goals'] as int : int.tryParse(player['goals']?.toString() ?? '') ?? 0;
+    return computedGoals > 0 ? computedGoals : directGoals;
   }
 }
 

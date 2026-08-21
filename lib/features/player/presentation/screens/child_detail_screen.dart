@@ -40,9 +40,21 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen>
   }
 
   String _getPlayerName(Map<String, dynamic> p) {
-    final name = p['name']?.toString() ?? p['displayName']?.toString() ?? '';
-    final last = p['lastName']?.toString() ?? '';
-    return '$name $last'.trim().isNotEmpty ? '$name $last'.trim() : 'Jugador';
+    final name = p['name']?.toString().trim() ?? '';
+    final last = p['lastName']?.toString().trim() ?? '';
+    final displayName = p['displayName']?.toString().trim() ?? '';
+    final fullName = p['fullName']?.toString().trim() ?? '';
+
+    if (name.isNotEmpty && last.isNotEmpty) {
+      if (name.toLowerCase().contains(last.toLowerCase())) {
+        return name;
+      }
+      return '$name $last';
+    }
+    if (name.isNotEmpty) return name;
+    if (displayName.isNotEmpty) return displayName;
+    if (fullName.isNotEmpty) return fullName;
+    return 'Jugador';
   }
 
   @override
@@ -86,6 +98,8 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen>
     final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
 
     final playerName = _getPlayerName(player).toLowerCase();
+    final pFirstName = (player['name']?.toString() ?? '').trim().toLowerCase();
+    final pLastName = (player['lastName']?.toString() ?? '').trim().toLowerCase();
     final playerId = player['id']?.toString() ?? widget.childId;
 
     final List<Map<String, dynamic>> goalEvents = [];
@@ -102,11 +116,13 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen>
           final scName = sc['name']?.toString().trim().toLowerCase() ?? '';
           final scId = sc['playerId']?.toString();
 
-          final bool isMatch = (scId != null && scId == playerId) ||
+          final bool isMatch = (scId != null && scId.isNotEmpty && (scId == playerId || scId == widget.childId)) ||
               (scName.isNotEmpty &&
                   (scName == playerName ||
-                      scName.contains(playerName) ||
-                      playerName.contains(scName)));
+                      (pFirstName.isNotEmpty && scName == pFirstName) ||
+                      (pFirstName.isNotEmpty && pLastName.isNotEmpty && scName.contains(pFirstName) && scName.contains(pLastName)) ||
+                      playerName.contains(scName) ||
+                      scName.contains(playerName)));
 
           if (isMatch) {
             final homeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull;
@@ -168,11 +184,13 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen>
           final cName = card['name']?.toString().trim().toLowerCase() ?? '';
           final cId = card['playerId']?.toString();
 
-          final bool isMatch = (cId != null && cId == playerId) ||
+          final bool isMatch = (cId != null && cId.isNotEmpty && (cId == playerId || cId == widget.childId)) ||
               (cName.isNotEmpty &&
                   (cName == playerName ||
-                      cName.contains(playerName) ||
-                      playerName.contains(cName)));
+                      (pFirstName.isNotEmpty && cName == pFirstName) ||
+                      (pFirstName.isNotEmpty && pLastName.isNotEmpty && cName.contains(pFirstName) && cName.contains(pLastName)) ||
+                      playerName.contains(cName) ||
+                      cName.contains(playerName)));
 
           if (isMatch) {
             final isRed = card['cardType']?.toString() == 'red';

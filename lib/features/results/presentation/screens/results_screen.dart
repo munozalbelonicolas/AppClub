@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1694,12 +1695,14 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                           setModalState(() {
                             matchScorers.add({
                               'name': pName,
+                              'playerId': selectedPlayerId,
                               'team': selectedTeam,
                               'goals': gCount,
-                              'isClub': selectedTeam.toLowerCase().contains('newbery'),
+                              'isClub': isLocalSelected,
                             });
                             nameController.clear();
                             goalsController.text = '1';
+                            selectedPlayerId = null;
                           });
                         }
                       },
@@ -1731,11 +1734,21 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       final effectiveCategory = (category == 'all' || category.isEmpty) ? 'Primera' : category;
                       await ref.read(firestoreServiceProvider).addScorer({
                         'name': sc['name'],
+                        'playerId': sc['playerId'],
                         'team': sc['team'],
                         'category': effectiveCategory,
                         'goals': sc['goals'] ?? 1,
                         'isClub': sc['isClub'] ?? false,
                       });
+
+                      final pId = sc['playerId']?.toString();
+                      if (pId != null && pId.isNotEmpty) {
+                        try {
+                          await FirebaseFirestore.instance.collection('users').doc(pId).set({
+                            'goals': FieldValue.increment(sc['goals'] ?? 1),
+                          }, SetOptions(merge: true));
+                        } catch (_) {}
+                      }
                     }
 
                     if (ctx.mounted) {
@@ -2708,11 +2721,23 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   }
 
   String _getPlayerName(Map<String, dynamic> p) {
-    final name = p['name']?.toString() ?? p['displayName']?.toString() ?? p['fullName']?.toString() ?? '';
+    final name = p['name']?.toString().trim() ?? '';
+    final lastName = p['lastName']?.toString().trim() ?? '';
+    final displayName = p['displayName']?.toString().trim() ?? '';
+    final fullName = p['fullName']?.toString().trim() ?? '';
+
+    if (name.isNotEmpty && lastName.isNotEmpty) {
+      if (name.toLowerCase().contains(lastName.toLowerCase())) {
+        return name;
+      }
+      return '$name $lastName';
+    }
     if (name.isNotEmpty) return name;
-    final fn = p['firstName']?.toString() ?? '';
-    final ln = p['lastName']?.toString() ?? '';
+    if (displayName.isNotEmpty) return displayName;
+    if (fullName.isNotEmpty) return fullName;
+    final fn = p['firstName']?.toString().trim() ?? '';
+    final ln = p['lastName']?.toString().trim() ?? '';
     if (fn.isNotEmpty || ln.isNotEmpty) return '$fn $ln'.trim();
-    return 'Jugador sin nombre';
+    return 'Jugador';
   }
 }

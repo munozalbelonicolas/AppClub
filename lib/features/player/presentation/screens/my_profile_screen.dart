@@ -1043,8 +1043,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                       builder: (context, ref, child) {
                         final fixtures = ref.watch(fixturesStreamProvider('all')).valueOrNull ?? [];
                         final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
-                        final playerName = '${user.name} ${user.lastName}'.trim();
-                        final targetName = playerName.toLowerCase();
+                        final uName = user.name.trim().toLowerCase();
+                        final uLast = user.lastName.trim().toLowerCase();
+                        final playerName = uLast.isNotEmpty ? (uName.contains(uLast) ? uName : '$uName $uLast') : uName;
+                        final targetName = playerName;
 
                         final List<Map<String, dynamic>> goalEvents = [];
                         final List<Map<String, dynamic>> cardEvents = [];
@@ -1067,8 +1069,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               final scName = sc['name']?.toString().trim().toLowerCase() ?? '';
                               final scId = sc['playerId']?.toString();
 
-                              final bool isMatch = (scId != null && scId == user.id) ||
-                                  (scName.isNotEmpty && (scName == targetName || scName.contains(targetName) || targetName.contains(scName)));
+                              final bool isMatch = (scId != null && scId.isNotEmpty && scId == user.id) ||
+                                  (scName.isNotEmpty &&
+                                      (scName == targetName ||
+                                          (uName.isNotEmpty && scName == uName) ||
+                                          (uName.isNotEmpty && uLast.isNotEmpty && scName.contains(uName) && scName.contains(uLast)) ||
+                                          targetName.contains(scName) ||
+                                          scName.contains(targetName)));
 
                               if (isMatch) {
                                 final teamName = sc['team']?.toString() ?? '';
@@ -1105,8 +1112,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               final cName = card['name']?.toString().trim().toLowerCase() ?? '';
                               final cId = card['playerId']?.toString();
 
-                              final bool isMatch = (cId != null && cId == user.id) ||
-                                  (cName.isNotEmpty && (cName == targetName || cName.contains(targetName) || targetName.contains(cName)));
+                              final bool isMatch = (cId != null && cId.isNotEmpty && cId == user.id) ||
+                                  (cName.isNotEmpty &&
+                                      (cName == targetName ||
+                                          (uName.isNotEmpty && cName == uName) ||
+                                          (uName.isNotEmpty && uLast.isNotEmpty && cName.contains(uName) && cName.contains(uLast)) ||
+                                          targetName.contains(cName) ||
+                                          cName.contains(targetName)));
 
                               if (isMatch) {
                                 final isRed = card['cardType']?.toString() == 'red' || card['type']?.toString() == 'red';
