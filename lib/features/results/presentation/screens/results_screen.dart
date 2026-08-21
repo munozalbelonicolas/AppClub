@@ -2378,7 +2378,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 _selectedCategory == 'all'
                     ? 'Tabla General de Clubes (Suma de Jornadas)'
                     : 'Tabla de Posiciones · Categoría $_selectedCategory',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white70),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.textPrimary),
               ),
               const Text('PG = 2 pts · PE = 1 pt', style: TextStyle(fontSize: 10, color: Color(0xFFE5B842), fontWeight: FontWeight.bold)),
             ],
