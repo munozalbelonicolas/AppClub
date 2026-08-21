@@ -1418,19 +1418,12 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     required String category,
   }) {
     final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
-    final match = Map<String, dynamic>.from(matches[matchIndex]);
+    final int exactMatchIndex = (matchIndex >= 0 && matchIndex < matches.length) ? matchIndex : 0;
+    final match = Map<String, dynamic>.from(matches[exactMatchIndex]);
     final List<Map<String, dynamic>> matchScorers = List<Map<String, dynamic>>.from(match['scorers'] ?? []);
 
     final homeName = homeClub?['name'] ?? 'Local';
     final awayName = awayClub?['name'] ?? 'Visitante';
-
-    final allPlayers = ref.watch(playersStreamProvider).valueOrNull ?? [];
-    final categoryClean = category.replaceAll('Categoría', '').replaceAll('Cat.', '').trim();
-    final categoryPlayers = allPlayers.where((p) {
-      final cat = p['category']?.toString().trim();
-      return cat == categoryClean || cat == category;
-    }).toList();
-    categoryPlayers.sort((a, b) => _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
 
     String selectedTeam = homeName;
     final nameController = TextEditingController();
@@ -1441,343 +1434,412 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     showDialog(
       context: context,
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final bool isLocalSelected = selectedTeam == homeName || selectedTeam.toLowerCase().contains('newbery');
+        return Consumer(
+          builder: (context, ref, _) {
+            final allPlayers = ref.watch(playersStreamProvider).valueOrNull ?? [];
+            final categoryClean = category
+                .replaceAll('Categoría', '')
+                .replaceAll('Cat.', '')
+                .replaceAll('Cat', '')
+                .trim()
+                .toLowerCase();
 
-            return AlertDialog(
-              backgroundColor: const Color(0xFF18181A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
+            final categoryPlayers = allPlayers.where((p) {
+              final cat = (p['category']?.toString() ?? '')
+                  .replaceAll('Categoría', '')
+                  .replaceAll('Cat.', '')
+                  .replaceAll('Cat', '')
+                  .trim()
+                  .toLowerCase();
+              return cat == categoryClean ||
+                  (categoryClean.isNotEmpty && cat.contains(categoryClean)) ||
+                  (cat.isNotEmpty && categoryClean.contains(cat));
+            }).toList();
+            categoryPlayers.sort((a, b) => _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
+
+            final otherPlayers = allPlayers.where((p) => !categoryPlayers.contains(p)).toList();
+            otherPlayers.sort((a, b) => _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
+
+            return StatefulBuilder(
+              builder: (context, setModalState) {
+                final bool isLocalSelected = selectedTeam == homeName ||
+                    selectedTeam.toLowerCase().contains('newbery') ||
+                    (homeClub != null && selectedTeam == homeClub['name']);
+
+                return AlertDialog(
+                  backgroundColor: const Color(0xFF18181A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(Icons.emoji_events_outlined, color: Color(0xFFE5B842), size: 22),
-                      SizedBox(width: 8),
-                      Text('Goleadores', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Row(
+                        children: [
+                          Icon(Icons.emoji_events_outlined, color: Color(0xFFE5B842), size: 22),
+                          SizedBox(width: 8),
+                          Text('Goleadores', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      '$homeName vs $awayName (${category.startsWith('20') ? 'Cat. $category' : category})',
-                      style: const TextStyle(color: Color(0xFFE5B842), fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          '$homeName vs $awayName (${category.startsWith('20') ? 'Cat. $category' : category})',
+                          style: const TextStyle(color: Color(0xFFE5B842), fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 12),
 
-                    if (matchScorers.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF242427),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'No se han registrado goleadores en este partido.',
-                          style: TextStyle(color: Colors.white60, fontSize: 12),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    else
-                      Column(
-                        children: matchScorers.asMap().entries.map((entry) {
-                          final scIdx = entry.key;
-                          final sc = entry.value;
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        if (matchScorers.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: const Color(0xFF242427),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.sports_soccer, size: 14, color: Color(0xFFE5B842)),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                            child: const Text(
+                              'No se han registrado goleadores en este partido.',
+                              style: TextStyle(color: Colors.white60, fontSize: 12),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        else
+                          Column(
+                            children: matchScorers.asMap().entries.map((entry) {
+                              final scIdx = entry.key;
+                              final sc = entry.value;
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF242427),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.sports_soccer, size: 14, color: Color(0xFFE5B842)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            sc['name']?.toString() ?? '',
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                          ),
+                                          Text(
+                                            '${sc['team']} · ${sc['goals']} ${sc['goals'] == 1 ? 'gol' : 'goles'}',
+                                            style: const TextStyle(color: Colors.white60, fontSize: 11),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                      onPressed: () {
+                                        setModalState(() {
+                                          matchScorers.removeAt(scIdx);
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+
+                        const SizedBox(height: 16),
+                        const Divider(color: Color(0xFF333338)),
+                        const SizedBox(height: 10),
+
+                        const Text(
+                          'Agregar Goleador al Partido',
+                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Selector de Equipo
+                        const Text('Equipo', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF242427),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedTeam,
+                              dropdownColor: const Color(0xFF242427),
+                              isExpanded: true,
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                              items: [
+                                DropdownMenuItem(value: homeName, child: Text(homeName)),
+                                DropdownMenuItem(value: awayName, child: Text(awayName)),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setModalState(() {
+                                    selectedTeam = val;
+                                    selectedPlayerId = null;
+                                    nameController.clear();
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Selector de Jugadores o TextField
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        sc['name']?.toString() ?? '',
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                        isLocalSelected ? 'Jugador del Club' : 'Nombre del Jugador',
+                                        style: const TextStyle(color: Colors.white70, fontSize: 12),
                                       ),
-                                      Text(
-                                        '${sc['team']} · ${sc['goals']} ${sc['goals'] == 1 ? 'gol' : 'goles'}',
-                                        style: const TextStyle(color: Colors.white60, fontSize: 11),
-                                      ),
+                                      if (isLocalSelected && manualNameInput)
+                                        GestureDetector(
+                                          onTap: () {
+                                            setModalState(() {
+                                              manualNameInput = false;
+                                              nameController.clear();
+                                            });
+                                          },
+                                          child: const Text('📋 Usar lista', style: TextStyle(color: Color(0xFFE5B842), fontSize: 11)),
+                                        ),
                                     ],
                                   ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                                  onPressed: () {
-                                    setModalState(() {
-                                      matchScorers.removeAt(scIdx);
-                                    });
-                                  },
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+
+                                  if (isLocalSelected && !manualNameInput && allPlayers.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF242427),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: const Color(0xFF333338)),
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value: allPlayers.any((p) => p['id'] == selectedPlayerId) ? selectedPlayerId : null,
+                                          hint: const Text('Seleccionar Jugador...', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                          dropdownColor: const Color(0xFF242427),
+                                          isExpanded: true,
+                                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                                          items: [
+                                            if (categoryPlayers.isNotEmpty) ...[
+                                              ...categoryPlayers.map((p) {
+                                                final pName = _getPlayerName(p);
+                                                return DropdownMenuItem<String>(
+                                                  value: p['id'] as String,
+                                                  child: Text(
+                                                    '$pName (Cat. ${p['category'] ?? category})',
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                                  ),
+                                                );
+                                              }),
+                                            ],
+                                            if (otherPlayers.isNotEmpty) ...[
+                                              ...otherPlayers.map((p) {
+                                                final pName = _getPlayerName(p);
+                                                return DropdownMenuItem<String>(
+                                                  value: p['id'] as String,
+                                                  child: Text(
+                                                    '$pName (Cat. ${p['category'] ?? "General"})',
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: const TextStyle(color: Colors.white70),
+                                                  ),
+                                                );
+                                              }),
+                                            ],
+                                            const DropdownMenuItem<String>(
+                                              value: 'MANUAL',
+                                              child: Text('✍️ Escribir otro nombre...', style: TextStyle(color: Color(0xFFE5B842))),
+                                            ),
+                                          ],
+                                          onChanged: (val) {
+                                            if (val == 'MANUAL') {
+                                              setModalState(() {
+                                                selectedPlayerId = null;
+                                                manualNameInput = true;
+                                                nameController.clear();
+                                              });
+                                            } else if (val != null) {
+                                              final sel = allPlayers.firstWhere((p) => p['id'] == val);
+                                              setModalState(() {
+                                                selectedPlayerId = val;
+                                                nameController.text = _getPlayerName(sel);
+                                              });
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    TextField(
+                                      controller: nameController,
+                                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                                      decoration: InputDecoration(
+                                        hintText: isLocalSelected ? 'Ej: Nombre del jugador' : 'Ej: Jugador Rival',
+                                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                                        filled: true,
+                                        fillColor: const Color(0xFF242427),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                          );
-                        }).toList(),
-                      ),
-
-                    const SizedBox(height: 16),
-                    const Divider(color: Color(0xFF333338)),
-                    const SizedBox(height: 10),
-
-                    const Text(
-                      'Agregar Goleador al Partido',
-                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Selector de Equipo
-                    const Text('Equipo', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF242427),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedTeam,
-                          dropdownColor: const Color(0xFF242427),
-                          isExpanded: true,
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
-                          items: [
-                            DropdownMenuItem(value: homeName, child: Text(homeName)),
-                            DropdownMenuItem(value: awayName, child: Text(awayName)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Goles', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                  const SizedBox(height: 4),
+                                  TextField(
+                                    controller: goalsController,
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: const Color(0xFF242427),
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
-                          onChanged: (val) {
-                            if (val != null) {
+                        ),
+                        const SizedBox(height: 12),
+
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFE5B842),
+                            side: const BorderSide(color: Color(0xFFE5B842)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('Añadir a la lista'),
+                          onPressed: () {
+                            final pName = nameController.text.trim();
+                            final gCount = int.tryParse(goalsController.text.trim()) ?? 1;
+                            if (pName.isNotEmpty && gCount > 0) {
                               setModalState(() {
-                                selectedTeam = val;
-                                selectedPlayerId = null;
+                                matchScorers.add({
+                                  'name': pName,
+                                  'playerId': selectedPlayerId,
+                                  'team': selectedTeam,
+                                  'goals': gCount,
+                                  'isClub': isLocalSelected,
+                                });
                                 nameController.clear();
+                                goalsController.text = '1';
+                                selectedPlayerId = null;
                               });
                             }
                           },
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Selector de Jugadores de la Categoría (para Club Local) o TextField
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    isLocalSelected ? 'Jugador (Cat. $categoryClean)' : 'Nombre del Jugador',
-                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                  ),
-                                  if (isLocalSelected && manualNameInput)
-                                    GestureDetector(
-                                      onTap: () {
-                                        setModalState(() {
-                                          manualNameInput = false;
-                                          nameController.clear();
-                                        });
-                                      },
-                                      child: const Text('📋 Usar lista', style: TextStyle(color: Color(0xFFE5B842), fontSize: 11)),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-
-                              if (isLocalSelected && !manualNameInput && categoryPlayers.isNotEmpty)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF242427),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xFF333338)),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: categoryPlayers.any((p) => p['id'] == selectedPlayerId) ? selectedPlayerId : null,
-                                      hint: const Text('Seleccionar Jugador...', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                      dropdownColor: const Color(0xFF242427),
-                                      isExpanded: true,
-                                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                                      items: [
-                                        ...categoryPlayers.map((p) {
-                                          final pName = _getPlayerName(p);
-                                          return DropdownMenuItem<String>(
-                                            value: p['id'] as String,
-                                            child: Text(pName, overflow: TextOverflow.ellipsis),
-                                          );
-                                        }),
-                                        const DropdownMenuItem<String>(
-                                          value: 'MANUAL',
-                                          child: Text('✍️ Escribir otro nombre...', style: TextStyle(color: Color(0xFFE5B842))),
-                                        ),
-                                      ],
-                                      onChanged: (val) {
-                                        if (val == 'MANUAL') {
-                                          setModalState(() {
-                                            selectedPlayerId = null;
-                                            manualNameInput = true;
-                                            nameController.clear();
-                                          });
-                                        } else if (val != null) {
-                                          final sel = categoryPlayers.firstWhere((p) => p['id'] == val);
-                                          setModalState(() {
-                                            selectedPlayerId = val;
-                                            nameController.text = _getPlayerName(sel);
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                )
-                              else
-                                TextField(
-                                  controller: nameController,
-                                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                                  decoration: InputDecoration(
-                                    hintText: isLocalSelected ? 'Ej: Nombre del jugador' : 'Ej: Jugador Rival',
-                                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-                                    filled: true,
-                                    fillColor: const Color(0xFF242427),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Goles', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                              const SizedBox(height: 4),
-                              TextField(
-                                controller: goalsController,
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: const Color(0xFF242427),
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFE5B842),
-                        side: const BorderSide(color: Color(0xFFE5B842)),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE5B842),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Añadir a la lista'),
-                      onPressed: () {
-                        final pName = nameController.text.trim();
-                        final gCount = int.tryParse(goalsController.text.trim()) ?? 1;
-                        if (pName.isNotEmpty && gCount > 0) {
-                          setModalState(() {
-                            matchScorers.add({
-                              'name': pName,
-                              'playerId': selectedPlayerId,
-                              'team': selectedTeam,
-                              'goals': gCount,
-                              'isClub': isLocalSelected,
-                            });
-                            nameController.clear();
-                            goalsController.text = '1';
-                            selectedPlayerId = null;
-                          });
+                      onPressed: () async {
+                        final currentMatches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+                        int saveIndex = exactMatchIndex;
+                        if (saveIndex >= currentMatches.length) {
+                          saveIndex = currentMatches.indexWhere((m) =>
+                              m['category'] == match['category'] &&
+                              m['homeClubId'] == match['homeClubId'] &&
+                              m['awayClubId'] == match['awayClubId']);
+                        }
+                        if (saveIndex < 0 || saveIndex >= currentMatches.length) {
+                          saveIndex = 0;
+                        }
+
+                        currentMatches[saveIndex] = {
+                          ...currentMatches[saveIndex],
+                          'scorers': matchScorers,
+                        };
+
+                        await ref.read(firestoreServiceProvider).updateFixture(fixture['id'], {
+                          'matches': currentMatches,
+                        });
+
+                        for (final sc in matchScorers) {
+                          final effectiveCategory = (category == 'all' || category.isEmpty)
+                              ? (match['category']?.toString() ?? 'Primera')
+                              : category;
+
+                          final pId = sc['playerId']?.toString();
+                          final String docId = '${fixture['id']}_${saveIndex}_${pId ?? sc['name']}'.replaceAll(' ', '_');
+
+                          await FirebaseFirestore.instance.collection('scorers').doc(docId).set({
+                            'name': sc['name'],
+                            'playerId': sc['playerId'],
+                            'team': sc['team'],
+                            'category': effectiveCategory,
+                            'goals': sc['goals'] ?? 1,
+                            'isClub': sc['isClub'] ?? isLocalSelected,
+                            'fixtureId': fixture['id'],
+                            'matchIndex': saveIndex,
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          }, SetOptions(merge: true));
+
+                          if (pId != null && pId.isNotEmpty) {
+                            try {
+                              await FirebaseFirestore.instance.collection('users').doc(pId).set({
+                                'goals': FieldValue.increment(sc['goals'] ?? 1),
+                              }, SetOptions(merge: true));
+                            } catch (_) {}
+                          }
+                        }
+
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Goleadores del partido guardados correctamente!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
                         }
                       },
+                      child: const Text('Guardar Goleadores', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                     ),
                   ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE5B842),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () async {
-                    matches[matchIndex] = {
-                      ...match,
-                      'scorers': matchScorers,
-                    };
-
-                    await ref.read(firestoreServiceProvider).updateFixture(fixture['id'], {
-                      'matches': matches,
-                    });
-
-                    for (final sc in matchScorers) {
-                      final effectiveCategory = (category == 'all' || category.isEmpty) ? 'Primera' : category;
-                      await ref.read(firestoreServiceProvider).addScorer({
-                        'name': sc['name'],
-                        'playerId': sc['playerId'],
-                        'team': sc['team'],
-                        'category': effectiveCategory,
-                        'goals': sc['goals'] ?? 1,
-                        'isClub': sc['isClub'] ?? false,
-                      });
-
-                      final pId = sc['playerId']?.toString();
-                      if (pId != null && pId.isNotEmpty) {
-                        try {
-                          await FirebaseFirestore.instance.collection('users').doc(pId).set({
-                            'goals': FieldValue.increment(sc['goals'] ?? 1),
-                          }, SetOptions(merge: true));
-                        } catch (_) {}
-                      }
-                    }
-
-                    if (ctx.mounted) {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Goleadores del partido guardados correctamente!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Guardar Goleadores', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                ),
-              ],
+                );
+              },
             );
           },
         );
@@ -1795,22 +1857,13 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     required String category,
   }) {
     final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
-    final match = Map<String, dynamic>.from(matches[matchIndex]);
+    final int exactMatchIndex = (matchIndex >= 0 && matchIndex < matches.length) ? matchIndex : 0;
+    final match = Map<String, dynamic>.from(matches[exactMatchIndex]);
     final List<Map<String, dynamic>> matchCards =
         List<Map<String, dynamic>>.from(match['cards'] ?? []);
 
     final homeName = homeClub?['name'] ?? 'Local';
     final awayName = awayClub?['name'] ?? 'Visitante';
-
-    final allPlayers = ref.watch(playersStreamProvider).valueOrNull ?? [];
-    final categoryClean =
-        category.replaceAll('Categoría', '').replaceAll('Cat.', '').trim();
-    final categoryPlayers = allPlayers.where((p) {
-      final cat = p['category']?.toString().trim();
-      return cat == categoryClean || cat == category;
-    }).toList();
-    categoryPlayers.sort((a, b) =>
-        _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
 
     String selectedTeam = homeName;
     String selectedCardType = 'yellow'; // 'yellow' | 'red'
@@ -1821,424 +1874,482 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     showDialog(
       context: context,
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final bool isLocalSelected =
-                selectedTeam == homeName ||
-                selectedTeam.toLowerCase().contains('newbery');
+        return Consumer(
+          builder: (context, ref, _) {
+            final allPlayers = ref.watch(playersStreamProvider).valueOrNull ?? [];
+            final categoryClean = category
+                .replaceAll('Categoría', '')
+                .replaceAll('Cat.', '')
+                .replaceAll('Cat', '')
+                .trim()
+                .toLowerCase();
 
-            return AlertDialog(
-              backgroundColor: const Color(0xFF18181A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
+            final categoryPlayers = allPlayers.where((p) {
+              final cat = (p['category']?.toString() ?? '')
+                  .replaceAll('Categoría', '')
+                  .replaceAll('Cat.', '')
+                  .replaceAll('Cat', '')
+                  .trim()
+                  .toLowerCase();
+              return cat == categoryClean ||
+                  (categoryClean.isNotEmpty && cat.contains(categoryClean)) ||
+                  (cat.isNotEmpty && categoryClean.contains(cat));
+            }).toList();
+            categoryPlayers.sort((a, b) =>
+                _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
+
+            final otherPlayers = allPlayers.where((p) => !categoryPlayers.contains(p)).toList();
+            otherPlayers.sort((a, b) =>
+                _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
+
+            return StatefulBuilder(
+              builder: (context, setModalState) {
+                final bool isLocalSelected = selectedTeam == homeName ||
+                    selectedTeam.toLowerCase().contains('newbery') ||
+                    (homeClub != null && selectedTeam == homeClub['name']);
+
+                return AlertDialog(
+                  backgroundColor: const Color(0xFF18181A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(Icons.square_rounded, color: Colors.amber, size: 22),
-                      SizedBox(width: 8),
-                      Text(
-                        'Tarjetas del Partido',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold),
+                      const Row(
+                        children: [
+                          Icon(Icons.square_rounded, color: Colors.amber, size: 22),
+                          SizedBox(width: 8),
+                          Text(
+                            'Tarjetas del Partido',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      '$homeName vs $awayName (${category.startsWith('20') ? 'Cat. $category' : category})',
-                      style: const TextStyle(
-                          color: Color(0xFFE5B842),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          '$homeName vs $awayName (${category.startsWith('20') ? 'Cat. $category' : category})',
+                          style: const TextStyle(
+                              color: Color(0xFFE5B842),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 12),
 
-                    // ── Lista actual de tarjetas ──────────────────────────
-                    if (matchCards.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF242427),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'No hay tarjetas registradas en este partido.',
-                          style: TextStyle(color: Colors.white60, fontSize: 12),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    else
-                      Column(
-                        children: matchCards.asMap().entries.map((entry) {
-                          final idx = entry.key;
-                          final card = entry.value;
-                          final isRed = card['cardType']?.toString() == 'red';
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 8),
+                        // ── Lista actual de tarjetas ──────────────────────────
+                        if (matchCards.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: const Color(0xFF242427),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.square_rounded,
-                                  size: 16,
-                                  color: isRed ? Colors.red : Colors.amber,
+                            child: const Text(
+                              'No hay tarjetas registradas en este partido.',
+                              style: TextStyle(color: Colors.white60, fontSize: 12),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        else
+                          Column(
+                            children: matchCards.asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final card = entry.value;
+                              final isRed = card['cardType']?.toString() == 'red';
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF242427),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.square_rounded,
+                                      size: 16,
+                                      color: isRed ? Colors.red : Colors.amber,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            card['name']?.toString() ?? '',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13),
+                                          ),
+                                          Text(
+                                            '${card['team']} · ${isRed ? 'Tarjeta Roja' : 'Tarjeta Amarilla'}',
+                                            style: const TextStyle(
+                                                color: Colors.white60, fontSize: 11),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 18, color: Colors.redAccent),
+                                      onPressed: () {
+                                        setModalState(() => matchCards.removeAt(idx));
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+
+                        const SizedBox(height: 16),
+                        const Divider(color: Color(0xFF333338)),
+                        const SizedBox(height: 10),
+
+                        const Text(
+                          'Agregar Tarjeta al Partido',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Tipo de tarjeta
+                        const Text('Tipo de Tarjeta',
+                            style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setModalState(() => selectedCardType = 'yellow'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: selectedCardType == 'yellow'
+                                        ? Colors.amber.withValues(alpha: 0.25)
+                                        : const Color(0xFF242427),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: selectedCardType == 'yellow'
+                                          ? Colors.amber
+                                          : const Color(0xFF444448),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text(
-                                        card['name']?.toString() ?? '',
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13),
-                                      ),
-                                      Text(
-                                        '${card['team']} · ${isRed ? 'Tarjeta Roja' : 'Tarjeta Amarilla'}',
-                                        style: const TextStyle(
-                                            color: Colors.white60, fontSize: 11),
-                                      ),
+                                      Icon(Icons.square_rounded,
+                                          size: 16, color: Colors.amber),
+                                      SizedBox(width: 6),
+                                      Text('Amarilla',
+                                          style: TextStyle(
+                                              color: Colors.amber,
+                                              fontWeight: FontWeight.bold)),
                                     ],
                                   ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      size: 18, color: Colors.redAccent),
-                                  onPressed: () {
-                                    setModalState(() => matchCards.removeAt(idx));
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                    const SizedBox(height: 16),
-                    const Divider(color: Color(0xFF333338)),
-                    const SizedBox(height: 10),
-
-                    const Text(
-                      'Agregar Tarjeta al Partido',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Tipo de tarjeta
-                    const Text('Tipo de Tarjeta',
-                        style: TextStyle(color: Colors.white70, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () =>
-                                setModalState(() => selectedCardType = 'yellow'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: selectedCardType == 'yellow'
-                                    ? Colors.amber.withValues(alpha: 0.25)
-                                    : const Color(0xFF242427),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: selectedCardType == 'yellow'
-                                      ? Colors.amber
-                                      : const Color(0xFF444448),
-                                ),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.square_rounded,
-                                      size: 16, color: Colors.amber),
-                                  SizedBox(width: 6),
-                                  Text('Amarilla',
-                                      style: TextStyle(
-                                          color: Colors.amber,
-                                          fontWeight: FontWeight.bold)),
-                                ],
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () =>
-                                setModalState(() => selectedCardType = 'red'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: selectedCardType == 'red'
-                                    ? Colors.red.withValues(alpha: 0.25)
-                                    : const Color(0xFF242427),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: selectedCardType == 'red'
-                                      ? Colors.red
-                                      : const Color(0xFF444448),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setModalState(() => selectedCardType = 'red'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: selectedCardType == 'red'
+                                        ? Colors.red.withValues(alpha: 0.25)
+                                        : const Color(0xFF242427),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: selectedCardType == 'red'
+                                          ? Colors.red
+                                          : const Color(0xFF444448),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.square_rounded,
+                                          size: 16, color: Colors.red),
+                                      SizedBox(width: 6),
+                                      Text('Roja',
+                                          style: TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.square_rounded,
-                                      size: 16, color: Colors.red),
-                                  SizedBox(width: 6),
-                                  Text('Roja',
-                                      style: TextStyle(
-                                          color: Colors.red,
-                                          fontWeight: FontWeight.bold)),
-                                ],
-                              ),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Selector de Equipo
-                    const Text('Equipo',
-                        style: TextStyle(color: Colors.white70, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF242427),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedTeam,
-                          dropdownColor: const Color(0xFF242427),
-                          isExpanded: true,
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
-                          items: [
-                            DropdownMenuItem(value: homeName, child: Text(homeName)),
-                            DropdownMenuItem(value: awayName, child: Text(awayName)),
                           ],
-                          onChanged: (val) {
-                            if (val != null) {
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // Selector de Equipo
+                        const Text('Equipo',
+                            style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF242427),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedTeam,
+                              dropdownColor: const Color(0xFF242427),
+                              isExpanded: true,
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                              items: [
+                                DropdownMenuItem(value: homeName, child: Text(homeName)),
+                                DropdownMenuItem(value: awayName, child: Text(awayName)),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setModalState(() {
+                                    selectedTeam = val;
+                                    selectedPlayerId = null;
+                                    nameController.clear();
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Selector de jugador
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isLocalSelected
+                                  ? 'Jugador del Club'
+                                  : 'Nombre del Jugador',
+                              style:
+                                  const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                            if (isLocalSelected && manualNameInput)
+                              GestureDetector(
+                                onTap: () {
+                                  setModalState(() {
+                                    manualNameInput = false;
+                                    nameController.clear();
+                                  });
+                                },
+                                child: const Text('📋 Usar lista',
+                                    style: TextStyle(
+                                        color: Color(0xFFE5B842), fontSize: 11)),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+
+                        if (isLocalSelected && !manualNameInput && allPlayers.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF242427),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF333338)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: allPlayers
+                                        .any((p) => p['id'] == selectedPlayerId)
+                                    ? selectedPlayerId
+                                    : null,
+                                hint: const Text('Seleccionar Jugador...',
+                                    style: TextStyle(
+                                        color: Colors.white54, fontSize: 12)),
+                                dropdownColor: const Color(0xFF242427),
+                                isExpanded: true,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 13),
+                                items: [
+                                  if (categoryPlayers.isNotEmpty) ...[
+                                    ...categoryPlayers.map((p) {
+                                      final pName = _getPlayerName(p);
+                                      return DropdownMenuItem<String>(
+                                        value: p['id'] as String,
+                                        child: Text(
+                                          '$pName (Cat. ${p['category'] ?? category})',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontWeight: FontWeight.w600),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                  if (otherPlayers.isNotEmpty) ...[
+                                    ...otherPlayers.map((p) {
+                                      final pName = _getPlayerName(p);
+                                      return DropdownMenuItem<String>(
+                                        value: p['id'] as String,
+                                        child: Text(
+                                          '$pName (Cat. ${p['category'] ?? "General"})',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: Colors.white70),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                  const DropdownMenuItem<String>(
+                                    value: 'MANUAL',
+                                    child: Text('✍️ Escribir otro nombre...',
+                                        style: TextStyle(
+                                            color: Color(0xFFE5B842))),
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  if (val == 'MANUAL') {
+                                    setModalState(() {
+                                      selectedPlayerId = null;
+                                      manualNameInput = true;
+                                      nameController.clear();
+                                    });
+                                  } else if (val != null) {
+                                    final sel = allPlayers
+                                        .firstWhere((p) => p['id'] == val);
+                                    setModalState(() {
+                                      selectedPlayerId = val;
+                                      nameController.text = _getPlayerName(sel);
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          )
+                        else
+                          TextField(
+                            controller: nameController,
+                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: isLocalSelected
+                                  ? 'Ej: Nombre del jugador'
+                                  : 'Ej: Jugador Rival',
+                              hintStyle: const TextStyle(
+                                  color: Colors.white38, fontSize: 12),
+                              filled: true,
+                              fillColor: const Color(0xFF242427),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+
+                        const SizedBox(height: 12),
+
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: selectedCardType == 'red'
+                                ? Colors.red
+                                : Colors.amber,
+                            side: BorderSide(
+                                color: selectedCardType == 'red'
+                                    ? Colors.red
+                                    : Colors.amber),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: Icon(
+                            Icons.square_rounded,
+                            size: 16,
+                            color: selectedCardType == 'red' ? Colors.red : Colors.amber,
+                          ),
+                          label: Text('Añadir ${selectedCardType == 'red' ? 'Tarjeta Roja' : 'Tarjeta Amarilla'}'),
+                          onPressed: () {
+                            final pName = nameController.text.trim();
+                            if (pName.isNotEmpty) {
                               setModalState(() {
-                                selectedTeam = val;
-                                selectedPlayerId = null;
+                                matchCards.add({
+                                  'name': pName,
+                                  'playerId': selectedPlayerId,
+                                  'team': selectedTeam,
+                                  'cardType': selectedCardType,
+                                  'isClub': isLocalSelected,
+                                });
                                 nameController.clear();
+                                selectedPlayerId = null;
                               });
                             }
                           },
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Selector de jugador (dropdown para local, textfield para visitante)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          isLocalSelected
-                              ? 'Jugador (Cat. $categoryClean)'
-                              : 'Nombre del Jugador',
-                          style:
-                              const TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
-                        if (isLocalSelected && manualNameInput)
-                          GestureDetector(
-                            onTap: () {
-                              setModalState(() {
-                                manualNameInput = false;
-                                nameController.clear();
-                              });
-                            },
-                            child: const Text('📋 Usar lista',
-                                style: TextStyle(
-                                    color: Color(0xFFE5B842), fontSize: 11)),
-                          ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-
-                    if (isLocalSelected &&
-                        !manualNameInput &&
-                        categoryPlayers.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF242427),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF333338)),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: categoryPlayers
-                                    .any((p) => p['id'] == selectedPlayerId)
-                                ? selectedPlayerId
-                                : null,
-                            hint: const Text('Seleccionar Jugador...',
-                                style: TextStyle(
-                                    color: Colors.white54, fontSize: 12)),
-                            dropdownColor: const Color(0xFF242427),
-                            isExpanded: true,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 13),
-                            items: [
-                              ...categoryPlayers.map((p) {
-                                final pName = _getPlayerName(p);
-                                return DropdownMenuItem<String>(
-                                  value: p['id'] as String,
-                                  child: Text(pName,
-                                      overflow: TextOverflow.ellipsis),
-                                );
-                              }),
-                              const DropdownMenuItem<String>(
-                                value: 'MANUAL',
-                                child: Text('✍️ Escribir otro nombre...',
-                                    style: TextStyle(
-                                        color: Color(0xFFE5B842))),
-                              ),
-                            ],
-                            onChanged: (val) {
-                              if (val == 'MANUAL') {
-                                setModalState(() {
-                                  selectedPlayerId = null;
-                                  manualNameInput = true;
-                                  nameController.clear();
-                                });
-                              } else if (val != null) {
-                                final sel = categoryPlayers
-                                    .firstWhere((p) => p['id'] == val);
-                                setModalState(() {
-                                  selectedPlayerId = val;
-                                  nameController.text = _getPlayerName(sel);
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                      )
-                    else
-                      TextField(
-                        controller: nameController,
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: isLocalSelected
-                              ? 'Ej: Nombre del jugador'
-                              : 'Ej: Jugador Rival',
-                          hintStyle: const TextStyle(
-                              color: Colors.white38, fontSize: 12),
-                          filled: true,
-                          fillColor: const Color(0xFF242427),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 8),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-
-                    const SizedBox(height: 12),
-
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: selectedCardType == 'red'
-                            ? Colors.red
-                            : Colors.amber,
-                        side: BorderSide(
-                            color: selectedCardType == 'red'
-                                ? Colors.red
-                                : Colors.amber),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancelar',
+                          style: TextStyle(color: Colors.white70)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8)),
                       ),
-                      icon: Icon(
-                        Icons.square_rounded,
-                        size: 16,
-                        color: selectedCardType == 'red' ? Colors.red : Colors.amber,
-                      ),
-                      label: Text('Añadir ${selectedCardType == 'red' ? 'Tarjeta Roja' : 'Tarjeta Amarilla'}'),
-                      onPressed: () {
-                        final pName = nameController.text.trim();
-                        if (pName.isNotEmpty) {
-                          setModalState(() {
-                            matchCards.add({
-                              'name': pName,
-                              'playerId': selectedPlayerId,
-                              'team': selectedTeam,
-                              'cardType': selectedCardType,
-                              'isClub': isLocalSelected,
-                            });
-                            nameController.clear();
-                            selectedPlayerId = null;
-                          });
+                      onPressed: () async {
+                        final currentMatches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+                        int saveIndex = exactMatchIndex;
+                        if (saveIndex >= currentMatches.length) {
+                          saveIndex = currentMatches.indexWhere((m) =>
+                              m['category'] == match['category'] &&
+                              m['homeClubId'] == match['homeClubId'] &&
+                              m['awayClubId'] == match['awayClubId']);
+                        }
+                        if (saveIndex < 0 || saveIndex >= currentMatches.length) {
+                          saveIndex = 0;
+                        }
+
+                        currentMatches[saveIndex] = {
+                          ...currentMatches[saveIndex],
+                          'cards': matchCards,
+                        };
+
+                        await ref
+                            .read(firestoreServiceProvider)
+                            .updateFixture(fixture['id'], {'matches': currentMatches});
+
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Tarjetas guardadas correctamente!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
                         }
                       },
+                      child: const Text('Guardar Tarjetas',
+                          style: TextStyle(
+                              color: Colors.black, fontWeight: FontWeight.bold)),
                     ),
                   ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancelar',
-                      style: TextStyle(color: Colors.white70)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () async {
-                    matches[matchIndex] = {
-                      ...match,
-                      'cards': matchCards,
-                    };
-
-                    await ref
-                        .read(firestoreServiceProvider)
-                        .updateFixture(fixture['id'], {'matches': matches});
-
-                    if (ctx.mounted) {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Tarjetas guardadas correctamente!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Guardar Tarjetas',
-                      style: TextStyle(
-                          color: Colors.black, fontWeight: FontWeight.bold)),
-                ),
-              ],
+                );
+              },
             );
           },
         );
@@ -2597,10 +2708,108 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   // ─── 3. Goleadores Tab ──────────────────────────────────
   Widget _buildScorersTab(bool canManage) {
     final scorersAsync = ref.watch(scorersStreamProvider(_selectedCategory));
+    final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
+
+    final cleanCategory = _selectedCategory
+        .replaceAll('Categoría', '')
+        .replaceAll('Cat.', '')
+        .replaceAll('Cat', '')
+        .trim()
+        .toLowerCase();
 
     return scorersAsync.when(
-      data: (scorers) {
-        if (scorers.isEmpty) {
+      data: (directScorers) {
+        final fixtures = fixturesAsync.valueOrNull ?? [];
+        final Map<String, Map<String, dynamic>> combinedMap = {};
+
+        // 1. Extraer goleadores de todos los partidos del fixture
+        for (final fix in fixtures) {
+          final matches = List<Map<String, dynamic>>.from(fix['matches'] ?? []);
+          for (final m in matches) {
+            final mCat = (m['category']?.toString() ?? '')
+                .replaceAll('Categoría', '')
+                .replaceAll('Cat.', '')
+                .replaceAll('Cat', '')
+                .trim()
+                .toLowerCase();
+
+            final bool matchesCategory = _selectedCategory == 'all' ||
+                _selectedCategory == 'Todas las Cat.' ||
+                _selectedCategory.isEmpty ||
+                mCat == cleanCategory ||
+                (cleanCategory.isNotEmpty && mCat.contains(cleanCategory)) ||
+                (mCat.isNotEmpty && cleanCategory.contains(mCat));
+
+            if (!matchesCategory) continue;
+
+            final scorersList = List<Map<String, dynamic>>.from(m['scorers'] ?? []);
+            for (final sc in scorersList) {
+              final name = sc['name']?.toString().trim() ?? '';
+              if (name.isEmpty) continue;
+              final pId = sc['playerId']?.toString().trim();
+              final team = sc['team']?.toString().trim() ?? 'Club';
+              final key = (pId != null && pId.isNotEmpty) ? pId : '${name.toLowerCase()}_${team.toLowerCase()}';
+              final goals = (sc['goals'] is int)
+                  ? sc['goals'] as int
+                  : int.tryParse(sc['goals']?.toString() ?? '') ?? 1;
+              final isClub = sc['isClub'] == true || team.toLowerCase().contains('newbery');
+
+              if (combinedMap.containsKey(key)) {
+                combinedMap[key]!['goals'] = (combinedMap[key]!['goals'] as int) + goals;
+              } else {
+                combinedMap[key] = {
+                  'id': key,
+                  'name': name,
+                  'playerId': pId,
+                  'team': team,
+                  'category': m['category'] ?? _selectedCategory,
+                  'goals': goals,
+                  'isClub': isClub,
+                };
+              }
+            }
+          }
+        }
+
+        // 2. Extraer de la colección directa 'scorers' (para los que no provienen de fixture match)
+        for (final sc in directScorers) {
+          if (sc['fixtureId'] != null) {
+            // Ya contabilizado en los partidos del fixture
+            continue;
+          }
+          final name = sc['name']?.toString().trim() ?? '';
+          if (name.isEmpty) continue;
+          final pId = sc['playerId']?.toString().trim();
+          final team = sc['team']?.toString().trim() ?? 'Club';
+          final key = (pId != null && pId.isNotEmpty) ? pId : '${name.toLowerCase()}_${team.toLowerCase()}';
+          final goals = (sc['goals'] is int)
+              ? sc['goals'] as int
+              : int.tryParse(sc['goals']?.toString() ?? '') ?? 1;
+          final isClub = sc['isClub'] == true || team.toLowerCase().contains('newbery');
+
+          if (combinedMap.containsKey(key)) {
+            combinedMap[key]!['goals'] = (combinedMap[key]!['goals'] as int) + goals;
+          } else {
+            combinedMap[key] = {
+              'id': sc['id'] ?? key,
+              'name': name,
+              'playerId': pId,
+              'team': team,
+              'category': sc['category'] ?? _selectedCategory,
+              'goals': goals,
+              'isClub': isClub,
+            };
+          }
+        }
+
+        final List<Map<String, dynamic>> unifiedScorers = combinedMap.values.toList();
+        unifiedScorers.sort((a, b) {
+          final ga = a['goals'] as int? ?? 0;
+          final gb = b['goals'] as int? ?? 0;
+          return gb.compareTo(ga);
+        });
+
+        if (unifiedScorers.isEmpty) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(32.0),
@@ -2636,10 +2845,10 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-          itemCount: scorers.length,
+          itemCount: unifiedScorers.length,
           separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
-            final scorer = scorers[index];
+            final scorer = unifiedScorers[index];
             final isClub = scorer['isClub'] == true;
             final isTop3 = index < 3;
 

@@ -178,19 +178,44 @@ class MatchService {
 
   // ─── Scorers ───────────────────────────────────────
   Stream<List<Map<String, dynamic>>> getScorersByCategory(String category) {
-    Query<Map<String, dynamic>> query = _db.collection('scorers');
-    if (category != 'all' && category != 'Todas las Cat.' && category.isNotEmpty) {
-      query = query.where('category', isEqualTo: category);
-    }
-    return query
-        .orderBy('goals', descending: true)
-        .limit(50)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => {'id': doc.id, ...doc.data()})
-              .toList(),
-        );
+    return _db.collection('scorers').snapshots().map((snapshot) {
+      final cleanTarget = category
+          .replaceAll('Categoría', '')
+          .replaceAll('Cat.', '')
+          .replaceAll('Cat', '')
+          .trim()
+          .toLowerCase();
+
+      final list = snapshot.docs
+          .map((doc) => {'id': doc.id, ...doc.data()})
+          .where((sc) {
+        if (category == 'all' || category == 'Todas las Cat.' || category.isEmpty) {
+          return true;
+        }
+        final scCat = (sc['category']?.toString() ?? '')
+            .replaceAll('Categoría', '')
+            .replaceAll('Cat.', '')
+            .replaceAll('Cat', '')
+            .trim()
+            .toLowerCase();
+
+        return scCat == cleanTarget ||
+            (cleanTarget.isNotEmpty && scCat.contains(cleanTarget)) ||
+            (scCat.isNotEmpty && cleanTarget.contains(scCat));
+      }).toList();
+
+      list.sort((a, b) {
+        final ga = (a['goals'] is int)
+            ? a['goals'] as int
+            : int.tryParse(a['goals']?.toString() ?? '') ?? 0;
+        final gb = (b['goals'] is int)
+            ? b['goals'] as int
+            : int.tryParse(b['goals']?.toString() ?? '') ?? 0;
+        return gb.compareTo(ga);
+      });
+
+      return list;
+    });
   }
 
   Future<void> addScorer(Map<String, dynamic> data) async {

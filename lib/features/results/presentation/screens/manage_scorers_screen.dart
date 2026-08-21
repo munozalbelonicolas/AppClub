@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,98 +24,187 @@ class _ManageScorersScreenState extends ConsumerState<ManageScorersScreen> {
   void _showAddEditScorerDialog(BuildContext context, [Map<String, dynamic>? scorer]) {
     final isEditing = scorer != null;
     final nameController = TextEditingController(text: isEditing ? scorer['name'] : '');
-    final teamController = TextEditingController(text: isEditing ? scorer['team'] : 'Club Local');
+    final teamController = TextEditingController(text: isEditing ? (scorer['team'] ?? 'Club Local') : 'Club Local');
     final goalsController = TextEditingController(text: isEditing ? scorer['goals'].toString() : '0');
     final isClubNotifier = ValueNotifier<bool>(isEditing ? (scorer['isClub'] ?? false) : true);
+    String? selectedPlayerId = isEditing ? scorer['playerId']?.toString() : null;
     final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: context.colors.surface,
-          title: Text(
-            isEditing ? 'Editar Goleador' : 'Nuevo Goleador',
-            style: context.typography.titleLarge,
-          ),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Nombre del Jugador'),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Ingresa el nombre' : null,
+        return Consumer(
+          builder: (context, ref, _) {
+            final allPlayers = ref.watch(playersStreamProvider).valueOrNull ?? [];
+            final cleanCat = (_selectedCategory ?? '')
+                .replaceAll('Categoría', '')
+                .replaceAll('Cat.', '')
+                .replaceAll('Cat', '')
+                .trim()
+                .toLowerCase();
+
+            final categoryPlayers = allPlayers.where((p) {
+              final cat = (p['category']?.toString() ?? '')
+                  .replaceAll('Categoría', '')
+                  .replaceAll('Cat.', '')
+                  .replaceAll('Cat', '')
+                  .trim()
+                  .toLowerCase();
+              return cleanCat.isEmpty || cat == cleanCat || cat.contains(cleanCat) || cleanCat.contains(cat);
+            }).toList();
+
+            return StatefulBuilder(
+              builder: (context, setDialogState) {
+                return AlertDialog(
+                  backgroundColor: context.colors.surface,
+                  title: Text(
+                    isEditing ? 'Editar Goleador' : 'Nuevo Goleador',
+                    style: context.typography.titleLarge,
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: teamController,
-                    decoration: const InputDecoration(labelText: 'Equipo'),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Ingresa el equipo' : null,
+                  content: Form(
+                    key: formKey,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (allPlayers.isNotEmpty && isClubNotifier.value) ...[
+                            const Text('Seleccionar Jugador del Club', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            DropdownButtonFormField<String>(
+                              initialValue: allPlayers.any((p) => p['id'] == selectedPlayerId) ? selectedPlayerId : null,
+                              decoration: const InputDecoration(
+                                hintText: 'Elegir de la lista...',
+                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              ),
+                              isExpanded: true,
+                              items: [
+                                if (categoryPlayers.isNotEmpty) ...[
+                                  ...categoryPlayers.map((p) {
+                                    final pName = '${p['name'] ?? ''} ${p['lastName'] ?? ''}'.trim();
+                                    return DropdownMenuItem(
+                                      value: p['id'] as String,
+                                      child: Text(
+                                        pName.isNotEmpty ? pName : (p['displayName'] ?? 'Jugador'),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }),
+                                ],
+                                ...allPlayers.where((p) => !categoryPlayers.contains(p)).map((p) {
+                                  final pName = '${p['name'] ?? ''} ${p['lastName'] ?? ''}'.trim();
+                                  return DropdownMenuItem(
+                                    value: p['id'] as String,
+                                    child: Text(
+                                      '${pName.isNotEmpty ? pName : (p['displayName'] ?? 'Jugador')} (Cat. ${p['category'] ?? ""})',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Colors.white70),
+                                    ),
+                                  );
+                                }),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  final sel = allPlayers.firstWhere((p) => p['id'] == val);
+                                  final fullName = '${sel['name'] ?? ''} ${sel['lastName'] ?? ''}'.trim();
+                                  setDialogState(() {
+                                    selectedPlayerId = val;
+                                    nameController.text = fullName.isNotEmpty ? fullName : (sel['displayName'] ?? 'Jugador');
+                                    teamController.text = 'Club Local';
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+
+                          TextFormField(
+                            controller: nameController,
+                            decoration: const InputDecoration(labelText: 'Nombre del Jugador'),
+                            validator: (val) =>
+                                val == null || val.trim().isEmpty ? 'Ingresa el nombre' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: teamController,
+                            decoration: const InputDecoration(labelText: 'Equipo'),
+                            validator: (val) =>
+                                val == null || val.trim().isEmpty ? 'Ingresa el equipo' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: goalsController,
+                            decoration: const InputDecoration(labelText: 'Goles'),
+                            keyboardType: TextInputType.number,
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) return 'Ingresa la cantidad';
+                              if (int.tryParse(val.trim()) == null) return 'Debe ser un número válido';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          ValueListenableBuilder<bool>(
+                            valueListenable: isClubNotifier,
+                            builder: (context, isClub, child) {
+                              return SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('¿Es de nuestro Club?'),
+                                value: isClub,
+                                activeThumbColor: context.colors.primary,
+                                onChanged: (val) {
+                                  isClubNotifier.value = val;
+                                  setDialogState(() {});
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: goalsController,
-                    decoration: const InputDecoration(labelText: 'Goles'),
-                    keyboardType: TextInputType.number,
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Ingresa la cantidad';
-                      if (int.tryParse(val.trim()) == null) return 'Debe ser un número válido';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: isClubNotifier,
-                    builder: (context, isClub, child) {
-                      return SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('¿Es de nuestro Club?'),
-                        value: isClub,
-                        activeThumbColor: context.colors.primary,
-                        onChanged: (val) {
-                          isClubNotifier.value = val;
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            JNButton(
-              label: 'Guardar',
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final data = {
-                    'name': nameController.text.trim(),
-                    'team': teamController.text.trim(),
-                    'goals': int.parse(goalsController.text.trim()),
-                    'isClub': isClubNotifier.value,
-                    'category': _selectedCategory,
-                  };
-                  
-                  final service = ref.read(firestoreServiceProvider);
-                  if (isEditing) {
-                    await service.updateScorer(scorer['id'], data);
-                  } else {
-                    await service.addScorer(data);
-                  }
-                  
-                  if (context.mounted) Navigator.pop(context);
-                }
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                    JNButton(
+                      label: 'Guardar',
+                      onPressed: () async {
+                        if (formKey.currentState!.validate()) {
+                          final gCount = int.parse(goalsController.text.trim());
+                          final data = {
+                            'name': nameController.text.trim(),
+                            'playerId': selectedPlayerId,
+                            'team': teamController.text.trim(),
+                            'goals': gCount,
+                            'isClub': isClubNotifier.value,
+                            'category': _selectedCategory,
+                          };
+
+                          final service = ref.read(firestoreServiceProvider);
+                          if (isEditing) {
+                            await service.updateScorer(scorer['id'], data);
+                          } else {
+                            await service.addScorer(data);
+                          }
+
+                          if (selectedPlayerId != null && selectedPlayerId!.isNotEmpty) {
+                            try {
+                              await FirebaseFirestore.instance.collection('users').doc(selectedPlayerId).set({
+                                'goals': gCount,
+                              }, SetOptions(merge: true));
+                            } catch (_) {}
+                          }
+
+                          if (context.mounted) Navigator.pop(context);
+                        }
+                      },
+                    ),
+                  ],
+                );
               },
-            ),
-          ],
+            );
+          },
         );
       },
     );
