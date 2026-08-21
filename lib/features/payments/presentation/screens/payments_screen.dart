@@ -211,7 +211,18 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    final playersAsync = ref.watch(tutorPlayersStreamProvider(sessionUser.id));
+    final isPlayer = sessionUser.role == 'jugador';
+    final playersAsync = isPlayer
+        ? ref.watch(playerProfileStreamProvider(sessionUser.id)).whenData((playerData) => [
+            playerData ?? {
+              'id': sessionUser.id,
+              'name': sessionUser.name,
+              'lastName': sessionUser.lastName,
+              'category': sessionUser.category ?? '',
+              'paidQuotas': <String>[],
+            }
+          ])
+        : ref.watch(tutorPlayersStreamProvider(sessionUser.id));
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -223,16 +234,9 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               children: [
                 // ─── Header Card ─────────────────────────
                 JNCard(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      context.colors.surfaceLight,
-                      context.colors.primary,
-                    ],
-                  ),
+                  color: context.colors.surfaceLight,
                   border: Border.all(
-                    color: context.colors.primary.withValues(alpha: 0.2),
+                    color: context.colors.primary.withValues(alpha: 0.25),
                   ),
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -243,13 +247,13 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: context.colors.accent.withValues(alpha: 0.12),
+                              color: context.colors.primary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
                               Icons.account_balance_wallet,
                               size: 24,
-                              color: context.colors.accent,
+                              color: context.colors.primary,
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -258,22 +262,33 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Administración de Cuotas',
-                                  style: context.typography.labelMedium,
+                                  isPlayer ? 'Estado de Mis Cuotas' : 'Administración de Cuotas',
+                                  style: context.typography.titleMedium.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                                 Text(
                                   '${sessionUser.name} ${sessionUser.lastName}',
-                                  style: context.typography.bodySmall,
+                                  style: context.typography.bodySmall.copyWith(
+                                    color: Colors.black54,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       Text(
-                        'Paga las cuotas cooperadoras de tus hijos vinculados desde aquí.',
-                        style: context.typography.bodyMedium.copyWith(color: Colors.white70),
+                        isPlayer
+                            ? 'Consulta y abona tus cuotas sociales o cooperadoras desde aquí.'
+                            : 'Paga las cuotas cooperadoras de tus hijos vinculados desde aquí.',
+                        style: context.typography.bodyMedium.copyWith(
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -282,7 +297,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 const SizedBox(height: 24),
 
                 // ─── Players List ──────────────────────────
-                Text('Mis Hijos', style: context.typography.headlineSmall),
+                Text(isPlayer ? 'Mi Cuota' : 'Mis Hijos', style: context.typography.headlineSmall),
                 const SizedBox(height: 12),
                 playersAsync.when(
                   data: (players) {
@@ -290,7 +305,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                       return JNCard(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'No tienes hijos vinculados.',
+                          isPlayer ? 'No se encontraron datos de cuotas.' : 'No tienes hijos vinculados.',
                           style: context.typography.bodyMedium,
                         ),
                       );
@@ -390,18 +405,26 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                     );
                   },
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, s) => Text('Error: $e'),
+                  error: (e, s) => JNCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      isPlayer ? 'No se encontraron datos de cuotas.' : 'No tienes hijos vinculados.',
+                      style: context.typography.bodyMedium,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 24),
-                JNButton(
-                  label: 'Pagar a otro jugador',
-                  icon: Icons.search,
-                  variant: JNButtonVariant.outline,
-                  onPressed: () {
-                    final players = playersAsync.valueOrNull ?? [];
-                    _showPlayerSelectionDialog(players);
-                  },
-                ),
+                if (!isPlayer) ...[
+                  const SizedBox(height: 24),
+                  JNButton(
+                    label: 'Pagar a otro jugador',
+                    icon: Icons.search,
+                    variant: JNButtonVariant.outline,
+                    onPressed: () {
+                      final players = playersAsync.valueOrNull ?? [];
+                      _showPlayerSelectionDialog(players);
+                    },
+                  ),
+                ],
               ],
             ),
     );

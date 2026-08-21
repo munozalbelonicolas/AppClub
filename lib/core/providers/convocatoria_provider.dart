@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Streams all pending convocatorias for a tutor.
 /// Listens in real-time to the 'tutor_convocatorias' collection.
 final tutorConvocatoriasProvider =
-    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, tutorId) {
-  if (tutorId.isEmpty) {
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, userId) {
+  if (userId.isEmpty) {
     return Stream.value([]);
   }
 
@@ -13,12 +13,13 @@ final tutorConvocatoriasProvider =
 
   return db
       .collection('tutor_convocatorias')
-      .where('tutorId', isEqualTo: tutorId)
       .snapshots()
       .map((snapshot) {
     return snapshot.docs
         .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
-        .where((d) => d['status'] == 'pending' || d['status'] == null)
+        .where((d) =>
+            (d['tutorId'] == userId || d['playerId'] == userId) &&
+            (d['status'] == 'pending' || d['status'] == null))
         .toList();
   });
 });

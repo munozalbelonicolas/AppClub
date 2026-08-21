@@ -55,19 +55,27 @@ class PlayerService {
           password != null &&
           password.isNotEmpty) {
         // To create a user without signing out the tutor, we use a secondary app
+        FirebaseApp? tempApp;
         try {
-          final FirebaseApp tempApp = await Firebase.initializeApp(
-            name: 'temp_register',
-            options: Firebase.app().options,
-          );
+          try {
+            tempApp = Firebase.app('temp_register');
+          } catch (_) {
+            tempApp = await Firebase.initializeApp(
+              name: 'temp_register',
+              options: Firebase.app().options,
+            );
+          }
           final UserCredential cred = await FirebaseAuth.instanceFor(
             app: tempApp,
           ).createUserWithEmailAndPassword(email: email, password: password);
           authUid = cred.user?.uid;
-          await tempApp.delete();
         } on FirebaseAuthException catch (e) {
           AppLogger.error('Error creating auth for player', error: e, tag: 'PlayerService');
           rethrow;
+        } finally {
+          try {
+            await tempApp?.delete();
+          } catch (_) {}
         }
       }
 
@@ -90,13 +98,17 @@ class PlayerService {
         // Dynamically assign and create category based on birth year
         computedCategory = birthDate.year.toString();
 
-        final categoryRef = _db.collection('categories').doc(computedCategory);
-        final categorySnap = await categoryRef.get();
-        if (!categorySnap.exists) {
-          await categoryRef.set({
-            'name': computedCategory,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+        try {
+          final categoryRef = _db.collection('categories').doc(computedCategory);
+          final categorySnap = await categoryRef.get();
+          if (!categorySnap.exists) {
+            await categoryRef.set({
+              'name': computedCategory,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        } catch (e) {
+          AppLogger.warning('Category check/creation error: $e', tag: 'PlayerService');
         }
       }
 
@@ -128,16 +140,20 @@ class PlayerService {
       });
 
       // Create notification for admin
-      await NotificationService().sendNotification(
+      await NotificationService().notifyAdmins(
         title: '⚽ Registro de Nuevo Jugador',
-        body: 'Se registró al jugador $name $lastName',
+        body: 'Se registró al jugador $name $lastName (Cat. $computedCategory)',
         authorId: tutorId,
-        targetCategory: 'admin',
+        type: 'player_registration',
+        extraData: {
+          'playerId': newPlayerRef.id,
+          'playerName': '$name $lastName',
+          'category': computedCategory,
+          'tutorId': tutorId,
+        },
       );
     }
   }
-
-
 
   Future<void> submitCoTutorRequest({
     required String tutorId,
@@ -158,7 +174,7 @@ class PlayerService {
     }
 
     // 1. Create the link request
-    await _db.collection('player_tutor_links').add({
+    final linkDoc = await _db.collection('player_tutor_links').add({
       'tutorId': tutorId,
       'playerId': playerId,
       'isEnabledByTutor': enableAccount,
@@ -167,11 +183,18 @@ class PlayerService {
     });
 
     // 2. Create the notification for admins
-    await NotificationService().sendNotification(
+    await NotificationService().notifyAdmins(
       title: '👥 Solicitud de Co-Tutor',
       body: '$tutorName solicitó ser co-tutor de $playerName',
       authorId: tutorId,
-      targetCategory: 'admin',
+      type: 'co_tutor_request',
+      extraData: {
+        'linkId': linkDoc.id,
+        'tutorId': tutorId,
+        'tutorName': tutorName,
+        'playerId': playerId,
+        'playerName': playerName,
+      },
     );
   }
 }

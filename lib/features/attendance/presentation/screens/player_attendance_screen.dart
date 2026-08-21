@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
@@ -230,16 +231,17 @@ class _PlayerAttendanceScreenState
     final playerProfileAsync =
         ref.watch(playerProfileStreamProvider(targetPlayerId));
 
+    final Map<String, dynamic> fallbackPlayer = widget.initialPlayer ?? {
+      'id': targetPlayerId,
+      'name': sessionUser.name,
+      'lastName': sessionUser.lastName,
+      'category': sessionUser.category ?? '',
+      'photoUrl': sessionUser.avatarUrl,
+    };
+
     return playerProfileAsync.when(
       data: (playerData) {
-        final Map<String, dynamic> player = playerData ?? {
-          'id': sessionUser.id,
-          'name': sessionUser.name,
-          'lastName': sessionUser.lastName,
-          'category': sessionUser.category ?? '',
-          'photoUrl': sessionUser.avatarUrl,
-        };
-
+        final Map<String, dynamic> player = playerData ?? fallbackPlayer;
         return _buildPlayerAttendanceView(
           context: context,
           player: player,
@@ -255,13 +257,11 @@ class _PlayerAttendanceScreenState
         ),
         body: const Center(child: CircularProgressIndicator()),
       ),
-      error: (err, _) => Scaffold(
-        backgroundColor: context.colors.background,
-        appBar: AppBar(
-          title: const Text('Control de Asistencia'),
-          backgroundColor: Colors.transparent,
-        ),
-        body: Center(child: Text('Error cargando jugador: $err')),
+      error: (err, _) => _buildPlayerAttendanceView(
+        context: context,
+        player: fallbackPlayer,
+        availableChildren: [],
+        isTutor: false,
       ),
     );
   }

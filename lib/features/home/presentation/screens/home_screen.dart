@@ -613,29 +613,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      // Category selectionategory selection
+                      // Category selection
                       if (isDT) ...[
-                        if ((sessionUser.assignedCategories?.length ?? 0) >
-                            1) ...[
+                        if ((sessionUser.assignedCategories?.length ?? 0) > 1) ...[
                           DropdownButtonFormField<String>(
                             dropdownColor: context.colors.surface,
                             initialValue: selectedCategory,
                             decoration: const InputDecoration(
                               labelText: 'Categoría',
                             ),
-                            items:
-                                List<String>.from(
-                                  sessionUser.assignedCategories!,
-                                ).map((cat) {
-                                  return DropdownMenuItem<String>(
-                                    value: cat,
-                                    child: Text(
-                                      cat,
-                                      style: context.typography.bodyLarge,
-                                    ),
-                                  );
-                                }).toList(),
+                            items: List<String>.from(sessionUser.assignedCategories!).map((cat) {
+                              return DropdownMenuItem<String>(
+                                value: cat,
+                                child: Text('Categoría $cat', style: context.typography.bodyLarge),
+                              );
+                            }).toList(),
                             onChanged: (val) {
                               if (val != null) {
                                 setDialogState(() => selectedCategory = val);
@@ -643,11 +635,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             },
                           ),
                         ] else ...[
-                          Text(
-                            'Categoría: ${sessionUser.displayCategory}',
-                            style: context.typography.bodyMedium.copyWith(
-                              color: context.colors.primary,
-                              fontWeight: FontWeight.bold,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text(
+                              'Categoría: ${sessionUser.displayCategory}',
+                              style: context.typography.bodyMedium.copyWith(
+                                color: context.colors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -656,13 +651,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           dropdownColor: context.colors.surface,
                           initialValue: selectedCategory,
                           decoration: const InputDecoration(
-                            labelText: 'Visibilidad/Categoría',
+                            labelText: 'Visibilidad / Categoría',
                           ),
                           items: categories.map((cat) {
                             return DropdownMenuItem<String>(
                               value: cat,
                               child: Text(
-                                cat == 'all' ? 'Global (Todos)' : cat,
+                                cat == 'all' ? 'Global (Todos)' : 'Categoría $cat',
                                 style: context.typography.bodyLarge,
                               ),
                             );
@@ -677,65 +672,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ],
                       const SizedBox(height: 12),
-                      if (isDT) ...[
-                        Text(
-                          'Tipo de Evento: Partido (Fijo para Perfil DT)',
-                          style: context.typography.bodyMedium.copyWith(
-                            color: context.colors.accent,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      DropdownButtonFormField<String>(
+                        dropdownColor: context.colors.surface,
+                        initialValue: eventType,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de Publicación / Evento',
                         ),
-                      ] else ...[
-                        DropdownButtonFormField<String>(
-                          dropdownColor: context.colors.surface,
-                          initialValue: eventType,
-                          decoration: const InputDecoration(
-                            labelText: 'Tipo de Evento',
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'ninguno',
-                              child: Text('Ninguno (Publicación normal)'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'comunicado',
-                              child: Text('Comunicado Oficial 📢'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'partido',
-                              child: Text('Partido'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'evento',
-                              child: Text('Evento Especial'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'jornada',
-                              child: Text('Jornada'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'cuadrangular',
-                              child: Text('Cuadrangular'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'torneo',
-                              child: Text('Torneo'),
-                            ),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setDialogState(() {
-                                eventType = val;
-                                if (eventType == 'ninguno' ||
-                                    eventType == 'comunicado') {
-                                  hasTransport = false;
-                                  selectedOpponentId = null;
-                                }
-                              });
-                            }
-                          },
-                        ),
-                      ],
+                        items: isDT
+                            ? const [
+                                DropdownMenuItem(
+                                  value: 'partido',
+                                  child: Text('⚽ Partido Amistoso'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'comunicado',
+                                  child: Text('📢 Comunicado / Novedad'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'entrenamiento',
+                                  child: Text('🏃 Entrenamiento Especial'),
+                                ),
+                              ]
+                            : const [
+                                DropdownMenuItem(
+                                  value: 'ninguno',
+                                  child: Text('Publicación normal'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'comunicado',
+                                  child: Text('📢 Comunicado Oficial'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'partido',
+                                  child: Text('⚽ Partido Amistoso / Oficial'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'evento',
+                                  child: Text('🎉 Evento Especial'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'jornada',
+                                  child: Text('🏆 Jornada'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'cuadrangular',
+                                  child: Text('Cuadrangular'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'torneo',
+                                  child: Text('🥇 Torneo'),
+                                ),
+                              ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              eventType = val;
+                              if (eventType == 'ninguno' ||
+                                  eventType == 'comunicado') {
+                                hasTransport = false;
+                                selectedOpponentId = null;
+                              }
+                            });
+                          }
+                        },
+                      ),
                       if (eventType != 'ninguno' &&
                           eventType != 'comunicado') ...[
                         const SizedBox(height: 12),
@@ -1045,7 +1045,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     int unpaidQuotasCount = 0;
-    if (sessionUser.role == 'tutor' || sessionUser.role == 'jugador') {
+    if (sessionUser.role == 'tutor') {
       final players =
           ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ??
           [];
@@ -1059,6 +1059,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (!paidQuotas.contains(quotaStr)) {
             unpaidQuotasCount++;
           }
+        }
+      }
+    } else if (sessionUser.role == 'jugador') {
+      final myProfile =
+          ref.watch(playerProfileStreamProvider(sessionUser.id)).valueOrNull;
+      final currentYear = DateTime.now().year;
+      final currentMonth = DateTime.now().month;
+      final paidQuotas = List<String>.from(myProfile?['paidQuotas'] ?? []);
+
+      for (int i = 1; i <= currentMonth; i++) {
+        final quotaStr = '${'$i'.padLeft(2, '0')}/$currentYear';
+        if (!paidQuotas.contains(quotaStr)) {
+          unpaidQuotasCount++;
         }
       }
     }

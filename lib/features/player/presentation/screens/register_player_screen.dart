@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/app_logger.dart';
+import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/services/player_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
@@ -86,6 +88,15 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
       final name = parts.isNotEmpty ? parts.first : '';
       final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
 
+      String? finalAvatarUrl = _avatarPath;
+      if (_avatarPath != null && !_avatarPath!.startsWith('http')) {
+        try {
+          finalAvatarUrl = await ImageUploadService.uploadProductImage(File(_avatarPath!));
+        } catch (e) {
+          AppLogger.warning('Could not upload player avatar: $e', tag: 'RegisterPlayer');
+        }
+      }
+
       await ref
           .read(playerServiceProvider)
           .registerOrLinkPlayer(
@@ -102,23 +113,23 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                 ? _passwordController.text
                 : null,
             enableAccount: _enableLogin,
-            avatarUrl: _avatarPath,
+            avatarUrl: finalAvatarUrl,
             tutorName: '${tutorSession.name} ${tutorSession.lastName}',
           );
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Jugador registrado con éxito'),
-              backgroundColor: context.colors.success,
-            ),
-          );
-          if (widget.onSuccess != null) {
-            widget.onSuccess!();
-          } else {
-            Navigator.pop(context);
-          }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Jugador registrado con éxito'),
+            backgroundColor: context.colors.success,
+          ),
+        );
+        if (widget.onSuccess != null) {
+          widget.onSuccess!();
+        } else {
+          Navigator.pop(context);
         }
+      }
     } on PlayerExistsException catch (e) {
       if (mounted) {
         showDialog(
@@ -180,6 +191,37 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
           },
         );
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        String msg = 'Error de autenticación (${e.code}): ${e.message}';
+        if (e.code == 'email-already-in-use') {
+          msg = 'El correo ingresado para el jugador ya está en uso en otra cuenta.';
+        } else if (e.code == 'weak-password') {
+          msg = 'La contraseña es demasiado débil (mínimo 6 caracteres).';
+        } else if (e.code == 'invalid-email') {
+          msg = 'El formato del correo electrónico no es válido.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: context.colors.error,
+          ),
+        );
+      }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        String msg = 'Error con la base de datos (${e.code}): ${e.message ?? 'Verifica tu conexión y permisos.'}';
+        if (e.code == 'permission-denied') {
+          msg = 'Permiso denegado al registrar el jugador en la base de datos.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: context.colors.error,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -198,7 +240,6 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
       appBar: AppBar(
         title: Text('Registrar Jugador', style: context.typography.titleLarge),
         backgroundColor: context.colors.surface,
-        elevation: 0,
       ),
       body: SafeArea(
         child: SingleChildScrollView(

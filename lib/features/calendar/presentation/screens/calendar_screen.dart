@@ -164,7 +164,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           if (awayTeam == 'Rival' && n['title'] != null && n['title'].toString().isNotEmpty) {
             awayTeam = n['title'] as String;
           }
-          title = 'Partido Amistoso: Jorge Newbery vs $awayTeam';
+          final catLabel = (n['category'] ?? n['eventCategory'] ?? '').toString();
+          final catSuffix = catLabel.isNotEmpty && catLabel != 'all' ? ' (Cat. $catLabel)' : '';
+          title = 'Partido Amistoso$catSuffix: Jorge Newbery vs $awayTeam';
         }
 
         allEvents.add({
@@ -182,13 +184,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     for (final m in rawMatches) {
       final date = m['date'] as String?;
       if (date == null || date.isEmpty) continue;
+      final mCat = (m['category'] ?? '').toString();
+      final catSuffix = mCat.isNotEmpty && mCat != 'all' ? ' (Cat. $mCat)' : '';
       allEvents.add({
-        'title': 'Partido: ${m['homeTeam']} vs ${m['awayTeam']}',
+        'title': 'Partido$catSuffix: ${m['homeTeam']} vs ${m['awayTeam']}',
         'type': 'match',
         'date': date,
         'time': m['time'] ?? 'A confirmar',
         'location': m['venue'] ?? m['location'] ?? 'Cancha Club',
-        'category': m['category'] ?? '',
+        'category': mCat,
       });
     }
 
@@ -205,14 +209,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         final awayClub = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
         final homeName = homeClub?['name'] ?? 'Jorge Newbery';
         final awayName = awayClub?['name'] ?? 'Rival';
+        final matchCat = (m['category'] ?? cat).toString();
+        final catSuffix = matchCat.isNotEmpty && matchCat != 'all' ? ' - Cat. $matchCat' : '';
 
         allEvents.add({
-          'title': 'Partido (${f['name'] ?? 'Fixture'}): $homeName vs $awayName',
+          'title': 'Partido (${f['name'] ?? 'Fixture'}$catSuffix): $homeName vs $awayName',
           'type': 'match',
           'date': date,
           'time': m['time'] ?? 'A confirmar',
           'location': m['venue'] ?? m['location'] ?? 'Cancha Club',
-          'category': cat,
+          'category': matchCat,
         });
       }
     }
@@ -268,6 +274,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     if (!isAdmin) {
       allEvents.removeWhere((e) {
+        // Todos los partidos (fixture, amistosos creados por DT o partidos de la liga) deben ser visibles para los jugadores en el calendario
+        if (e['type'] == 'match') return false;
+
         final cat = e['category'] as String?;
         if (cat == null || cat.isEmpty || cat == 'todos' || cat == 'deportivo' || cat == 'administrativo') return false;
         return !allowedCategories.contains(cat);

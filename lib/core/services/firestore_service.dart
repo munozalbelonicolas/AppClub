@@ -257,16 +257,20 @@ final tutorPlayersStreamProvider = StreamProvider.family<List<Map<String, dynami
     for (var doc in snapshot.docs) {
       final data = doc.data();
       final playerId = data['playerId'] as String?;
-      if (playerId != null) {
-        final playerDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(playerId)
-            .get();
-        if (playerDoc.exists) {
-          children.add({
-            'id': playerDoc.id,
-            ...playerDoc.data()!,
-          });
+      if (playerId != null && playerId.isNotEmpty) {
+        try {
+          final playerDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(playerId)
+              .get();
+          if (playerDoc.exists && playerDoc.data() != null) {
+            children.add({
+              'id': playerDoc.id,
+              ...playerDoc.data()!,
+            });
+          }
+        } catch (e) {
+          // Ignore individual doc read error
         }
       }
     }

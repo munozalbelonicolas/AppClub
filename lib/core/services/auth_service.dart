@@ -354,6 +354,28 @@ class AuthService {
 
       await docRef.set(newProfile, SetOptions(merge: true));
 
+      // 🔔 Enviar notificación Push inmediata a los administradores
+      if (!isDirector) {
+        final roleLabel = initialRole == 'tutor'
+            ? 'Tutor'
+            : (initialRole == 'jugador'
+                ? 'Jugador'
+                : (initialRole == 'socio' ? 'Socio' : initialRole));
+        final fullName = '$name $lastName'.trim();
+        NotificationService().notifyAdmins(
+          title: '👤 Nuevo Usuario Registrado',
+          body: '$fullName se ha registrado como $roleLabel ($email).',
+          authorId: uid,
+          type: 'new_user_pending',
+          extraData: {
+            'userId': uid,
+            'userName': fullName,
+            'userEmail': email,
+            'userRole': initialRole,
+          },
+        );
+      }
+
       session = UserSession(
         id: uid,
         name: name,
@@ -453,13 +475,20 @@ class AuthService {
     });
 
     // Save FCM token and start notification stream exactly once at login
+    final bool isUserAdmin = session.isAdmin || session.role == 'directivo' || session.role == 'secretario' || session.role == 'admin';
     NotificationService().saveTokenUser(uid);
-    NotificationService().startNotificationStream(uid, userCategory: session.category);
+    NotificationService().startNotificationStream(
+      uid,
+      userCategory: session.category,
+      userRole: session.role,
+      isAdmin: isUserAdmin,
+    );
 
     // Sync OneSignal user ID & segment tags
     OneSignalService().loginUser(uid);
     OneSignalService().setUserTags({
       'role': session.role,
+      if (isUserAdmin) 'isAdmin': 'true',
       if (session.category != null) 'category': session.category!,
     });
 

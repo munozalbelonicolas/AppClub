@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/app_logger.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
@@ -1036,7 +1037,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
                   if (user.role == 'jugador') ...[
                     const SizedBox(height: 28),
-                    Text('Mis Goles en el Torneo', style: context.typography.titleLarge),
+                    Text('Mis Estadísticas en el Torneo', style: context.typography.titleLarge),
                     const SizedBox(height: 12),
                     Consumer(
                       builder: (context, ref, child) {
@@ -1046,7 +1047,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                         final targetName = playerName.toLowerCase();
 
                         final List<Map<String, dynamic>> goalEvents = [];
+                        final List<Map<String, dynamic>> cardEvents = [];
                         int totalGoals = 0;
+                        int totalYellow = 0;
+                        int totalRed = 0;
 
                         for (final fixture in fixtures) {
                           final fixName = fixture['name']?.toString() ?? 'Fecha';
@@ -1054,6 +1058,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
 
                           for (final match in matches) {
+                            final homeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull;
+                            final awayClub = clubs.where((c) => c['id'] == match['awayClubId']).firstOrNull;
+
+                            // ─── Scorers ───────────────────────────
                             final scorers = List<Map<String, dynamic>>.from(match['scorers'] ?? []);
                             for (final sc in scorers) {
                               final scName = sc['name']?.toString().trim().toLowerCase() ?? '';
@@ -1063,9 +1071,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                   (scName.isNotEmpty && (scName == targetName || scName.contains(targetName) || targetName.contains(scName)));
 
                               if (isMatch) {
-                                final homeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull;
-                                final awayClub = clubs.where((c) => c['id'] == match['awayClubId']).firstOrNull;
-
                                 final teamName = sc['team']?.toString() ?? '';
                                 String rivalName = 'Rival';
 
@@ -1093,80 +1098,295 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                 });
                               }
                             }
-                          }
-                        }
 
-                        if (goalEvents.isEmpty) {
-                          return JNCard(
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
-                              children: [
-                                Icon(Icons.sports_soccer, size: 24, color: context.colors.textTertiary),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Aún no registras goles guardados en este torneo.',
-                                    style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
+                            // ─── Cards ─────────────────────────────
+                            final cards = List<Map<String, dynamic>>.from(match['cards'] ?? []);
+                            for (final card in cards) {
+                              final cName = card['name']?.toString().trim().toLowerCase() ?? '';
+                              final cId = card['playerId']?.toString();
+
+                              final bool isMatch = (cId != null && cId == user.id) ||
+                                  (cName.isNotEmpty && (cName == targetName || cName.contains(targetName) || targetName.contains(cName)));
+
+                              if (isMatch) {
+                                final isRed = card['cardType']?.toString() == 'red' || card['type']?.toString() == 'red';
+                                if (isRed) {
+                                  totalRed++;
+                                } else {
+                                  totalYellow++;
+                                }
+
+                                final teamName = card['team']?.toString() ?? '';
+                                String rivalName = 'Rival';
+
+                                if (teamName.isNotEmpty) {
+                                  if (homeClub != null && teamName.toLowerCase() == homeClub['name']?.toString().toLowerCase()) {
+                                    rivalName = awayClub?['name'] ?? 'Visitante';
+                                  } else if (awayClub != null && teamName.toLowerCase() == awayClub['name']?.toString().toLowerCase()) {
+                                    rivalName = homeClub?['name'] ?? 'Local';
+                                  } else {
+                                    rivalName = awayClub?['name'] ?? homeClub?['name'] ?? 'Rival';
+                                  }
+                                } else {
+                                  rivalName = awayClub?['name'] ?? homeClub?['name'] ?? 'Rival';
+                                }
+
+                                cardEvents.add({
+                                  'fixtureName': fixName,
+                                  'date': match['date']?.toString() ?? fixDate,
+                                  'rivalName': rivalName,
+                                  'category': match['category']?.toString() ?? fixture['category']?.toString() ?? user.category ?? '',
+                                  'isRed': isRed,
+                                  'minute': card['minute']?.toString(),
+                                });
+                              }
+                            }
+                          }
                         }
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Total de Goles: $totalGoals',
-                              style: context.typography.bodyMedium.copyWith(color: context.colors.primary, fontWeight: FontWeight.bold),
+                            // ─── Stat Metric Badges Row ──────────────
+                            Row(
+                              children: [
+                                // Goles
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      color: context.colors.surface,
+                                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                                      border: Border.all(color: context.colors.border, width: 0.5),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Icon(Icons.sports_soccer, color: context.colors.primary, size: 24),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '$totalGoals',
+                                          style: context.typography.headlineMedium.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: context.colors.primary,
+                                          ),
+                                        ),
+                                        Text(
+                                          totalGoals == 1 ? 'Gol' : 'Goles',
+                                          style: context.typography.labelSmall.copyWith(color: context.colors.textSecondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Amarillas
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      color: context.colors.surface,
+                                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                                      border: Border.all(color: context.colors.border, width: 0.5),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 14,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber[700],
+                                            borderRadius: BorderRadius.circular(2),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          '$totalYellow',
+                                          style: context.typography.headlineMedium.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.amber[800],
+                                          ),
+                                        ),
+                                        Text(
+                                          totalYellow == 1 ? 'Amarilla' : 'Amarillas',
+                                          style: context.typography.labelSmall.copyWith(color: context.colors.textSecondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Rojas
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      color: context.colors.surface,
+                                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                                      border: Border.all(color: context.colors.border, width: 0.5),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 14,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: Colors.red[700],
+                                            borderRadius: BorderRadius.circular(2),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          '$totalRed',
+                                          style: context.typography.headlineMedium.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.red[700],
+                                          ),
+                                        ),
+                                        Text(
+                                          totalRed == 1 ? 'Roja' : 'Rojas',
+                                          style: context.typography.labelSmall.copyWith(color: context.colors.textSecondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            ...goalEvents.map((gEvent) {
-                              return JNCard(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.all(12),
+                            const SizedBox(height: 16),
+
+                            // ─── Goal History ─────────────────────────
+                            if (goalEvents.isNotEmpty) ...[
+                              Text('Historial de Goles', style: context.typography.titleMedium),
+                              const SizedBox(height: 8),
+                              ...goalEvents.map((gEvent) {
+                                return JNCard(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: context.colors.primary.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Center(
+                                          child: Icon(Icons.sports_soccer, color: context.colors.primary, size: 20),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('vs ${gEvent['rivalName']}', style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+                                            Text(
+                                              '${gEvent['fixtureName']} · Cat. ${gEvent['category']}${gEvent['date'].toString().isNotEmpty ? ' · ${gEvent['date']}' : ''}',
+                                              style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary, fontSize: 11),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: context.colors.primary.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '+${gEvent['goals']} ${gEvent['goals'] == 1 ? 'Gol' : 'Goles'}',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.primary),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                              const SizedBox(height: 12),
+                            ],
+
+                            // ─── Card History ─────────────────────────
+                            if (cardEvents.isNotEmpty) ...[
+                              Text('Tarjetas Disciplinarias', style: context.typography.titleMedium),
+                              const SizedBox(height: 8),
+                              ...cardEvents.map((cEvent) {
+                                final bool isRed = cEvent['isRed'] == true;
+                                final cardColor = isRed ? Colors.red[700]! : Colors.amber[700]!;
+                                return JNCard(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: cardColor.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Center(
+                                          child: Container(
+                                            width: 12,
+                                            height: 17,
+                                            decoration: BoxDecoration(
+                                              color: cardColor,
+                                              borderRadius: BorderRadius.circular(2),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('vs ${cEvent['rivalName']}', style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+                                            Text(
+                                              '${cEvent['fixtureName']} · Cat. ${cEvent['category']}${cEvent['date'].toString().isNotEmpty ? ' · ${cEvent['date']}' : ''}',
+                                              style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary, fontSize: 11),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: cardColor.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          isRed ? 'Tarjeta Roja' : 'Tarjeta Amarilla',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: cardColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+
+                            if (goalEvents.isEmpty && cardEvents.isEmpty) ...[
+                              JNCard(
+                                padding: const EdgeInsets.all(14),
                                 child: Row(
                                   children: [
-                                    Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: context.colors.accent.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Center(
-                                        child: Icon(Icons.sports_soccer, color: context.colors.accent, size: 20),
-                                      ),
-                                    ),
+                                    Icon(Icons.sports_soccer, size: 24, color: context.colors.textTertiary),
                                     const SizedBox(width: 12),
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text('vs ${gEvent['rivalName']}', style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold)),
-                                          Text(
-                                            '${gEvent['fixtureName']} · Cat. ${gEvent['category']}${gEvent['date'].toString().isNotEmpty ? ' · ${gEvent['date']}' : ''}',
-                                            style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary, fontSize: 11),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: context.colors.primary.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
                                       child: Text(
-                                        '+${gEvent['goals']} ${gEvent['goals'] == 1 ? 'Gol' : 'Goles'}',
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.primary),
+                                        'Aún no registras goles ni tarjetas en este torneo.',
+                                        style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary),
                                       ),
                                     ),
                                   ],
                                 ),
-                              );
-                            }),
+                              ),
+                            ],
                           ],
                         );
                       },

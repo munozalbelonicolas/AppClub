@@ -132,6 +132,42 @@ class OneSignalService {
           'external_id': [targetUserId]
         };
         payload['include_external_user_ids'] = [targetUserId];
+      } else if (targetCategory == 'admin' || targetCategory == 'directivo') {
+        payload['filters'] = [
+          {
+            'field': 'tag',
+            'key': 'role',
+            'relation': '=',
+            'value': 'directivo',
+          },
+          {
+            'operator': 'OR',
+          },
+          {
+            'field': 'tag',
+            'key': 'role',
+            'relation': '=',
+            'value': 'secretario',
+          },
+          {
+            'operator': 'OR',
+          },
+          {
+            'field': 'tag',
+            'key': 'role',
+            'relation': '=',
+            'value': 'admin',
+          },
+          {
+            'operator': 'OR',
+          },
+          {
+            'field': 'tag',
+            'key': 'isAdmin',
+            'relation': '=',
+            'value': 'true',
+          }
+        ];
       } else if (targetCategory != null &&
           targetCategory.isNotEmpty &&
           targetCategory != 'all' &&

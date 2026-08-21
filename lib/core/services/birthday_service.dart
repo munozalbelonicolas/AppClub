@@ -20,7 +20,7 @@ class BirthdayService {
       final enableNotifications = config['enableNotifications'] ?? true;
       final daysPriorToNotify = config['daysPriorToNotify'] ?? 1;
       final textTemplate = config['textTemplate'] ??
-          'Todo el equipo de AppClub y nuestro club queremos desearle un muy feliz cumpleaños a {nombre}. Esperamos que tengas un excelente día junto a tu familia y amigos.';
+          'En nombre de toda la directiva del Club Jorge Newbery, te mandamos un fuerte abrazo en tu día. Es un orgullo tenerte en el equipo y ver cómo creces día a día como jugador. Que pases un gran día con tu familia y amigos. ¡A seguir rompiéndola!';
 
       if (!enablePosts && !enableNotifications) return;
 

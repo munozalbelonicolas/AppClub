@@ -140,9 +140,11 @@ class NotificationService {
   DateTime _sessionStartTime = DateTime.now();
 
   /// Listens to real-time notifications in Firestore and displays local notifications
-  void startNotificationStream(String currentUserId, {String? userCategory}) {
+  void startNotificationStream(String currentUserId, {String? userCategory, String? userRole, bool? isAdmin}) {
     _notificationSubscription?.cancel();
     _sessionStartTime = DateTime.now().subtract(const Duration(seconds: 5));
+
+    final bool isUserAdmin = isAdmin == true || userRole == 'directivo' || userRole == 'secretario' || userRole == 'admin';
 
     _notificationSubscription = FirebaseFirestore.instance
         .collection('notifications')
@@ -160,12 +162,15 @@ class NotificationService {
 
             final targetUserId = data['targetUserId']?.toString() ?? '';
             final targetCategory = data['targetCategory']?.toString() ?? '';
+            final targetRole = data['targetRole']?.toString() ?? '';
 
             bool isForMe = false;
             if (targetUserId.isNotEmpty && targetUserId != 'all') {
               isForMe = (targetUserId == currentUserId);
             } else if (targetCategory == 'private') {
               isForMe = false;
+            } else if (targetCategory == 'admin' || targetCategory == 'directivo' || targetRole == 'directivo' || targetRole == 'admin') {
+              isForMe = isUserAdmin;
             } else if (targetCategory.isNotEmpty &&
                 targetCategory != 'all' &&
                 targetCategory != 'todos') {
@@ -253,6 +258,45 @@ class NotificationService {
       );
     } catch (e) {
       AppLogger.error('Error sending notification doc', error: e, tag: 'FCM');
+    }
+  }
+
+  /// Envia una notificación push inmediata y registra el evento para administradores y directivos
+  Future<void> notifyAdmins({
+    required String title,
+    required String body,
+    String? authorId,
+    String type = 'new_user_pending',
+    Map<String, dynamic>? extraData,
+  }) async {
+    try {
+      // 1. Guardar documento en Firestore
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': title,
+        'body': body,
+        'type': type,
+        'authorId': authorId ?? 'system',
+        'targetCategory': 'admin',
+        'targetRole': 'directivo',
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        if (extraData != null) ...extraData,
+      });
+
+      // 2. Enviar Push real vía OneSignal para administradores
+      await OneSignalService().sendPushNotification(
+        title: title,
+        body: body,
+        targetCategory: 'admin',
+        data: {
+          'type': type,
+          if (extraData != null) ...extraData,
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error notifying admins: $e');
+      }
     }
   }
 }

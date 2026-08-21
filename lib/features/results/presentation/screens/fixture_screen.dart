@@ -22,10 +22,13 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
     final clubsAsync = ref.watch(clubsStreamProvider);
     final clubs = clubsAsync.value ?? [];
 
+    final isPlayer = sessionUser.role == 'jugador';
+    final playerCategory = sessionUser.category;
+
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(
-        title: const Text('Fixture'),
+        title: Text(isPlayer && playerCategory != null && playerCategory.isNotEmpty ? 'Fixture (Cat. $playerCategory)' : 'Fixture'),
         actions: [
           if (sessionUser.isAdmin)
             IconButton(
@@ -50,7 +53,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
             padding: const EdgeInsets.only(top: 8, bottom: 24),
             itemBuilder: (context, index) {
               final fixture = fixtures[index];
-              return _buildFixtureCard(fixture, clubs, sessionUser.isAdmin);
+              return _buildFixtureCard(fixture, clubs, sessionUser.isAdmin, playerCategory: isPlayer ? playerCategory : null);
             },
           );
         },
@@ -71,8 +74,18 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
     );
   }
 
-  Widget _buildFixtureCard(Map<String, dynamic> fixture, List<Map<String, dynamic>> clubs, bool isAdmin) {
-    final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+  Widget _buildFixtureCard(Map<String, dynamic> fixture, List<Map<String, dynamic>> clubs, bool isAdmin, {String? playerCategory}) {
+    final allMatches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+    final matches = (playerCategory != null && playerCategory.isNotEmpty)
+        ? allMatches.where((m) {
+            final cat = m['category']?.toString();
+            return cat == null || cat == 'all' || cat == playerCategory;
+          }).toList()
+        : allMatches;
+
+    if (playerCategory != null && playerCategory.isNotEmpty && matches.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: JNCard(

@@ -41,6 +41,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     final selectedChild = ref.watch(selectedChildProvider);
 
     List<String> categories = ['all', ...rawCategories];
+    final bool isPlayer = sessionUser?.role == 'jugador';
+    final String? playerCategory = sessionUser?.category;
 
     if (sessionUser?.role == 'tutor') {
       final players = ref.watch(tutorPlayersStreamProvider(sessionUser!.id)).valueOrNull ?? [];
@@ -52,6 +54,11 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
           .toList();
       if (tutorCategories.isNotEmpty) {
         categories = ['all', ...tutorCategories];
+      }
+    } else if (isPlayer) {
+      if (playerCategory != null && playerCategory.isNotEmpty) {
+        categories = [playerCategory];
+        _selectedCategory = playerCategory;
       }
     }
 
@@ -97,7 +104,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       ),
       body: Column(
         children: [
-          _buildCategorySelector(categories),
+          _buildCategorySelector(categories, isPlayer: isPlayer, playerCategory: playerCategory),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -113,7 +120,36 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
-  Widget _buildCategorySelector(List<String> categories) {
+  Widget _buildCategorySelector(List<String> categories, {bool isPlayer = false, String? playerCategory}) {
+    if (isPlayer && playerCategory != null && playerCategory.isNotEmpty) {
+      return Container(
+        color: context.colors.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.sports_soccer, color: context.colors.primary, size: 20),
+            const SizedBox(width: 10),
+            Text('Mi Categoría:', style: context.typography.labelMedium.copyWith(color: context.colors.textSecondary)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: context.colors.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                'Categoría $playerCategory',
+                style: context.typography.labelMedium.copyWith(
+                  color: context.colors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       color: context.colors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
