@@ -65,6 +65,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                     MaterialPageRoute(
                       builder: (context) => ChatScreen(
                         threadId: threadId,
+                        otherUserId: selectedUser['id']?.toString(),
                         otherUserName: otherName.isNotEmpty ? otherName : 'Usuario',
                         otherUserRole: selectedUser['role'] ?? 'tutor',
                       ),
@@ -472,6 +473,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                               MaterialPageRoute(
                                 builder: (context) => ChatScreen(
                                   threadId: threadId,
+                                  otherUserId: secUser['id']?.toString(),
                                   otherUserName: secName,
                                   otherUserRole: secUser['role'] ?? 'secretario',
                                 ),
@@ -512,6 +514,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             String otherRole;
             String otherCategory;
 
+            String otherUserId = '';
             if (isAuditMode) {
               // Show both participants in audit format: "Nombre1 (Rol1) ↔ Nombre2 (Rol2)"
               final entries = participants.map((pid) {
@@ -526,7 +529,6 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               otherCategory = '';
             } else {
               // Normal view: show the other participant
-              String otherUserId = '';
               for (final pId in participants) {
                 if (pId != currentUser.id) {
                   otherUserId = pId;
@@ -573,6 +575,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                     MaterialPageRoute(
                       builder: (context) => ChatScreen(
                         threadId: threadId,
+                        otherUserId: !isAuditMode && otherUserId.isNotEmpty ? otherUserId : null,
                         otherUserName: displayTitle,
                         otherUserRole: displayRole,
                         isAuditMode: isAuditMode,

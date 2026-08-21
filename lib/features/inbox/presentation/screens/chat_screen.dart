@@ -10,6 +10,7 @@ import '../../../../core/widgets/jn_avatar.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
+  final String? otherUserId;
   final String otherUserName;
   final String otherUserRole;
   /// True when an auditor (admin/directivo/secretario) is viewing a thread
@@ -23,6 +24,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
     super.key,
     required this.threadId,
+    this.otherUserId,
     required this.otherUserName,
     required this.otherUserRole,
     this.isAuditMode = false,
@@ -76,15 +78,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // Update parent thread metadata
       final threadRef = db.collection('inbox_threads').doc(widget.threadId);
       // Determine other user participant
-      String otherUserId = '';
-      final threadIdParts = widget.threadId.split('_');
-      if (threadIdParts.length >= 3 && threadIdParts[0] == 'chat') {
-        final id1 = threadIdParts[1];
-        final id2 = threadIdParts[2];
-        if (id1 == currentUser.id) {
-          otherUserId = id2;
-        } else if (id2 == currentUser.id) {
-          otherUserId = id1;
+      String otherUserId = widget.otherUserId?.trim() ?? '';
+      if (otherUserId.isEmpty) {
+        final threadIdParts = widget.threadId.split('_');
+        if (threadIdParts.length >= 3 && threadIdParts[0] == 'chat') {
+          final id1 = threadIdParts[1];
+          final id2 = threadIdParts[2];
+          if (id1 == currentUser.id) {
+            otherUserId = id2;
+          } else if (id2 == currentUser.id) {
+            otherUserId = id1;
+          }
         }
       }
 
@@ -92,11 +96,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         try {
           final docSnap = await threadRef.get();
           if (docSnap.exists) {
-            final parts = docSnap.data()?['participants'] as List<dynamic>? ?? [];
+            final parts = (docSnap.data()?['participants'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
             for (final p in parts) {
-              if (p != currentUser.id) {
-                otherUserId = p.toString();
+              if (p != currentUser.id && p.isNotEmpty) {
+                otherUserId = p;
                 break;
+              }
+            }
+            if (otherUserId.isEmpty) {
+              final u1 = docSnap.data()?['user1Id']?.toString();
+              final u2 = docSnap.data()?['user2Id']?.toString();
+              if (u1 != null && u1 != currentUser.id && u1.isNotEmpty) {
+                otherUserId = u1;
+              } else if (u2 != null && u2 != currentUser.id && u2.isNotEmpty) {
+                otherUserId = u2;
               }
             }
           }
@@ -115,8 +128,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       if (otherUserId.isNotEmpty && otherUserId != currentUser.id) {
         try {
-          NotificationService().sendNotification(
-            title: 'Mensaje de ${currentUser.name} ${currentUser.lastName}'.trim(),
+          await NotificationService().sendNotification(
+            title: '💬 Mensaje de ${currentUser.name} ${currentUser.lastName}'.trim(),
             body: text,
             authorId: currentUser.id,
             targetUserId: otherUserId,
