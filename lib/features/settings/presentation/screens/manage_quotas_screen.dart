@@ -295,13 +295,35 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('store_orders')
-              .where('playerId', isEqualTo: playerId)
               .snapshots(),
           builder: (context, snapshot) {
-            final orders = (snapshot.data?.docs ?? []).map((d) {
+            final allOrders = (snapshot.data?.docs ?? []).map((d) {
               final m = d.data();
               m['id'] = d.id;
               return m;
+            }).toList();
+
+            final orders = allOrders.where((o) {
+              final oPlayerId = o['playerId']?.toString() ?? '';
+              final oBuyerId = o['buyerId']?.toString() ?? '';
+              final pName = (o['productName']?.toString() ?? '').toLowerCase();
+              final targetName = playerFullName.toLowerCase();
+              final playerFirst = (player['name']?.toString() ?? '').toLowerCase();
+              final playerLast = (player['lastName']?.toString() ?? '').toLowerCase();
+              final isQuota = o['isQuotaPayment'] == true || o['productId'] == 'cuota_cooperadora' || pName.contains('cuota');
+
+              if (!isQuota) return false;
+
+              final bool idMatch = (playerId.isNotEmpty && oPlayerId == playerId) ||
+                  (player['userId'] != null && (oPlayerId == player['userId'] || oBuyerId == player['userId'])) ||
+                  (player['parentId'] != null && oBuyerId == player['parentId']) ||
+                  (player['tutorId'] != null && oBuyerId == player['tutorId']) ||
+                  (player['dni'] != null && oPlayerId == player['dni']);
+
+              final bool nameMatch = targetName.isNotEmpty && (pName.contains(targetName) ||
+                  (playerFirst.isNotEmpty && playerLast.isNotEmpty && pName.contains(playerFirst) && pName.contains(playerLast)));
+
+              return idMatch || nameMatch;
             }).toList();
 
             return StatefulBuilder(
@@ -365,115 +387,130 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                         // Find matching order for this month
                         final matchingOrder = orders.where((o) {
                           final qm = o['quotaMonth']?.toString();
-                          if (qm == quotaMonth || qm == '$monthStr/$currentYear' || qm == '${index + 1}/$currentYear') {
+                          if (qm == quotaMonth || qm == '${index + 1}/$currentYear' || qm == monthStr || qm == '${index + 1}') {
                             return true;
                           }
                           final pName = o['productName']?.toString().toLowerCase() ?? '';
-                          return pName.contains(months[index].toLowerCase()) && pName.contains('$currentYear');
+                          return pName.contains(months[index].toLowerCase()) && (pName.contains('$currentYear') || !pName.contains('202'));
                         }).firstOrNull;
 
-                        final receiptUrl = matchingOrder?['receiptUrl']?.toString();
+                        final receiptUrl = matchingOrder?['receiptUrl']?.toString() ?? matchingOrder?['imageUrl']?.toString() ?? matchingOrder?['proofUrl']?.toString();
                         final hasReceipt = receiptUrl != null && receiptUrl.isNotEmpty;
                         final orderStatus = matchingOrder?['status']?.toString() ?? '';
 
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isPaid
-                                ? (isLight ? const Color(0xFFF0FDF4) : const Color(0xFF14532D).withValues(alpha: 0.2))
-                                : (isLight ? const Color(0xFFF8FAFC) : context.colors.surfaceLight),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isPaid
-                                  ? (isLight ? const Color(0xFFBBF7D0) : const Color(0xFF16A34A).withValues(alpha: 0.5))
-                                  : (isLight ? const Color(0xFFE2E8F0) : context.colors.border),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              // Checkbox
-                              Checkbox(
-                                value: isPaid,
-                                activeColor: context.colors.primary,
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                onChanged: (val) {
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () {
+                            if (hasReceipt) {
+                              _showReceiptPreviewDialog(
+                                context: this.context,
+                                receiptUrl: receiptUrl,
+                                monthName: '${months[index]} $currentYear',
+                                order: matchingOrder!,
+                                player: player,
+                                onMarkPaid: () {
                                   setState(() {
-                                    if (val == true) {
-                                      if (!currentPaidQuotas.contains(quotaMonth)) {
-                                        currentPaidQuotas.add(quotaMonth);
-                                      }
-                                    } else {
-                                      currentPaidQuotas.remove(quotaMonth);
+                                    if (!currentPaidQuotas.contains(quotaMonth)) {
+                                      currentPaidQuotas.add(quotaMonth);
                                     }
                                   });
+                                  if (matchingOrder['id'] != null) {
+                                    FirebaseFirestore.instance
+                                        .collection('store_orders')
+                                        .doc(matchingOrder['id'])
+                                        .update({
+                                      'status': 'confirmed',
+                                      'updatedAt': FieldValue.serverTimestamp(),
+                                    });
+                                  }
                                 },
+                              );
+                            } else {
+                              setState(() {
+                                if (!isPaid) {
+                                  if (!currentPaidQuotas.contains(quotaMonth)) {
+                                    currentPaidQuotas.add(quotaMonth);
+                                  }
+                                } else {
+                                  currentPaidQuotas.remove(quotaMonth);
+                                }
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isPaid
+                                  ? (isLight ? const Color(0xFFF0FDF4) : const Color(0xFF14532D).withValues(alpha: 0.2))
+                                  : (isLight ? const Color(0xFFF8FAFC) : context.colors.surfaceLight),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: hasReceipt
+                                    ? Colors.amber.withValues(alpha: 0.8)
+                                    : (isPaid
+                                        ? (isLight ? const Color(0xFFBBF7D0) : const Color(0xFF16A34A).withValues(alpha: 0.5))
+                                        : (isLight ? const Color(0xFFE2E8F0) : context.colors.border)),
+                                width: hasReceipt ? 1.5 : 1.0,
                               ),
-
-                              // Month text
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${months[index]} $currentYear',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: isPaid ? FontWeight.bold : FontWeight.w500,
-                                        color: isLight ? Colors.black87 : Colors.white,
-                                      ),
-                                    ),
-                                    if (isPaid)
-                                      Text(
-                                        'Pagada',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: context.colors.success,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      )
-                                    else
-                                      Text(
-                                        hasReceipt ? 'Comprobante pendiente de revisión' : 'Impaga',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: hasReceipt ? Colors.amber[800] : context.colors.error,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-
-                              // Receipt button / thumbnail
-                              if (hasReceipt)
-                                InkWell(
-                                  onTap: () {
-                                    _showReceiptPreviewDialog(
-                                      context: this.context,
-                                      receiptUrl: receiptUrl,
-                                      monthName: '${months[index]} $currentYear',
-                                      order: matchingOrder!,
-                                      player: player,
-                                      onMarkPaid: () {
-                                        setState(() {
-                                          if (!currentPaidQuotas.contains(quotaMonth)) {
-                                            currentPaidQuotas.add(quotaMonth);
-                                          }
-                                        });
-                                        if (matchingOrder['id'] != null) {
-                                          FirebaseFirestore.instance
-                                              .collection('store_orders')
-                                              .doc(matchingOrder['id'])
-                                              .update({
-                                            'status': 'confirmed',
-                                            'updatedAt': FieldValue.serverTimestamp(),
-                                          });
+                            ),
+                            child: Row(
+                              children: [
+                                // Checkbox
+                                Checkbox(
+                                  value: isPaid,
+                                  activeColor: context.colors.primary,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      if (val == true) {
+                                        if (!currentPaidQuotas.contains(quotaMonth)) {
+                                          currentPaidQuotas.add(quotaMonth);
                                         }
-                                      },
-                                    );
+                                      } else {
+                                        currentPaidQuotas.remove(quotaMonth);
+                                      }
+                                    });
                                   },
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
+                                ),
+
+                                // Month text
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${months[index]} $currentYear',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: isPaid ? FontWeight.bold : FontWeight.w500,
+                                          color: isLight ? Colors.black87 : Colors.white,
+                                        ),
+                                      ),
+                                      if (isPaid)
+                                        Text(
+                                          hasReceipt ? 'Pagada (con comprobante)' : 'Pagada',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: context.colors.success,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          hasReceipt ? 'Comprobante pendiente de revisión' : 'Impaga',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: hasReceipt ? Colors.amber[800] : context.colors.error,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Receipt button / thumbnail
+                                if (hasReceipt)
+                                  Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                     decoration: BoxDecoration(
                                       color: (orderStatus == 'confirmed')
@@ -521,30 +558,8 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                                       ],
                                     ),
                                   ),
-                                )
-                              else if (matchingOrder != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF27272A),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.hourglass_empty, size: 12, color: context.colors.textSecondary),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Sin comprobante',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: isLight ? Colors.black54 : context.colors.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },
