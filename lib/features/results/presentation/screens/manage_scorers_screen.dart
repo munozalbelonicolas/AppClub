@@ -50,7 +50,7 @@ class _ManageScorersScreenState extends ConsumerState<ManageScorersScreen> {
                   .replaceAll('Cat', '')
                   .trim()
                   .toLowerCase();
-              return cleanCat.isEmpty || cat == cleanCat || cat.contains(cleanCat) || cleanCat.contains(cat);
+              return cleanCat.isEmpty || cat == cleanCat;
             }).toList();
 
             return StatefulBuilder(
@@ -68,44 +68,31 @@ class _ManageScorersScreenState extends ConsumerState<ManageScorersScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (allPlayers.isNotEmpty && isClubNotifier.value) ...[
-                            const Text('Seleccionar Jugador del Club', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          if (categoryPlayers.isNotEmpty && isClubNotifier.value) ...[
+                            Text('Seleccionar Jugador (Cat. $_selectedCategory)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
                             DropdownButtonFormField<String>(
-                              initialValue: allPlayers.any((p) => p['id'] == selectedPlayerId) ? selectedPlayerId : null,
+                              initialValue: categoryPlayers.any((p) => p['id'] == selectedPlayerId) ? selectedPlayerId : null,
                               decoration: const InputDecoration(
                                 hintText: 'Elegir de la lista...',
                                 contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                               ),
                               isExpanded: true,
                               items: [
-                                if (categoryPlayers.isNotEmpty) ...[
-                                  ...categoryPlayers.map((p) {
-                                    final pName = '${p['name'] ?? ''} ${p['lastName'] ?? ''}'.trim();
-                                    return DropdownMenuItem(
-                                      value: p['id'] as String,
-                                      child: Text(
-                                        pName.isNotEmpty ? pName : (p['displayName'] ?? 'Jugador'),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }),
-                                ],
-                                ...allPlayers.where((p) => !categoryPlayers.contains(p)).map((p) {
+                                ...categoryPlayers.map((p) {
                                   final pName = '${p['name'] ?? ''} ${p['lastName'] ?? ''}'.trim();
                                   return DropdownMenuItem(
                                     value: p['id'] as String,
                                     child: Text(
-                                      '${pName.isNotEmpty ? pName : (p['displayName'] ?? 'Jugador')} (Cat. ${p['category'] ?? ""})',
+                                      pName.isNotEmpty ? pName : (p['displayName'] ?? 'Jugador'),
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: Colors.white70),
                                     ),
                                   );
                                 }),
                               ],
                               onChanged: (val) {
                                 if (val != null) {
-                                  final sel = allPlayers.firstWhere((p) => p['id'] == val);
+                                  final sel = categoryPlayers.firstWhere((p) => p['id'] == val);
                                   final fullName = '${sel['name'] ?? ''} ${sel['lastName'] ?? ''}'.trim();
                                   setDialogState(() {
                                     selectedPlayerId = val;

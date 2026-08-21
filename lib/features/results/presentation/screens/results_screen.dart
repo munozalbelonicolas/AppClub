@@ -1451,14 +1451,9 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   .replaceAll('Cat', '')
                   .trim()
                   .toLowerCase();
-              return cat == categoryClean ||
-                  (categoryClean.isNotEmpty && cat.contains(categoryClean)) ||
-                  (cat.isNotEmpty && categoryClean.contains(cat));
+              return cat == categoryClean;
             }).toList();
             categoryPlayers.sort((a, b) => _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
-
-            final otherPlayers = allPlayers.where((p) => !categoryPlayers.contains(p)).toList();
-            otherPlayers.sort((a, b) => _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
 
             return StatefulBuilder(
               builder: (context, setModalState) {
@@ -1610,7 +1605,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        isLocalSelected ? 'Jugador del Club' : 'Nombre del Jugador',
+                                        isLocalSelected ? 'Jugador (Cat. $categoryClean)' : 'Nombre del Jugador',
                                         style: const TextStyle(color: Colors.white70, fontSize: 12),
                                       ),
                                       if (isLocalSelected && manualNameInput)
@@ -1627,7 +1622,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                   ),
                                   const SizedBox(height: 4),
 
-                                  if (isLocalSelected && !manualNameInput && allPlayers.isNotEmpty)
+                                  if (isLocalSelected && !manualNameInput && categoryPlayers.isNotEmpty)
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10),
                                       decoration: BoxDecoration(
@@ -1637,38 +1632,23 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                       ),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<String>(
-                                          value: allPlayers.any((p) => p['id'] == selectedPlayerId) ? selectedPlayerId : null,
+                                          value: categoryPlayers.any((p) => p['id'] == selectedPlayerId) ? selectedPlayerId : null,
                                           hint: const Text('Seleccionar Jugador...', style: TextStyle(color: Colors.white54, fontSize: 12)),
                                           dropdownColor: const Color(0xFF242427),
                                           isExpanded: true,
                                           style: const TextStyle(color: Colors.white, fontSize: 13),
                                           items: [
-                                            if (categoryPlayers.isNotEmpty) ...[
-                                              ...categoryPlayers.map((p) {
-                                                final pName = _getPlayerName(p);
-                                                return DropdownMenuItem<String>(
-                                                  value: p['id'] as String,
-                                                  child: Text(
-                                                    '$pName (Cat. ${p['category'] ?? category})',
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style: const TextStyle(fontWeight: FontWeight.w600),
-                                                  ),
-                                                );
-                                              }),
-                                            ],
-                                            if (otherPlayers.isNotEmpty) ...[
-                                              ...otherPlayers.map((p) {
-                                                final pName = _getPlayerName(p);
-                                                return DropdownMenuItem<String>(
-                                                  value: p['id'] as String,
-                                                  child: Text(
-                                                    '$pName (Cat. ${p['category'] ?? "General"})',
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style: const TextStyle(color: Colors.white70),
-                                                  ),
-                                                );
-                                              }),
-                                            ],
+                                            ...categoryPlayers.map((p) {
+                                              final pName = _getPlayerName(p);
+                                              return DropdownMenuItem<String>(
+                                                value: p['id'] as String,
+                                                child: Text(
+                                                  pName,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                                ),
+                                              );
+                                            }),
                                             const DropdownMenuItem<String>(
                                               value: 'MANUAL',
                                               child: Text('✍️ Escribir otro nombre...', style: TextStyle(color: Color(0xFFE5B842))),
@@ -1682,7 +1662,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                                 nameController.clear();
                                               });
                                             } else if (val != null) {
-                                              final sel = allPlayers.firstWhere((p) => p['id'] == val);
+                                              final sel = categoryPlayers.firstWhere((p) => p['id'] == val);
                                               setModalState(() {
                                                 selectedPlayerId = val;
                                                 nameController.text = _getPlayerName(sel);
@@ -1891,15 +1871,9 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   .replaceAll('Cat', '')
                   .trim()
                   .toLowerCase();
-              return cat == categoryClean ||
-                  (categoryClean.isNotEmpty && cat.contains(categoryClean)) ||
-                  (cat.isNotEmpty && categoryClean.contains(cat));
+              return cat == categoryClean;
             }).toList();
             categoryPlayers.sort((a, b) =>
-                _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
-
-            final otherPlayers = allPlayers.where((p) => !categoryPlayers.contains(p)).toList();
-            otherPlayers.sort((a, b) =>
                 _getPlayerName(a).toLowerCase().compareTo(_getPlayerName(b).toLowerCase()));
 
             return StatefulBuilder(
@@ -2166,7 +2140,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         ),
                         const SizedBox(height: 4),
 
-                        if (isLocalSelected && !manualNameInput && allPlayers.isNotEmpty)
+                        if (isLocalSelected && !manualNameInput && categoryPlayers.isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             decoration: BoxDecoration(
@@ -2176,7 +2150,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
-                                value: allPlayers
+                                value: categoryPlayers
                                         .any((p) => p['id'] == selectedPlayerId)
                                     ? selectedPlayerId
                                     : null,
@@ -2188,32 +2162,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 13),
                                 items: [
-                                  if (categoryPlayers.isNotEmpty) ...[
-                                    ...categoryPlayers.map((p) {
-                                      final pName = _getPlayerName(p);
-                                      return DropdownMenuItem<String>(
-                                        value: p['id'] as String,
-                                        child: Text(
-                                          '$pName (Cat. ${p['category'] ?? category})',
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontWeight: FontWeight.w600),
-                                        ),
-                                      );
-                                    }),
-                                  ],
-                                  if (otherPlayers.isNotEmpty) ...[
-                                    ...otherPlayers.map((p) {
-                                      final pName = _getPlayerName(p);
-                                      return DropdownMenuItem<String>(
-                                        value: p['id'] as String,
-                                        child: Text(
-                                          '$pName (Cat. ${p['category'] ?? "General"})',
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(color: Colors.white70),
-                                        ),
-                                      );
-                                    }),
-                                  ],
+                                  ...categoryPlayers.map((p) {
+                                    final pName = _getPlayerName(p);
+                                    return DropdownMenuItem<String>(
+                                      value: p['id'] as String,
+                                      child: Text(
+                                        pName,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                      ),
+                                    );
+                                  }),
                                   const DropdownMenuItem<String>(
                                     value: 'MANUAL',
                                     child: Text('✍️ Escribir otro nombre...',
@@ -2229,7 +2188,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                       nameController.clear();
                                     });
                                   } else if (val != null) {
-                                    final sel = allPlayers
+                                    final sel = categoryPlayers
                                         .firstWhere((p) => p['id'] == val);
                                     setModalState(() {
                                       selectedPlayerId = val;
