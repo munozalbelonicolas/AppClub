@@ -137,30 +137,56 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                 // Image Viewer with Zoom & Pan
                 ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.52,
+                    maxHeight: MediaQuery.of(context).size.height * 0.55,
+                    minHeight: 200,
                   ),
                   child: Container(
-                    color: Colors.black,
+                    color: const Color(0xFF0F172A),
                     width: double.infinity,
                     child: InteractiveViewer(
-                      maxScale: 4.0,
-                      child: CachedNetworkImage(
-                        imageUrl: receiptUrl,
-                        fit: BoxFit.contain,
-                        placeholder: (context, url) => const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(40.0),
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.broken_image, size: 48, color: Colors.white54),
-                              SizedBox(height: 8),
-                              Text('No se pudo cargar la imagen', style: TextStyle(color: Colors.white70)),
-                            ],
+                      boundaryMargin: const EdgeInsets.all(20),
+                      minScale: 0.5,
+                      maxScale: 5.0,
+                      child: Center(
+                        child: Image.network(
+                          receiptUrl,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(40.0),
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  color: Colors.amber,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => CachedNetworkImage(
+                            imageUrl: receiptUrl,
+                            fit: BoxFit.contain,
+                            placeholder: (_, _) => const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(40.0),
+                                child: CircularProgressIndicator(color: Colors.amber),
+                              ),
+                            ),
+                            errorWidget: (_, _, _) => const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.broken_image, size: 48, color: Colors.white54),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'No se pudo cargar la imagen',
+                                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -373,33 +399,60 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                       // Resumen de comprobantes disponibles
                       Builder(
                         builder: (_) {
-                          final countReceipts = orders.where((o) {
+                          final receiptsList = orders.where((o) {
                             final r = o['receiptUrl']?.toString() ?? o['imageUrl']?.toString() ?? o['proofUrl']?.toString();
                             return r != null && r.isNotEmpty;
-                          }).length;
+                          }).toList();
+                          final countReceipts = receiptsList.length;
                           if (countReceipts > 0) {
-                            return Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.receipt_long, size: 14, color: Color(0xFFD97706)),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    '$countReceipts comprobante${countReceipts > 1 ? 's' : ''} subido${countReceipts > 1 ? 's' : ''} por el tutor',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: isLight ? const Color(0xFFB45309) : const Color(0xFFFDE68A),
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(6),
+                              onTap: () {
+                                final firstWithReceipt = receiptsList.first;
+                                final rUrl = (firstWithReceipt['receiptUrl'] ?? firstWithReceipt['imageUrl'] ?? firstWithReceipt['proofUrl']).toString();
+                                _showReceiptPreviewDialog(
+                                  context: this.context,
+                                  receiptUrl: rUrl,
+                                  monthName: firstWithReceipt['quotaMonth']?.toString() ?? 'Comprobante',
+                                  order: firstWithReceipt,
+                                  player: player,
+                                  onMarkPaid: () {
+                                    final qm = firstWithReceipt['quotaMonth']?.toString();
+                                    if (qm != null && qm.isNotEmpty) {
+                                      setState(() {
+                                        if (!currentPaidQuotas.contains(qm)) {
+                                          currentPaidQuotas.add(qm);
+                                        }
+                                      });
+                                    }
+                                  },
+                                );
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(top: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: Colors.amber),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.receipt_long, size: 14, color: Color(0xFFD97706)),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      '$countReceipts comprobante${countReceipts > 1 ? 's' : ''} subido${countReceipts > 1 ? 's' : ''} · Tocar para ver',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: isLight ? const Color(0xFFB45309) : const Color(0xFFFDE68A),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.visibility, size: 12, color: Color(0xFFD97706)),
+                                  ],
+                                ),
                               ),
                             );
                           }
