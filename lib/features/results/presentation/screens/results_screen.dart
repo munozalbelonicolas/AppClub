@@ -459,8 +459,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
                     // ─── Lista de Partidos de las Categorías ───
                     ...displayedMatches.asMap().entries.map((entry) {
-                      final matchIndexInAll = allMatches.indexOf(entry.value);
                       final match = entry.value;
+                      int matchIndexInAll = allMatches.indexOf(match);
+                      if (matchIndexInAll == -1) {
+                        matchIndexInAll = allMatches.indexWhere((m) {
+                          final mCat = (m['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+                          final tCat = (match['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+                          return (mCat == tCat || m['category'] == match['category']) &&
+                              m['homeClubId'] == match['homeClubId'] &&
+                              m['awayClubId'] == match['awayClubId'];
+                        });
+                      }
                       final mHomeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull ?? homeClub;
                       final mAwayClub = clubs.where((c) => c['id'] == match['awayClubId']).firstOrNull ?? awayClub;
 
@@ -471,6 +480,9 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       final int? homeScore = match['homeScore'] != null ? int.tryParse(match['homeScore'].toString()) : null;
                       final int? awayScore = match['awayScore'] != null ? int.tryParse(match['awayScore'].toString()) : null;
                       final bool hasScores = homeScore != null && awayScore != null;
+
+                      final List<dynamic> rawScorers = (match['scorers'] as List?) ?? [];
+                      final List<dynamic> rawCards = (match['cards'] as List?) ?? [];
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
@@ -627,13 +639,14 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             ),
 
                             // ─── Goleadores del partido ───
-                            if (match['scorers'] != null && (match['scorers'] as List).isNotEmpty) ...[
+                            if (rawScorers.isNotEmpty) ...[
                               const SizedBox(height: 8),
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 4,
-                                children: (match['scorers'] as List).map((sc) {
-                                  final scMap = sc as Map<String, dynamic>;
+                                children: rawScorers.map((sc) {
+                                  final scMap = sc is Map ? Map<String, dynamic>.from(sc) : <String, dynamic>{};
+                                  if (scMap.isEmpty) return const SizedBox.shrink();
                                   final isLight = Theme.of(context).brightness == Brightness.light;
                                   return Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -654,7 +667,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                         ),
                                         const SizedBox(width: 5),
                                         Text(
-                                          '${scMap['name']} (${scMap['goals']})',
+                                          '${scMap['name']} (${scMap['goals'] ?? 1})',
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
@@ -669,13 +682,14 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             ],
 
                             // ─── Tarjetas del partido ───
-                            if (match['cards'] != null && (match['cards'] as List).isNotEmpty) ...[
+                            if (rawCards.isNotEmpty) ...[
                               const SizedBox(height: 6),
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 4,
-                                children: (match['cards'] as List).map((c) {
-                                  final cMap = c as Map<String, dynamic>;
+                                children: rawCards.map((c) {
+                                  final cMap = c is Map ? Map<String, dynamic>.from(c) : <String, dynamic>{};
+                                  if (cMap.isEmpty) return const SizedBox.shrink();
                                   final isRed = cMap['cardType']?.toString() == 'red';
                                   final isLight = Theme.of(context).brightness == Brightness.light;
                                   return Container(
@@ -1166,7 +1180,18 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     required String category,
   }) {
     final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
-    final match = matches[matchIndex];
+    int exactMatchIndex = -1;
+    final targetCat = category.replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+    exactMatchIndex = matches.indexWhere((m) {
+      final mCat = (m['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+      return (mCat == targetCat || m['category'] == category) &&
+          (homeClub == null || m['homeClubId'] == homeClub['id']) &&
+          (awayClub == null || m['awayClubId'] == awayClub['id']);
+    });
+    if (exactMatchIndex == -1) {
+      exactMatchIndex = (matchIndex >= 0 && matchIndex < matches.length) ? matchIndex : 0;
+    }
+    final match = Map<String, dynamic>.from(matches.isNotEmpty ? matches[exactMatchIndex] : {});
 
     final homeController = TextEditingController(text: match['homeScore']?.toString() ?? '0');
     final awayController = TextEditingController(text: match['awayScore']?.toString() ?? '0');
@@ -1330,32 +1355,22 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
                     const SizedBox(height: 12),
 
-                    // Switch / Checkbox Promocional
+                    // Switch de Promocional
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFF242427),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isPromotional ? Colors.orange.withValues(alpha: 0.5) : const Color(0xFF333338),
-                        ),
                       ),
-                      child: CheckboxListTile(
+                      child: SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        title: const Text(
-                          'Categoría Promocional / Exhibición',
-                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: const Text(
-                          'No suma puntos en la tabla ni en el total de la fecha.',
-                          style: TextStyle(color: Colors.white60, fontSize: 10),
-                        ),
+                        title: const Text('Categoría Promocional', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                        subtitle: const Text('No computa puntos para la tabla de posiciones', style: TextStyle(color: Colors.white54, fontSize: 11)),
                         value: isPromotional,
-                        activeColor: const Color(0xFFE5B842),
-                        checkColor: Colors.black,
+                        activeThumbColor: const Color(0xFFE5B842),
+                        trackColor: WidgetStateProperty.resolveWith((states) => isPromotional ? const Color(0xFFE5B842).withValues(alpha: 0.5) : const Color(0xFF333338)),
                         onChanged: (val) {
-                          setDialogState(() => isPromotional = val ?? false);
+                          setDialogState(() => isPromotional = val);
                         },
                       ),
                     ),
@@ -1376,8 +1391,21 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     final hScore = int.tryParse(homeController.text.trim()) ?? 0;
                     final aScore = int.tryParse(awayController.text.trim()) ?? 0;
 
-                    matches[matchIndex] = {
-                      ...match,
+                    final currentMatches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
+                    int saveIndex = currentMatches.indexWhere((m) {
+                      final mCat = (m['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+                      final tCat = (match['category']?.toString() ?? category).replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+                      final bool catMatch = mCat == tCat || m['category'] == match['category'] || m['category'] == category;
+                      final bool homeMatch = m['homeClubId'] == match['homeClubId'] || (m['homeClubId'] == null && match['homeClubId'] == null);
+                      final bool awayMatch = m['awayClubId'] == match['awayClubId'] || (m['awayClubId'] == null && match['awayClubId'] == null);
+                      return catMatch && homeMatch && awayMatch;
+                    });
+                    if (saveIndex == -1) {
+                      saveIndex = (exactMatchIndex >= 0 && exactMatchIndex < currentMatches.length) ? exactMatchIndex : 0;
+                    }
+
+                    currentMatches[saveIndex] = {
+                      ...currentMatches[saveIndex],
                       'homeScore': hScore,
                       'awayScore': aScore,
                       'status': status,
@@ -1385,7 +1413,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     };
 
                     await ref.read(firestoreServiceProvider).updateFixture(fixture['id'], {
-                      'matches': matches,
+                      'matches': currentMatches,
                     });
 
                     if (ctx.mounted) {
@@ -1418,9 +1446,22 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     required String category,
   }) {
     final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
-    final int exactMatchIndex = (matchIndex >= 0 && matchIndex < matches.length) ? matchIndex : 0;
-    final match = Map<String, dynamic>.from(matches[exactMatchIndex]);
-    final List<Map<String, dynamic>> matchScorers = List<Map<String, dynamic>>.from(match['scorers'] ?? []);
+    int exactMatchIndex = -1;
+    final targetCat = category.replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+    exactMatchIndex = matches.indexWhere((m) {
+      final mCat = (m['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+      return (mCat == targetCat || m['category'] == category) &&
+          (homeClub == null || m['homeClubId'] == homeClub['id']) &&
+          (awayClub == null || m['awayClubId'] == awayClub['id']);
+    });
+    if (exactMatchIndex == -1) {
+      exactMatchIndex = (matchIndex >= 0 && matchIndex < matches.length) ? matchIndex : 0;
+    }
+    final match = Map<String, dynamic>.from(matches.isNotEmpty ? matches[exactMatchIndex] : {});
+    final List<Map<String, dynamic>> matchScorers = (match['scorers'] as List?)
+        ?.map((sc) => sc is Map ? Map<String, dynamic>.from(sc) : <String, dynamic>{})
+        .where((sc) => sc.isNotEmpty)
+        .toList() ?? [];
 
     final homeName = homeClub?['name'] ?? 'Local';
     final awayName = awayClub?['name'] ?? 'Visitante';
@@ -1756,15 +1797,16 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       ),
                       onPressed: () async {
                         final currentMatches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
-                        int saveIndex = exactMatchIndex;
-                        if (saveIndex >= currentMatches.length) {
-                          saveIndex = currentMatches.indexWhere((m) =>
-                              m['category'] == match['category'] &&
-                              m['homeClubId'] == match['homeClubId'] &&
-                              m['awayClubId'] == match['awayClubId']);
-                        }
-                        if (saveIndex < 0 || saveIndex >= currentMatches.length) {
-                          saveIndex = 0;
+                        int saveIndex = currentMatches.indexWhere((m) {
+                          final mCat = (m['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+                          final tCat = (match['category']?.toString() ?? category).replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+                          final bool catMatch = mCat == tCat || m['category'] == match['category'] || m['category'] == category;
+                          final bool homeMatch = m['homeClubId'] == match['homeClubId'] || (m['homeClubId'] == null && match['homeClubId'] == null);
+                          final bool awayMatch = m['awayClubId'] == match['awayClubId'] || (m['awayClubId'] == null && match['awayClubId'] == null);
+                          return catMatch && homeMatch && awayMatch;
+                        });
+                        if (saveIndex == -1) {
+                          saveIndex = (exactMatchIndex >= 0 && exactMatchIndex < currentMatches.length) ? exactMatchIndex : 0;
                         }
 
                         currentMatches[saveIndex] = {
@@ -1837,10 +1879,22 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     required String category,
   }) {
     final matches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
-    final int exactMatchIndex = (matchIndex >= 0 && matchIndex < matches.length) ? matchIndex : 0;
-    final match = Map<String, dynamic>.from(matches[exactMatchIndex]);
-    final List<Map<String, dynamic>> matchCards =
-        List<Map<String, dynamic>>.from(match['cards'] ?? []);
+    int exactMatchIndex = -1;
+    final targetCat = category.replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+    exactMatchIndex = matches.indexWhere((m) {
+      final mCat = (m['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+      return (mCat == targetCat || m['category'] == category) &&
+          (homeClub == null || m['homeClubId'] == homeClub['id']) &&
+          (awayClub == null || m['awayClubId'] == awayClub['id']);
+    });
+    if (exactMatchIndex == -1) {
+      exactMatchIndex = (matchIndex >= 0 && matchIndex < matches.length) ? matchIndex : 0;
+    }
+    final match = Map<String, dynamic>.from(matches.isNotEmpty ? matches[exactMatchIndex] : {});
+    final List<Map<String, dynamic>> matchCards = (match['cards'] as List?)
+        ?.map((c) => c is Map ? Map<String, dynamic>.from(c) : <String, dynamic>{})
+        .where((c) => c.isNotEmpty)
+        .toList() ?? [];
 
     final homeName = homeClub?['name'] ?? 'Local';
     final awayName = awayClub?['name'] ?? 'Visitante';
@@ -2272,15 +2326,16 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       ),
                       onPressed: () async {
                         final currentMatches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
-                        int saveIndex = exactMatchIndex;
-                        if (saveIndex >= currentMatches.length) {
-                          saveIndex = currentMatches.indexWhere((m) =>
-                              m['category'] == match['category'] &&
-                              m['homeClubId'] == match['homeClubId'] &&
-                              m['awayClubId'] == match['awayClubId']);
-                        }
-                        if (saveIndex < 0 || saveIndex >= currentMatches.length) {
-                          saveIndex = 0;
+                        int saveIndex = currentMatches.indexWhere((m) {
+                          final mCat = (m['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+                          final tCat = (match['category']?.toString() ?? category).replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
+                          final bool catMatch = mCat == tCat || m['category'] == match['category'] || m['category'] == category;
+                          final bool homeMatch = m['homeClubId'] == match['homeClubId'] || (m['homeClubId'] == null && match['homeClubId'] == null);
+                          final bool awayMatch = m['awayClubId'] == match['awayClubId'] || (m['awayClubId'] == null && match['awayClubId'] == null);
+                          return catMatch && homeMatch && awayMatch;
+                        });
+                        if (saveIndex == -1) {
+                          saveIndex = (exactMatchIndex >= 0 && exactMatchIndex < currentMatches.length) ? exactMatchIndex : 0;
                         }
 
                         currentMatches[saveIndex] = {
