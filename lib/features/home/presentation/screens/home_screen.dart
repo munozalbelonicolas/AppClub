@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/models/user_session.dart';
 import '../../../../core/providers/convocatoria_provider.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/birthday_service.dart';
@@ -24,6 +25,7 @@ import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../attendance/presentation/screens/player_attendance_screen.dart';
 import '../../../communications/presentation/screens/story_export_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
+import '../../../lineup/presentation/screens/lineup_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
 import '../../../results/presentation/screens/league_report_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
@@ -969,10 +971,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: const Text(
-                                      'Novedad publicada con éxito!',
+                                    content: Text(
+                                      eventType == 'partido'
+                                          ? '¡Partido Amistoso publicado! ¿Deseas armar la convocatoria?'
+                                          : 'Publicación realizada con éxito!',
                                     ),
                                     backgroundColor: context.colors.success,
+                                    duration: const Duration(seconds: 5),
+                                    action: eventType == 'partido'
+                                        ? SnackBarAction(
+                                            label: 'Convocar',
+                                            textColor: Colors.white,
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) => LineupScreen(
+                                                    initialCategory: selectedCategory,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          )
+                                        : null,
                                   ),
                                 );
                               }
@@ -2189,7 +2210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ] else if (post['eventType'] == 'partido' ||
                                 post['isMatch'] == true ||
                                 post['type'] == 'partido') ...[
-                              _buildMatchPostCard(post, clubs, context),
+                              _buildMatchPostCard(post, clubs, context, sessionUser),
                             ] else ...[
                               Text(
                                 post['title'] ?? '',
@@ -2956,8 +2977,9 @@ Widget _buildPostImage(String url, BuildContext context) {
 Widget _buildMatchPostCard(
   Map<String, dynamic> post,
   List<Map<String, dynamic>> clubs,
-  BuildContext context,
-) {
+  BuildContext context, [
+  UserSession? sessionUser,
+]) {
   final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
   final String homeTeamName = post['homeTeam'] ?? localClub?['name'] ?? 'Jorge Newbery';
   final String? homeLogoUrl = post['homeLogoUrl'] ?? localClub?['logoUrl'];
@@ -2975,6 +2997,30 @@ Widget _buildMatchPostCard(
   final String timeStr = post['eventTime'] ?? post['time'] ?? 'A confirmar';
   final String venueStr = post['venue'] ?? post['location'] ?? 'Cancha Principal JN';
   final String catStr = post['category'] ?? '';
+
+  String formatMatchDate(String rawDate) {
+    if (rawDate.isEmpty) return '';
+    try {
+      final parts = rawDate.split('-');
+      if (parts.length == 3) {
+        final year = int.tryParse(parts[0]) ?? 2026;
+        final month = int.tryParse(parts[1]) ?? 1;
+        final day = int.tryParse(parts[2]) ?? 1;
+        final dt = DateTime(year, month, day);
+        const weekdays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+        const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        return '${weekdays[dt.weekday - 1]} $day ${months[month - 1]}';
+      }
+    } catch (_) {}
+    return rawDate;
+  }
+
+  final String dateFormatted = formatMatchDate(dateStr);
+  final String dateDisplay = dateFormatted.isNotEmpty
+      ? (timeStr.isNotEmpty && timeStr.toLowerCase() != 'a confirmar'
+          ? '$dateFormatted · $timeStr'
+          : dateFormatted)
+      : (timeStr.isNotEmpty && timeStr.toLowerCase() != 'a confirmar' ? timeStr : '');
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -3000,9 +3046,12 @@ Widget _buildMatchPostCard(
         ),
         child: Column(
           children: [
-            // Top Match Header Badge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Top Match Header Badge & Date
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -3016,7 +3065,7 @@ Widget _buildMatchPostCard(
                       Icon(Icons.sports_soccer, size: 14, color: context.colors.primary),
                       const SizedBox(width: 5),
                       Text(
-                        catStr.isNotEmpty && catStr != 'all' ? 'PARTIDO AMISTOSO · CAT. $catStr' : 'PARTIDO AMISTOSO',
+                        catStr.isNotEmpty && catStr != 'all' ? 'AMISTOSO · CAT. $catStr' : 'PARTIDO AMISTOSO',
                         style: context.typography.labelSmall.copyWith(
                           color: context.colors.primary,
                           fontWeight: FontWeight.bold,
@@ -3025,12 +3074,26 @@ Widget _buildMatchPostCard(
                     ],
                   ),
                 ),
-                if (dateStr.isNotEmpty)
-                  Text(
-                    '$dateStr${timeStr.isNotEmpty ? " · $timeStr" : ""}',
-                    style: context.typography.bodySmall.copyWith(
-                      color: context.colors.textSecondary,
-                      fontWeight: FontWeight.w600,
+                if (dateDisplay.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: context.colors.surfaceVariant.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.calendar_today_outlined, size: 12, color: context.colors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          dateDisplay,
+                          style: context.typography.bodySmall.copyWith(
+                            color: context.colors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],
@@ -3114,6 +3177,39 @@ Widget _buildMatchPostCard(
                 ),
               ],
             ),
+
+            if (sessionUser != null && (sessionUser.role == 'dt' || sessionUser.isAdmin)) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.group_add_outlined, size: 18),
+                  label: const Text(
+                    'Convocar Jugadores',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: context.colors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LineupScreen(
+                          initialCategory: catStr.isNotEmpty && catStr != 'all' ? catStr : null,
+                          initialMatchId: post['id'],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ),

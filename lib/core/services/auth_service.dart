@@ -366,7 +366,6 @@ class AuthService {
           title: '👤 Nuevo Usuario Registrado',
           body: '$fullName se ha registrado como $roleLabel ($email).',
           authorId: uid,
-          type: 'new_user_pending',
           extraData: {
             'userId': uid,
             'userName': fullName,

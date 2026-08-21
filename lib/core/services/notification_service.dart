@@ -200,6 +200,20 @@ class NotificationService {
     );
   }
 
+  static final Map<String, DateTime> _recentlyHandledNotifications = {};
+
+  /// Registra y verifica si una notificación ya fue mostrada recientemente para evitar duplicados en pantalla
+  static bool isDuplicateAndRecord(String title, String body) {
+    final now = DateTime.now();
+    _recentlyHandledNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 20);
+    final key = '${title.trim()}:${body.trim()}';
+    if (_recentlyHandledNotifications.containsKey(key)) {
+      return true; // Ya fue procesada/mostrada recientemente
+    }
+    _recentlyHandledNotifications[key] = now;
+    return false;
+  }
+
   /// Displays a local banner notification with sound
   Future<void> showLocalNotification({
     required int id,
@@ -207,6 +221,10 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    if (isDuplicateAndRecord(title, body)) {
+      return; // Prevenir duplicados locales
+    }
+
     await _localNotifications.show(
       id,
       title,
@@ -280,7 +298,7 @@ class NotificationService {
         'targetRole': 'directivo',
         'read': false,
         'createdAt': FieldValue.serverTimestamp(),
-        if (extraData != null) ...extraData,
+        ...?extraData,
       });
 
       // 2. Enviar Push real vía OneSignal para administradores
@@ -290,7 +308,7 @@ class NotificationService {
         targetCategory: 'admin',
         data: {
           'type': type,
-          if (extraData != null) ...extraData,
+          ...?extraData,
         },
       );
     } catch (e) {

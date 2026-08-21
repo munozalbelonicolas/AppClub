@@ -88,6 +88,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
 
     final appCategories = ref.read(appCategoriesProvider);
     final List<String> categories = ['deportivo', 'administrativo', 'todos', ...appCategories];
+    bool isPublishing = false;
 
     showDialog(
       context: context,
@@ -328,63 +329,68 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
                   ),
-                  onPressed: () async {
+                  onPressed: isPublishing ? null : () async {
                     if (formKey.currentState!.validate()) {
-                      final now = DateTime.now();
-                      final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-                      
-                      final announcementRepo = ref.read(announcementRepositoryProvider);
-                      await announcementRepo.addAnnouncement({
-                        'title': titleController.text.trim(),
-                        'body': bodyController.text.trim(),
-                        'category': selectedCategory,
-                        'eventCategory': selectedEventCategory,
-                        'priority': selectedPriority,
-                        'read': false,
-                        'authorId': sessionUser.id,
-                        'authorName': '${sessionUser.name} ${sessionUser.lastName}',
-                        'authorRole': sessionUser.role,
-                        'commentsEnabled': commentsEnabled,
-                        'isMatch': eventType == 'partido', // Backwards compatibility
-                        'eventType': eventType,
-                        'hasTransport': hasTransport,
-                        'opponentClubId': (eventType != 'ninguno') ? selectedOpponentId : null,
-                        'awayTeam': (selectedOpponentId != null)
-                            ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                            : 'Rival',
-                        'opponentName': (selectedOpponentId != null)
-                            ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                            : null,
-                        'eventDate': eventDate != null
-                            ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
-                            : null,
-                        'date': eventDate != null
-                            ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
-                            : dateStr,
-                        'eventTime': 'A confirmar',
-                        'time': 'A confirmar',
-                        'location': 'Cancha Principal JN',
-                        'venue': 'Cancha Principal JN',
-                      });
-
-                      // Disparar Notificación Push vía OneSignal
+                      setDialogState(() => isPublishing = true);
                       try {
-                        await NotificationService().sendNotification(
-                          title: '📢 Nuevo Comunicado: ${titleController.text.trim()}',
-                          body: bodyController.text.trim(),
-                          authorId: sessionUser.id,
-                          targetCategory: selectedCategory,
-                        );
-                      } catch (_) {}
+                        final now = DateTime.now();
+                        final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+                        
+                        final announcementRepo = ref.read(announcementRepositoryProvider);
+                        await announcementRepo.addAnnouncement({
+                          'title': titleController.text.trim(),
+                          'body': bodyController.text.trim(),
+                          'category': selectedCategory,
+                          'eventCategory': selectedEventCategory,
+                          'priority': selectedPriority,
+                          'read': false,
+                          'authorId': sessionUser.id,
+                          'authorName': '${sessionUser.name} ${sessionUser.lastName}',
+                          'authorRole': sessionUser.role,
+                          'commentsEnabled': commentsEnabled,
+                          'isMatch': eventType == 'partido', // Backwards compatibility
+                          'eventType': eventType,
+                          'hasTransport': hasTransport,
+                          'opponentClubId': (eventType != 'ninguno') ? selectedOpponentId : null,
+                          'awayTeam': (selectedOpponentId != null)
+                              ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                              : 'Rival',
+                          'opponentName': (selectedOpponentId != null)
+                              ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
+                              : null,
+                          'eventDate': eventDate != null
+                              ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
+                              : null,
+                          'date': eventDate != null
+                              ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
+                              : dateStr,
+                          'eventTime': 'A confirmar',
+                          'time': 'A confirmar',
+                          'location': 'Cancha Principal JN',
+                          'venue': 'Cancha Principal JN',
+                        });
 
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Comunicado oficial publicado con éxito!'),
-                            backgroundColor: context.colors.success,
-                          ),
-                        );
+                        // Disparar Notificación Push vía OneSignal
+                        try {
+                          await NotificationService().sendNotification(
+                            title: '📢 Nuevo Comunicado: ${titleController.text.trim()}',
+                            body: bodyController.text.trim(),
+                            authorId: sessionUser.id,
+                            targetCategory: selectedCategory,
+                          );
+                        } catch (_) {}
+
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Comunicado oficial publicado con éxito!'),
+                              backgroundColor: context.colors.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() => isPublishing = false);
                       }
                     }
                   },

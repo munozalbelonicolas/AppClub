@@ -101,7 +101,17 @@ En caso de oposición al uso de imágenes, deberá notificarse formalmente por e
 
 ---
 
-# 6. SERVICIOS DE TERCEROS
+# 6. MENSAJERÍA INTERNA Y AUDITORÍA DE COMUNICACIONES
+
+La Plataforma provee herramientas y canales de comunicación y mensajería interna para la coordinación deportiva, organizativa y administrativa entre directivos, entrenadores, coordinadores, tutores y jugadores.
+
+Al utilizar la Aplicación, el usuario reconoce, comprende y acepta expresamente que:
+* **Los mensajes, conversaciones, archivos y comunicaciones mantenidas dentro de la Plataforma pueden ser auditados, revisados y supervisados por la administración y autoridades directivas del club.**
+* Dicha facultad de auditoría tiene por objetivo prioritario salvaguardar la seguridad e integridad física y moral de los menores de edad, velar por el respeto mutuo y las normas de convivencia del club, prevenir conductas inapropiadas o de acoso, y garantizar el uso adecuado y responsable de los canales institucionales.
+
+---
+
+# 7. SERVICIOS DE TERCEROS
 
 La Aplicación puede utilizar servicios de terceros para almacenamiento, autenticación, estadísticas o funcionamiento técnico, incluyendo servicios cloud como:
 * Google Firebase,
@@ -113,7 +123,7 @@ Estos servicios pueden procesar información conforme a sus propias políticas d
 
 ---
 
-# 7. ALMACENAMIENTO Y SEGURIDAD
+# 8. ALMACENAMIENTO Y SEGURIDAD
 
 La Plataforma adopta medidas técnicas y organizativas razonables para proteger la información de accesos no autorizados, pérdida, alteración o divulgación indebida.
 
@@ -131,7 +141,7 @@ AppClub no garantiza seguridad absoluta frente a:
 
 ---
 
-# 8. CONFIDENCIALIDAD
+# 9. CONFIDENCIALIDAD
 
 La información personal será tratada con confidencialidad y utilizada únicamente para fines relacionados con el funcionamiento de la Plataforma y las actividades institucionales autorizadas.
 
@@ -139,7 +149,7 @@ El acceso a la información podrá limitarse según roles administrativos defini
 
 ---
 
-# 9. DERECHOS DEL USUARIO
+# 10. DERECHOS DEL USUARIO
 
 El usuario podrá solicitar:
 * acceso a sus datos,
@@ -153,7 +163,7 @@ La eliminación de ciertos datos puede afectar funcionalidades esenciales del si
 
 ---
 
-# 10. CONSERVACIÓN DE DATOS
+# 11. CONSERVACIÓN DE DATOS
 
 La información podrá conservarse durante el tiempo necesario para:
 * el funcionamiento de la Plataforma,
@@ -165,7 +175,7 @@ La información podrá conservarse durante el tiempo necesario para:
 
 ---
 
-# 11. LIMITACIÓN DE RESPONSABILIDAD
+# 12. LIMITACIÓN DE RESPONSABILIDAD
 
 AppClub, sus desarrolladores, administradores, clubes, directivos, entrenadores y colaboradores no serán responsables por:
 * accesos indebidos realizados por terceros,
@@ -179,7 +189,7 @@ El usuario utiliza la Plataforma bajo su propia responsabilidad.
 
 ---
 
-# 12. COOKIES Y TECNOLOGÍAS SIMILARES
+# 13. COOKIES Y TECNOLOGÍAS SIMILARES
 
 La Aplicación podrá utilizar cookies, identificadores técnicos y herramientas de análisis para:
 * mejorar la experiencia del usuario,
@@ -189,7 +199,7 @@ La Aplicación podrá utilizar cookies, identificadores técnicos y herramientas
 
 ---
 
-# 13. MODIFICACIONES DE LA POLÍTICA
+# 14. MODIFICACIONES DE LA POLÍTICA
 
 La Plataforma podrá modificar esta Política de Privacidad en cualquier momento.
 
@@ -199,7 +209,7 @@ El uso continuado del servicio implica aceptación de los cambios.
 
 ---
 
-# 14. LEGISLACIÓN APLICABLE
+# 15. LEGISLACIÓN APLICABLE
 
 La presente Política de Privacidad se rige por las leyes de la República Argentina.
 
@@ -207,7 +217,7 @@ Cualquier controversia será sometida a la jurisdicción de los tribunales compe
 
 ---
 
-# 15. ACEPTACIÓN
+# 16. ACEPTACIÓN
 
 El uso de la Plataforma implica que el usuario ha leído, comprendido y aceptado íntegramente esta Política de Privacidad.
 ''';
@@ -341,7 +351,18 @@ La Plataforma implementará medidas razonables de seguridad, aunque no garantiza
 
 ---
 
-# 8. IMÁGENES Y CONTENIDO MULTIMEDIA
+# 8. MENSAJERÍA INTERNA Y AUDITORÍA POR PARTE DE LA ADMINISTRACIÓN
+
+La funcionalidad de chat y mensajería interna provista por la Plataforma constituye un canal formal de comunicación deportiva e institucional.
+
+El usuario acepta y declara conocer que:
+* Los canales de mensajería interna no constituyen medios de correspondencia privada absoluta frente a la institución.
+* **La administración, directivos y autoridades designadas del Club Jorge Newbery se reservan el derecho expreso de auditar, supervisar, moderar y acceder a los historiales de mensajes, comunicaciones y contenidos transmitidos por cualquier usuario a través de la Aplicación.**
+* Dicha auditoría tiene por único objeto velar por el resguardo y protección integral de los menores, prevenir situaciones de acoso o maltrato, verificar el cumplimiento de los reglamentos deportivos y las pautas de respeto mutuo del club.
+
+---
+
+# 9. IMÁGENES Y CONTENIDO MULTIMEDIA
 
 El usuario autoriza al club y a la Plataforma a utilizar imágenes, fotografías, videos o contenido audiovisual relacionado con actividades deportivas e institucionales con fines informativos, administrativos, promocionales o internos, salvo manifestación expresa en contrario por escrito.
 
@@ -349,12 +370,12 @@ El usuario garantiza contar con las autorizaciones necesarias respecto de menore
 
 ---
 
-# 9. CONDUCTA DEL USUARIO
+# 10. CONDUCTA DEL USUARIO
 
 Queda prohibido:
 * utilizar la Plataforma con fines ilegales,
 * acosar o agredir a otros usuarios,
-* compartir contenido ofensivo,
+* compartir contenido ofensivo o inapropiado,
 * vulnerar sistemas de seguridad,
 * suplantar identidades,
 * distribuir malware,
@@ -365,7 +386,7 @@ La Plataforma podrá suspender o eliminar cuentas sin previo aviso ante incumpli
 
 ---
 
-# 10. PROPIEDAD INTELECTUAL
+# 11. PROPIEDAD INTELECTUAL
 
 Todo el contenido, diseño, logotipos, software, funcionalidades, código y elementos de AppClub pertenecen a sus titulares y se encuentran protegidos por las leyes de propiedad intelectual.
 
@@ -373,7 +394,7 @@ Queda prohibida su reproducción, modificación o distribución sin autorizació
 
 ---
 
-# 11. LIMITACIÓN GENERAL DE RESPONSABILIDAD
+# 12. LIMITACIÓN GENERAL DE RESPONSABILIDAD
 
 En ningún caso AppClub, sus desarrolladores, administradores, clubes asociados, dirigentes, entrenadores o colaboradores serán responsables por daños directos, indirectos, incidentales, especiales o consecuentes derivados del uso o imposibilidad de uso de la Plataforma.
 
@@ -381,7 +402,7 @@ El usuario acepta utilizar la Aplicación bajo su exclusiva responsabilidad.
 
 ---
 
-# 12. MODIFICACIONES
+# 13. MODIFICACIONES
 
 La Plataforma podrá modificar estos Términos y Condiciones en cualquier momento.
 
@@ -391,7 +412,7 @@ El uso continuado de la Plataforma implica aceptación de las nuevas condiciones
 
 ---
 
-# 13. LEGISLACIÓN APLICABLE
+# 14. LEGISLACIÓN APLICABLE
 
 Estos Términos y Condiciones se regirán por las leyes de la República Argentina.
 
@@ -399,7 +420,7 @@ Toda controversia será sometida a la jurisdicción de los tribunales ordinarios
 
 ---
 
-# 14. CONTACTO
+# 15. CONTACTO
 
 Para consultas relacionadas con la Plataforma:
 Club: Jorge Newbery

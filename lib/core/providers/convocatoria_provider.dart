@@ -24,14 +24,18 @@ final tutorConvocatoriasProvider =
   });
 });
 
-/// Streams all tutor convocatorias for a specific category to show live status to the coach
+/// Streams all tutor convocatorias for a specific match to show live status to the coach
 final coachConvocatoriaStatusProvider =
-    StreamProvider.family<Map<String, String>, String>((ref, category) {
+    StreamProvider.family<Map<String, String>, String>((ref, matchId) {
+  if (matchId.isEmpty) {
+    return Stream.value({});
+  }
+
   final db = FirebaseFirestore.instance;
 
   return db
       .collection('tutor_convocatorias')
-      .where('category', isEqualTo: category)
+      .where('matchId', isEqualTo: matchId)
       .snapshots()
       .map((snapshot) {
     final Map<String, String> statusMap = {};
@@ -74,27 +78,16 @@ Future<void> updateConvocatoriaStatus({
         .set(updateData, SetOptions(merge: true));
   } catch (_) {}
 
-  // 2. Update all matching documents in tutor_convocatorias collection
+  // 2. Update matching documents in tutor_convocatorias collection ONLY for this specific match
   try {
     final query = await db
         .collection('tutor_convocatorias')
         .where('playerId', isEqualTo: playerId)
+        .where('matchId', isEqualTo: matchId)
         .get();
 
     for (final doc in query.docs) {
       await doc.reference.update(updateData);
-      // Also update the match convocatoria subcollection pointed by this doc
-      final docMatchId = doc.data()['matchId'] as String?;
-      if (docMatchId != null && docMatchId != matchId) {
-        try {
-          await db
-              .collection('matches')
-              .doc(docMatchId)
-              .collection('convocatoria')
-              .doc(playerId)
-              .set(updateData, SetOptions(merge: true));
-        } catch (_) {}
-      }
     }
   } catch (_) {}
 }

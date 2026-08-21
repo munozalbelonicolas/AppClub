@@ -305,7 +305,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const LineupScreen()),
+                MaterialPageRoute(
+                  builder: (_) => LineupScreen(initialCategory: effectiveCategory),
+                ),
               );
             },
             padding: const EdgeInsets.all(16),
@@ -449,7 +451,10 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => const LineupScreen(),
+                                    builder: (_) => LineupScreen(
+                                      initialCategory: effectiveCategory,
+                                      initialMatchId: currentMatch['id'],
+                                    ),
                                   ),
                                 );
                               },

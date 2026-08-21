@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import '../config/onesignal_config.dart';
 import 'app_logger.dart';
+import 'notification_service.dart';
 
 class OneSignalService {
   static final OneSignalService _instance = OneSignalService._internal();
@@ -18,7 +19,7 @@ class OneSignalService {
     if (OneSignalConfig.appId == 'YOUR_ONESIGNAL_APP_ID' ||
         OneSignalConfig.appId.isEmpty) {
       AppLogger.warning(
-        'OneSignal Warning: App ID no configurado en lib/core/config/onesignal_config.dart',
+        '⚠️ OneSignal Warning: App ID no configurado en lib/core/config/onesignal_config.dart',
         tag: 'OneSignal',
       );
       return;
@@ -46,8 +47,11 @@ class OneSignalService {
 
       // Listener para cuando se recibe una notificación en primer plano
       OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+        final title = event.notification.title ?? '';
+        final body = event.notification.body ?? '';
+        NotificationService.isDuplicateAndRecord(title, body);
         AppLogger.debug(
-          '🔔 OneSignal Notification Foreground Received: ${event.notification.title}',
+          '🔔 OneSignal Notification Foreground Received: $title',
           tag: 'OneSignal',
         );
         // Permitir que la notificación se muestre en pantalla

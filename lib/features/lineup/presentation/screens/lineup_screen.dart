@@ -14,7 +14,14 @@ import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_card.dart';
 
 class LineupScreen extends ConsumerStatefulWidget {
-  const LineupScreen({super.key});
+  final String? initialCategory;
+  final String? initialMatchId;
+
+  const LineupScreen({
+    super.key,
+    this.initialCategory,
+    this.initialMatchId,
+  });
 
   @override
   ConsumerState<LineupScreen> createState() => _LineupScreenState();
@@ -29,6 +36,13 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
   String? _selectedCategory;
   String? _selectedMatchId;
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = widget.initialCategory;
+    _selectedMatchId = widget.initialMatchId;
+  }
 
   Future<void> _saveLineup(Map<String, dynamic>? nextMatch) async {
     setState(() {
@@ -413,7 +427,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     final docId = nextMatch?['id'] ?? 'next_match_${_selectedCategory ?? 'all'}';
 
     final convocatoriaAsync = ref.watch(convocatoriaStreamProvider(docId));
-    final tutorConvsStatusAsync = ref.watch(coachConvocatoriaStatusProvider(_selectedCategory ?? ''));
+    final tutorConvsStatusAsync = ref.watch(coachConvocatoriaStatusProvider(docId));
 
     final Map<String, String> convocatoriaStatusMap = {};
     if (convocatoriaAsync.valueOrNull != null) {
@@ -449,6 +463,8 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 final List<dynamic> rawIds = data['convocadosIds'];
                 _convocadosIds.clear();
                 _convocadosIds.addAll(rawIds.map((e) => e.toString()));
+              } else {
+                _convocadosIds.clear();
               }
               if (data['positions'] != null) {
                 final rawPositions = data['positions'] as Map<String, dynamic>;
@@ -456,8 +472,13 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                 rawPositions.forEach((k, v) {
                   _positions[k] = v.toString();
                 });
+              } else {
+                _positions.clear();
               }
             }
+          } else if (snapshot.hasData && !snapshot.data!.exists && !_isSaving) {
+            _convocadosIds.clear();
+            _positions.clear();
           }
 
           // Convocados vs No Convocados

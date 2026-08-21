@@ -272,14 +272,23 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       }
     }
 
-    if (!isAdmin) {
+    if (!isAdmin && allowedCategories.isNotEmpty) {
       allEvents.removeWhere((e) {
-        // Todos los partidos (fixture, amistosos creados por DT o partidos de la liga) deben ser visibles para los jugadores en el calendario
-        if (e['type'] == 'match') return false;
+        final rawCat = (e['category'] as String?)?.trim().toLowerCase();
+        // Eventos o avisos globales sin categoría específica son visibles para todos
+        if (rawCat == null ||
+            rawCat.isEmpty ||
+            rawCat == 'all' ||
+            rawCat == 'todos' ||
+            rawCat == 'general' ||
+            rawCat == 'club' ||
+            rawCat == 'deportivo' ||
+            rawCat == 'administrativo') {
+          return false;
+        }
 
-        final cat = e['category'] as String?;
-        if (cat == null || cat.isEmpty || cat == 'todos' || cat == 'deportivo' || cat == 'administrativo') return false;
-        return !allowedCategories.contains(cat);
+        // Si el partido o evento tiene categoría asignada (ej: 2016), solo mostrar si coincide con la categoría del jugador/usuario
+        return !allowedCategories.contains(rawCat);
       });
     }
 

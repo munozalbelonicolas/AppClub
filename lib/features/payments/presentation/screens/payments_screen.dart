@@ -114,7 +114,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: context.colors.surface,
-          title: Text('Pagar Cuota Cooperadora', style: context.typography.titleLarge),
+          title: Text('Pagar Cuota Cooperadora', style: context.typography.titleLarge.copyWith(color: Colors.black87)),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.separated(
@@ -126,9 +126,9 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 return ListTile(
                   tileColor: context.colors.background,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  title: Text('${p['name']} ${p['lastName']}', style: context.typography.titleMedium),
-                  subtitle: Text('Categoría: ${p['category'] ?? "Sin categoría"}', style: context.typography.bodySmall),
-                  trailing: const Icon(Icons.payment),
+                  title: Text('${p['name']} ${p['lastName']}', style: context.typography.titleMedium.copyWith(color: Colors.black87)),
+                  subtitle: Text('Categoría: ${p['category'] ?? "Sin categoría"}', style: context.typography.bodySmall.copyWith(color: Colors.black54)),
+                  trailing: const Icon(Icons.payment, color: Colors.black54),
                   onTap: () {
                     Navigator.pop(ctx);
                     _showMonthSelectionDialog(p);
@@ -160,7 +160,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: context.colors.surface,
-          title: Text('Seleccionar Mes', style: context.typography.titleLarge),
+          title: Text('Seleccionar Mes', style: context.typography.titleLarge.copyWith(color: Colors.black87)),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.separated(
@@ -178,7 +178,13 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 return ListTile(
                   tileColor: context.colors.background,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  title: Text('$monthName $currentYear', style: context.typography.titleMedium),
+                  title: Text(
+                    '$monthName $currentYear',
+                    style: context.typography.titleMedium.copyWith(
+                      color: isPaid ? Colors.black38 : Colors.black87,
+                      fontWeight: isPaid ? FontWeight.normal : FontWeight.w600,
+                    ),
+                  ),
                   trailing: isPaid 
                     ? const Icon(Icons.check_circle, color: Colors.green) 
                     : const Icon(Icons.chevron_right, color: Colors.grey),
@@ -297,7 +303,13 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 const SizedBox(height: 24),
 
                 // ─── Players List ──────────────────────────
-                Text(isPlayer ? 'Mi Cuota' : 'Mis Hijos', style: context.typography.headlineSmall),
+                Text(
+                  isPlayer ? 'Mi Cuota' : 'Mis Hijos',
+                  style: context.typography.headlineSmall.copyWith(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 playersAsync.when(
                   data: (players) {
@@ -306,7 +318,9 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           isPlayer ? 'No se encontraron datos de cuotas.' : 'No tienes hijos vinculados.',
-                          style: context.typography.bodyMedium,
+                          style: context.typography.bodyMedium.copyWith(
+                            color: Colors.black87,
+                          ),
                         ),
                       );
                     }
@@ -331,8 +345,8 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                         }
 
                         final isAlDia = missingMonths.isEmpty;
-                        final badgeText = isAlDia ? 'AL DÍA' : 'DEUDOR';
-                        final debtText = isAlDia ? '' : 'Debe: ${missingMonths.join(", ")}';
+                        final badgeText = isAlDia ? 'AL DÍA' : 'CUOTA PENDIENTE';
+                        final debtText = isAlDia ? 'Al día con todas las cuotas' : 'Cuotas pendientes: ${missingMonths.join(", ")} $currentYear';
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -344,26 +358,47 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: context.colors.primary.withValues(alpha: 0.1),
-                                  child: Icon(Icons.person, color: context.colors.primary),
+                                  backgroundColor: isAlDia
+                                      ? context.colors.success.withValues(alpha: 0.1)
+                                      : context.colors.primary.withValues(alpha: 0.1),
+                                  child: Icon(
+                                    isAlDia ? Icons.check_circle_outline : Icons.person,
+                                    color: isAlDia ? context.colors.success : context.colors.primary,
+                                  ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text('${p['name']} ${p['lastName']}', style: context.typography.titleMedium),
-                                      Text('Categoría: ${p['category'] ?? "Sin categoría"}', style: context.typography.bodySmall),
-                                      if (!isAlDia)
-                                        Text(
-                                          debtText, 
-                                          style: context.typography.bodySmall.copyWith(color: context.colors.error, fontWeight: FontWeight.bold),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
+                                      Text(
+                                        '${p['name']} ${p['lastName']}',
+                                        style: context.typography.titleMedium.copyWith(
+                                          color: Colors.black87,
+                                          fontWeight: FontWeight.bold,
                                         ),
+                                      ),
+                                      Text(
+                                        'Categoría: ${p['category'] ?? "Sin categoría"}',
+                                        style: context.typography.bodySmall.copyWith(
+                                          color: Colors.black54,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        debtText, 
+                                        style: context.typography.bodySmall.copyWith(
+                                          color: isAlDia ? context.colors.success : context.colors.error,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
@@ -384,14 +419,18 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                                     if (!isAlDia) ...[
                                       const SizedBox(height: 8),
                                       SizedBox(
-                                        height: 30,
-                                        child: ElevatedButton(
+                                        height: 32,
+                                        child: ElevatedButton.icon(
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: context.colors.primary,
-                                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
                                           ),
+                                          icon: const Icon(Icons.upload_file, size: 14, color: Colors.white),
+                                          label: const Text('Pagar', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
                                           onPressed: () => _showMonthSelectionDialog(p),
-                                          child: const Text('Pagar', style: TextStyle(fontSize: 12, color: Colors.white)),
                                         ),
                                       ),
                                     ],
@@ -409,7 +448,9 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Text(
                       isPlayer ? 'No se encontraron datos de cuotas.' : 'No tienes hijos vinculados.',
-                      style: context.typography.bodyMedium,
+                      style: context.typography.bodyMedium.copyWith(
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                 ),
