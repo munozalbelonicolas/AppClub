@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
@@ -76,6 +75,39 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     return -1;
   }
 
+  String _cleanCat(String? raw) {
+    if (raw == null) return '';
+    return raw
+        .toLowerCase()
+        .replaceAll('categoría', '')
+        .replaceAll('categoria', '')
+        .replaceAll('cat.', '')
+        .replaceAll('cat', '')
+        .trim();
+  }
+
+  String? _parseDateToIso(dynamic rawDate) {
+    if (rawDate == null) return null;
+    if (rawDate is Timestamp) {
+      final d = rawDate.toDate();
+      return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    }
+    if (rawDate is DateTime) {
+      return '${rawDate.year}-${rawDate.month.toString().padLeft(2, '0')}-${rawDate.day.toString().padLeft(2, '0')}';
+    }
+    final s = rawDate.toString().trim();
+    if (s.isEmpty) return null;
+    if (RegExp(r'^\d{4}-\d{1,2}-\d{1,2}').hasMatch(s)) {
+      final parts = s.split('-');
+      return '${parts[0]}-${parts[1].padLeft(2, '0')}-${parts[2].split('T')[0].split(' ')[0].padLeft(2, '0')}';
+    }
+    if (RegExp(r'^\d{1,2}/\d{1,2}/\d{4}').hasMatch(s)) {
+      final parts = s.split('/');
+      return '${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}';
+    }
+    return null;
+  }
+
   List<Map<String, dynamic>> _getFilteredEvents(List<Map<String, dynamic>> events) {
     final selectedDateStr = _formatDateString(_selectedDate);
     return events.where((e) {
@@ -96,6 +128,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final bool isAdmin = sessionUser?.isAdmin ?? false;
     final Set<String> allowedCategories = {};
 
+    final playersAsync = ref.watch(playersStreamProvider);
+    final rawPlayers = playersAsync.valueOrNull ?? [];
+
     if (!isAdmin && sessionUser != null) {
       if (sessionUser.role == 'dt') {
         if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
@@ -104,8 +139,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           allowedCategories.add(sessionUser.category!);
         }
       } else if (sessionUser.role == 'jugador') {
-        if (sessionUser.category != null) {
+        if (sessionUser.category != null && sessionUser.category!.isNotEmpty) {
           allowedCategories.add(sessionUser.category!);
+        }
+        final playerDoc = rawPlayers.where((p) => p['id'] == sessionUser.id || p['userId'] == sessionUser.id).firstOrNull;
+        if (playerDoc != null) {
+          final pCat = playerDoc['category']?.toString();
+          if (pCat != null && pCat.isNotEmpty) {
+            allowedCategories.add(pCat);
+          }
         }
       } else if (sessionUser.role == 'tutor' || sessionUser.role == 'padre') {
         if (sessionUser.category != null) {
@@ -123,14 +165,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     final eventsAsync = ref.watch(calendarEventsStreamProvider);
     final matchesAsync = ref.watch(matchesStreamProvider);
-    final playersAsync = ref.watch(playersStreamProvider);
     final schedulesAsync = ref.watch(allTrainingSchedulesStreamProvider);
     final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
     final clubsAsync = ref.watch(clubsStreamProvider);
 
     final rawEvents = eventsAsync.valueOrNull ?? [];
     final rawMatches = matchesAsync.valueOrNull ?? [];
-    final rawPlayers = playersAsync.valueOrNull ?? [];
     final rawNovedades = ref.watch(allNovedadesStreamProvider).valueOrNull ?? [];
     final rawSchedules = schedulesAsync.valueOrNull ?? [];
     final rawFixtures = fixturesAsync.valueOrNull ?? [];
@@ -148,7 +188,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     // 1. Partidos y Eventos creados desde Novedades/Comunicados por DT o Admin
     for (final n in rawNovedades) {
-      final String? date = n['eventDate'] ?? n['date'] ?? (n['createdAt'] is Timestamp ? DateFormat('yyyy-MM-dd').format((n['createdAt'] as Timestamp).toDate()) : null);
+      final date = _parseDateToIso(n['eventDate']) ?? _parseDateToIso(n['date']) ?? _parseDateToIso(n['createdAt']);
       if (date != null && date.isNotEmpty) {
         final bool isMatch = n['eventType'] == 'partido' || n['isMatch'] == true;
         String title = n['title'] ?? 'Comunicado';
@@ -165,7 +205,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             awayTeam = n['title'] as String;
           }
           final catLabel = (n['category'] ?? n['eventCategory'] ?? '').toString();
-          final catSuffix = catLabel.isNotEmpty && catLabel != 'all' ? ' (Cat. $catLabel)' : '';
+          final cleanCat = _cleanCat(catLabel);
+          final catSuffix = cleanCat.isNotEmpty && cleanCat != 'all' ? ' (Cat. $cleanCat)' : '';
           title = 'Partido Amistoso$catSuffix: Jorge Newbery vs $awayTeam';
         }
 
@@ -182,10 +223,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     // 2. Partidos de la colección 'matches'
     for (final m in rawMatches) {
-      final date = m['date'] as String?;
+      final date = _parseDateToIso(m['date']);
       if (date == null || date.isEmpty) continue;
       final mCat = (m['category'] ?? '').toString();
-      final catSuffix = mCat.isNotEmpty && mCat != 'all' ? ' (Cat. $mCat)' : '';
+      final cleanCat = _cleanCat(mCat);
+      final catSuffix = cleanCat.isNotEmpty && cleanCat != 'all' ? ' (Cat. $cleanCat)' : '';
       allEvents.add({
         'title': 'Partido$catSuffix: ${m['homeTeam']} vs ${m['awayTeam']}',
         'type': 'match',
@@ -199,26 +241,28 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     // 3. Partidos cargados por el ADMIN en el Fixture
     for (final f in rawFixtures) {
       final matchesList = List<Map<String, dynamic>>.from(f['matches'] ?? []);
-      final cat = f['category']?.toString() ?? 'all';
+      final fixtureCat = f['category']?.toString() ?? 'all';
+      final fixtureDate = _parseDateToIso(f['date']) ?? _parseDateToIso(f['createdAt']);
 
       for (final m in matchesList) {
-        final date = m['date'] as String?;
+        final date = _parseDateToIso(m['date']) ?? fixtureDate;
         if (date == null || date.isEmpty) continue;
 
         final homeClub = clubs.where((c) => c['id'] == m['homeClubId']).firstOrNull;
         final awayClub = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
         final homeName = homeClub?['name'] ?? 'Jorge Newbery';
         final awayName = awayClub?['name'] ?? 'Rival';
-        final matchCat = (m['category'] ?? cat).toString();
-        final catSuffix = matchCat.isNotEmpty && matchCat != 'all' ? ' - Cat. $matchCat' : '';
+        final matchCat = (m['category'] ?? fixtureCat).toString();
+        final cleanCat = _cleanCat(matchCat);
+        final catSuffix = cleanCat.isNotEmpty && cleanCat != 'all' ? ' - Cat. $cleanCat' : '';
 
         allEvents.add({
           'title': 'Partido (${f['name'] ?? 'Fixture'}$catSuffix): $homeName vs $awayName',
           'type': 'match',
           'date': date,
-          'time': m['time'] ?? 'A confirmar',
-          'location': m['venue'] ?? m['location'] ?? 'Cancha Club',
-          'category': matchCat,
+          'time': m['time'] ?? f['time'] ?? 'A confirmar',
+          'location': m['venue'] ?? m['location'] ?? f['location'] ?? 'Cancha Club',
+          'category': cleanCat.isNotEmpty ? cleanCat : matchCat,
         });
       }
     }
@@ -273,23 +317,28 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     }
 
     if (!isAdmin && allowedCategories.isNotEmpty) {
-      final normalizedAllowed = allowedCategories.map((c) => c.trim().toLowerCase()).toSet();
+      final normalizedAllowed = allowedCategories
+          .map((c) => _cleanCat(c))
+          .where((c) => c.isNotEmpty)
+          .toSet();
+
       allEvents.removeWhere((e) {
-        final rawCat = (e['category'] as String?)?.trim().toLowerCase();
+        final rawCat = (e['category'] as String?) ?? '';
+        final cleanCat = _cleanCat(rawCat);
+
         // Eventos o avisos globales sin categoría específica son visibles para todos
-        if (rawCat == null ||
-            rawCat.isEmpty ||
-            rawCat == 'all' ||
-            rawCat == 'todos' ||
-            rawCat == 'general' ||
-            rawCat == 'club' ||
-            rawCat == 'deportivo' ||
-            rawCat == 'administrativo') {
+        if (cleanCat.isEmpty ||
+            cleanCat == 'all' ||
+            cleanCat == 'todos' ||
+            cleanCat == 'general' ||
+            cleanCat == 'club' ||
+            cleanCat == 'deportivo' ||
+            cleanCat == 'administrativo') {
           return false;
         }
 
         // Si el partido o evento tiene categoría asignada (ej: 2016), solo mostrar si coincide con la categoría del jugador/usuario
-        return !normalizedAllowed.contains(rawCat);
+        return !normalizedAllowed.contains(cleanCat);
       });
     }
 
