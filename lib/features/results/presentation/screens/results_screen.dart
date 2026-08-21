@@ -350,14 +350,15 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: context.colors.surfaceVariant.withValues(alpha: 0.6),
+                        color: context.colors.surfaceVariant.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: context.colors.primary.withValues(alpha: 0.25)),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          // Local
                           Expanded(
+                            flex: 4,
                             child: Row(
                               children: [
                                 _buildClubSmallAvatar(homeClub),
@@ -365,14 +366,52 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                 Expanded(
                                   child: Text(
                                     homeName,
-                                    style: context.typography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                                    style: context.typography.titleSmall.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                              ],
+                            ),
+                          ),
+
+                          // Marcador Puntos Central
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: context.colors.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: context.colors.border.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 Text(
                                   '$homeTotalPts pts',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    color: context.colors.accent,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5.0),
+                                  child: Text(
+                                    '-',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: context.colors.textTertiary,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '$awayTotalPts pts',
+                                  style: TextStyle(
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w900,
                                     color: context.colors.accent,
                                   ),
@@ -380,26 +419,20 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               ],
                             ),
                           ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 10.0),
-                            child: Text('VS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white38, fontSize: 11)),
-                          ),
+
+                          // Visitante
                           Expanded(
+                            flex: 4,
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                Text(
-                                  '$awayTotalPts pts',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w900,
-                                    color: context.colors.accent,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     awayName,
-                                    style: context.typography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                                    style: context.typography.titleSmall.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                     textAlign: TextAlign.end,
                                   ),
@@ -414,14 +447,11 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     ),
 
                     const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Puntos de Jornada: $playedCount/${allMatches.length} partidos jugados (2 pts Victoria · 1 pt Empate)',
-                          style: TextStyle(fontSize: 10, color: context.colors.textTertiary),
-                        ),
-                      ],
+                    Text(
+                      'Puntos de Jornada: $playedCount/${allMatches.length} partidos jugados (2 pts Victoria · 1 pt Empate)',
+                      style: TextStyle(fontSize: 10, color: context.colors.textTertiary),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
 
                     const SizedBox(height: 14),
@@ -442,20 +472,21 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       final bool hasScores = homeScore != null && awayScore != null;
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: context.colors.surfaceVariant.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(8),
+                          color: context.colors.surfaceVariant.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: isLive
-                                ? context.colors.error.withValues(alpha: 0.5)
-                                : context.colors.border.withValues(alpha: 0.25),
+                                ? context.colors.error.withValues(alpha: 0.6)
+                                : context.colors.border.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Categoría y Horario
+                            // ─── Categoría y Horario ───
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -463,7 +494,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
                                         color: context.colors.primary.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(4),
@@ -500,33 +531,44 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                   ],
                                 ),
                                 if (match['time'] != null && match['time'].toString().isNotEmpty)
-                                  Text(
-                                    match['time'].toString(),
-                                    style: TextStyle(fontSize: 11, color: context.colors.textTertiary),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.access_time, size: 12, color: context.colors.textTertiary),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        match['time'].toString(),
+                                        style: TextStyle(fontSize: 11, color: context.colors.textTertiary, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
                                   ),
                               ],
                             ),
 
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 10),
 
-                            // Fila de Equipos y Marcador
+                            // ─── Fila de Equipos y Marcador ───
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 // Local
                                 Expanded(
+                                  flex: 4,
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
-                                      Flexible(
+                                      Expanded(
                                         child: Text(
                                           mHomeClub?['name'] ?? 'Local',
-                                          style: context.typography.titleSmall,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: context.colors.textPrimary,
+                                          ),
                                           overflow: TextOverflow.ellipsis,
                                           textAlign: TextAlign.end,
                                         ),
                                       ),
-                                      const SizedBox(width: 6),
+                                      const SizedBox(width: 8),
                                       _buildClubSmallAvatar(mHomeClub),
                                     ],
                                   ),
@@ -535,37 +577,45 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
                                 // Marcador
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                                   decoration: BoxDecoration(
                                     color: context.colors.surface,
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isLive ? context.colors.error.withValues(alpha: 0.5) : context.colors.border.withValues(alpha: 0.4),
+                                    ),
                                   ),
                                   child: hasScores || isFinished || isLive
                                       ? Text(
                                           '${homeScore ?? 0} - ${awayScore ?? 0}',
                                           style: TextStyle(
-                                            fontSize: 16,
+                                            fontSize: 15,
                                             fontWeight: FontWeight.w900,
                                             color: isLive ? context.colors.error : context.colors.textPrimary,
                                           ),
                                         )
-                                      : const Text(
+                                      : Text(
                                           'VS',
-                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE5B842)),
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.accent),
                                         ),
                                 ),
                                 const SizedBox(width: 8),
 
                                 // Visitante
                                 Expanded(
+                                  flex: 4,
                                   child: Row(
                                     children: [
                                       _buildClubSmallAvatar(mAwayClub),
-                                      const SizedBox(width: 6),
-                                      Flexible(
+                                      const SizedBox(width: 8),
+                                      Expanded(
                                         child: Text(
                                           mAwayClub?['name'] ?? 'Visitante',
-                                          style: context.typography.titleSmall,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: context.colors.textPrimary,
+                                          ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
@@ -575,29 +625,33 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               ],
                             ),
 
-                            // Goleadores del partido
+                            // ─── Goleadores del partido ───
                             if (match['scorers'] != null && (match['scorers'] as List).isNotEmpty) ...[
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 4,
                                 children: (match['scorers'] as List).map((sc) {
                                   final scMap = sc as Map<String, dynamic>;
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: context.colors.surface.withValues(alpha: 0.7),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: context.colors.border.withValues(alpha: 0.3)),
+                                      color: context.colors.surface,
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: context.colors.border.withValues(alpha: 0.4)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.sports_soccer, size: 10, color: Color(0xFFE5B842)),
+                                        Icon(Icons.sports_soccer, size: 11, color: context.colors.accent),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${scMap['name']} (${scMap['goals']})',
-                                          style: const TextStyle(fontSize: 10, color: Colors.white70),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: context.colors.textPrimary,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -606,9 +660,9 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               ),
                             ],
 
-                            // Tarjetas del partido
+                            // ─── Tarjetas del partido ───
                             if (match['cards'] != null && (match['cards'] as List).isNotEmpty) ...[
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 4,
@@ -616,12 +670,12 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                   final cMap = c as Map<String, dynamic>;
                                   final isRed = cMap['cardType']?.toString() == 'red';
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: (isRed ? Colors.red : Colors.amber).withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
+                                      color: (isRed ? context.colors.error : Colors.amber).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(5),
                                       border: Border.all(
-                                        color: (isRed ? Colors.red : Colors.amber).withValues(alpha: 0.4),
+                                        color: (isRed ? context.colors.error : Colors.amber).withValues(alpha: 0.5),
                                       ),
                                     ),
                                     child: Row(
@@ -629,13 +683,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                       children: [
                                         Icon(
                                           Icons.square_rounded,
-                                          size: 10,
-                                          color: isRed ? Colors.red : Colors.amber,
+                                          size: 11,
+                                          color: isRed ? context.colors.error : Colors.amber,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
                                           cMap['name']?.toString() ?? '',
-                                          style: const TextStyle(fontSize: 10, color: Colors.white70),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: context.colors.textPrimary,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -644,7 +702,9 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               ),
                             ],
 
-                            // Fila de Estado y Botones de Acción
+                            const SizedBox(height: 10),
+
+                            // ─── Fila de Estado y Botones de Acción Responsiva ───
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -656,119 +716,124 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                   const JNBadge(label: 'PROGRAMADO', small: true),
 
                                 if (canManage)
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      // Botón Goleadores
-                                      InkWell(
-                                        onTap: () => _showMatchScorersModal(
-                                          context,
-                                          fixture: fixture,
-                                          matchIndex: matchIndexInAll,
-                                          homeClub: mHomeClub,
-                                          awayClub: mAwayClub,
-                                          category: catLabel,
-                                        ),
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: context.colors.primary.withValues(alpha: 0.12),
+                                  Flexible(
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          // Botón Goleadores
+                                          InkWell(
+                                            onTap: () => _showMatchScorersModal(
+                                              context,
+                                              fixture: fixture,
+                                              matchIndex: matchIndexInAll,
+                                              homeClub: mHomeClub,
+                                              awayClub: mAwayClub,
+                                              category: catLabel,
+                                            ),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: context.colors.primary.withValues(alpha: 0.35)),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.emoji_events_outlined, size: 13, color: context.colors.primary),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'Goleadores',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: context.colors.primary,
-                                                ),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: context.colors.primary.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: context.colors.primary.withValues(alpha: 0.35)),
                                               ),
-                                            ],
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.emoji_events_outlined, size: 13, color: context.colors.primary),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Goleadores',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: context.colors.primary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
+                                          const SizedBox(width: 5),
 
-                                      // Botón Tarjetas
-                                      InkWell(
-                                        onTap: () => _showMatchCardsModal(
-                                          context,
-                                          fixture: fixture,
-                                          matchIndex: matchIndexInAll,
-                                          homeClub: mHomeClub,
-                                          awayClub: mAwayClub,
-                                          category: catLabel,
-                                        ),
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.amber.withValues(alpha: 0.12),
+                                          // Botón Tarjetas
+                                          InkWell(
+                                            onTap: () => _showMatchCardsModal(
+                                              context,
+                                              fixture: fixture,
+                                              matchIndex: matchIndexInAll,
+                                              homeClub: mHomeClub,
+                                              awayClub: mAwayClub,
+                                              category: catLabel,
+                                            ),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
-                                          ),
-                                          child: const Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.square_rounded, size: 13, color: Colors.amber),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                'Tarjetas',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.amber,
-                                                ),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.amber.withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
                                               ),
-                                            ],
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.square_rounded, size: 13, color: Colors.amber),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Tarjetas',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.amber.shade800,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
+                                          const SizedBox(width: 5),
 
-                                      // Botón Resultado
-                                      InkWell(
-                                        onTap: () => _showSingleMatchResultModal(
-                                          context,
-                                          fixture: fixture,
-                                          matchIndex: matchIndexInAll,
-                                          homeClub: mHomeClub,
-                                          awayClub: mAwayClub,
-                                          category: catLabel,
-                                        ),
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: context.colors.accent.withValues(alpha: 0.15),
+                                          // Botón Resultado
+                                          InkWell(
+                                            onTap: () => _showSingleMatchResultModal(
+                                              context,
+                                              fixture: fixture,
+                                              matchIndex: matchIndexInAll,
+                                              homeClub: mHomeClub,
+                                              awayClub: mAwayClub,
+                                              category: catLabel,
+                                            ),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: context.colors.accent.withValues(alpha: 0.4)),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.sports_soccer, size: 13, color: context.colors.accent),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                hasScores ? 'Editar Goles' : '⚽ Resultado',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: context.colors.accent,
-                                                ),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: context.colors.accent.withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: context.colors.accent.withValues(alpha: 0.5)),
                                               ),
-                                            ],
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.edit_outlined, size: 12, color: context.colors.accent),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    hasScores ? 'Editar Goles' : 'Resultado',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: context.colors.accent,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ),
                               ],
                             ),
