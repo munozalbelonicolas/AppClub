@@ -1550,16 +1550,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             children: matchScorers.asMap().entries.map((entry) {
                               final scIdx = entry.key;
                               final sc = entry.value;
+                              final currentGoals = (sc['goals'] as num?)?.toInt() ?? 1;
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF242427),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.sports_soccer, size: 14, color: Color(0xFFE5B842)),
+                                    const Icon(Icons.sports_soccer, size: 16, color: Color(0xFFE5B842)),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Column(
@@ -1570,19 +1571,69 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                                           ),
                                           Text(
-                                            '${sc['team']} · ${sc['goals']} ${sc['goals'] == 1 ? 'gol' : 'goles'}',
+                                            sc['team']?.toString() ?? '',
                                             style: const TextStyle(color: Colors.white60, fontSize: 11),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                                      onPressed: () {
-                                        setModalState(() {
-                                          matchScorers.removeAt(scIdx);
-                                        });
-                                      },
+                                    // Controles de goles (+ / -)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        InkWell(
+                                          onTap: () {
+                                            setModalState(() {
+                                              if (currentGoals > 1) {
+                                                matchScorers[scIdx]['goals'] = currentGoals - 1;
+                                              } else {
+                                                matchScorers.removeAt(scIdx);
+                                              }
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF333338),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Icon(Icons.remove, size: 14, color: Colors.white70),
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                          child: Text(
+                                            '$currentGoals ${currentGoals == 1 ? 'gol' : 'goles'}',
+                                            style: const TextStyle(color: Color(0xFFE5B842), fontWeight: FontWeight.bold, fontSize: 12),
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () {
+                                            setModalState(() {
+                                              matchScorers[scIdx]['goals'] = currentGoals + 1;
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF333338),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Icon(Icons.add, size: 14, color: Color(0xFFE5B842)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () {
+                                            setModalState(() {
+                                              matchScorers.removeAt(scIdx);
+                                            });
+                                          },
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -1704,9 +1755,20 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                               });
                                             } else if (val != null) {
                                               final sel = categoryPlayers.firstWhere((p) => p['id'] == val);
+                                              final pName = _getPlayerName(sel);
                                               setModalState(() {
                                                 selectedPlayerId = val;
-                                                nameController.text = _getPlayerName(sel);
+                                                nameController.text = pName;
+                                                final existingIdx = matchScorers.indexWhere((sc) => sc['playerId'] == val || sc['name'] == pName);
+                                                if (existingIdx == -1) {
+                                                  matchScorers.add({
+                                                    'name': pName,
+                                                    'playerId': val,
+                                                    'team': selectedTeam,
+                                                    'goals': 1,
+                                                    'isClub': isLocalSelected,
+                                                  });
+                                                }
                                               });
                                             }
                                           },
@@ -1768,13 +1830,18 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             final gCount = int.tryParse(goalsController.text.trim()) ?? 1;
                             if (pName.isNotEmpty && gCount > 0) {
                               setModalState(() {
-                                matchScorers.add({
-                                  'name': pName,
-                                  'playerId': selectedPlayerId,
-                                  'team': selectedTeam,
-                                  'goals': gCount,
-                                  'isClub': isLocalSelected,
-                                });
+                                final existingIdx = matchScorers.indexWhere((sc) => sc['name']?.toString().toLowerCase() == pName.toLowerCase() && sc['team'] == selectedTeam);
+                                if (existingIdx != -1) {
+                                  matchScorers[existingIdx]['goals'] = gCount;
+                                } else {
+                                  matchScorers.add({
+                                    'name': pName,
+                                    'playerId': selectedPlayerId,
+                                    'team': selectedTeam,
+                                    'goals': gCount,
+                                    'isClub': isLocalSelected,
+                                  });
+                                }
                                 nameController.clear();
                                 goalsController.text = '1';
                                 selectedPlayerId = null;
@@ -1796,6 +1863,22 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () async {
+                        // Auto-incluir si hay un jugador escrito/seleccionado que no se añadió manualmente con el botón
+                        final currentName = nameController.text.trim();
+                        final currentGoals = int.tryParse(goalsController.text.trim()) ?? 1;
+                        if (currentName.isNotEmpty && currentGoals > 0) {
+                          final existingIdx = matchScorers.indexWhere((sc) => sc['name']?.toString().toLowerCase() == currentName.toLowerCase() && sc['team'] == selectedTeam);
+                          if (existingIdx == -1) {
+                            matchScorers.add({
+                              'name': currentName,
+                              'playerId': selectedPlayerId,
+                              'team': selectedTeam,
+                              'goals': currentGoals,
+                              'isClub': isLocalSelected,
+                            });
+                          }
+                        }
+
                         final currentMatches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
                         int saveIndex = currentMatches.indexWhere((m) {
                           final mCat = (m['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
@@ -2244,9 +2327,22 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                   } else if (val != null) {
                                     final sel = categoryPlayers
                                         .firstWhere((p) => p['id'] == val);
+                                    final pName = _getPlayerName(sel);
                                     setModalState(() {
                                       selectedPlayerId = val;
-                                      nameController.text = _getPlayerName(sel);
+                                      nameController.text = pName;
+                                      final existingIdx = matchCards.indexWhere((c) =>
+                                          (c['playerId'] == val || c['name'] == pName) &&
+                                          c['cardType'] == selectedCardType);
+                                      if (existingIdx == -1) {
+                                        matchCards.add({
+                                          'name': pName,
+                                          'playerId': val,
+                                          'team': selectedTeam,
+                                          'cardType': selectedCardType,
+                                          'isClub': isLocalSelected,
+                                        });
+                                      }
                                     });
                                   }
                                 },
@@ -2296,13 +2392,19 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             final pName = nameController.text.trim();
                             if (pName.isNotEmpty) {
                               setModalState(() {
-                                matchCards.add({
-                                  'name': pName,
-                                  'playerId': selectedPlayerId,
-                                  'team': selectedTeam,
-                                  'cardType': selectedCardType,
-                                  'isClub': isLocalSelected,
-                                });
+                                final existingIdx = matchCards.indexWhere((c) =>
+                                    c['name']?.toString().toLowerCase() == pName.toLowerCase() &&
+                                    c['team'] == selectedTeam &&
+                                    c['cardType'] == selectedCardType);
+                                if (existingIdx == -1) {
+                                  matchCards.add({
+                                    'name': pName,
+                                    'playerId': selectedPlayerId,
+                                    'team': selectedTeam,
+                                    'cardType': selectedCardType,
+                                    'isClub': isLocalSelected,
+                                  });
+                                }
                                 nameController.clear();
                                 selectedPlayerId = null;
                               });
@@ -2325,6 +2427,24 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () async {
+                        // Auto-incluir jugador si fue escrito o seleccionado y no se presionó el botón secundario
+                        final currentName = nameController.text.trim();
+                        if (currentName.isNotEmpty) {
+                          final existingIdx = matchCards.indexWhere((c) =>
+                              c['name']?.toString().toLowerCase() == currentName.toLowerCase() &&
+                              c['team'] == selectedTeam &&
+                              c['cardType'] == selectedCardType);
+                          if (existingIdx == -1) {
+                            matchCards.add({
+                              'name': currentName,
+                              'playerId': selectedPlayerId,
+                              'team': selectedTeam,
+                              'cardType': selectedCardType,
+                              'isClub': isLocalSelected,
+                            });
+                          }
+                        }
+
                         final currentMatches = List<Map<String, dynamic>>.from(fixture['matches'] ?? []);
                         int saveIndex = currentMatches.indexWhere((m) {
                           final mCat = (m['category']?.toString() ?? '').replaceAll('Categoría', '').replaceAll('Cat.', '').replaceAll('Cat', '').trim().toLowerCase();
