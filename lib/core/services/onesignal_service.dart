@@ -135,7 +135,6 @@ class OneSignalService {
         payload['include_aliases'] = {
           'external_id': [targetUserId]
         };
-        payload['include_external_user_ids'] = [targetUserId];
       } else if (targetCategory == 'admin' || targetCategory == 'directivo') {
         payload['filters'] = [
           {

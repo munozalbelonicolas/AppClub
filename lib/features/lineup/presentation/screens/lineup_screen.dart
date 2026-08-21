@@ -116,16 +116,16 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
           final isStarter = _positions.values.contains(p['id']);
           final playerId = p['id'] as String;
 
-          // Look up ALL tutors for this player
-          final List<String> tutorIds = [];
+          // Look up ALL tutors for this player (deduplicated)
+          final Set<String> tutorIds = {};
           try {
             final tutorLinksSnap = await FirebaseFirestore.instance
                 .collection('player_tutor_links')
                 .where('playerId', isEqualTo: playerId)
                 .get();
             for (final tdoc in tutorLinksSnap.docs) {
-              final tid = tdoc.data()['tutorId'] as String?;
-              if (tid != null && tid.isNotEmpty && !tutorIds.contains(tid)) {
+              final tid = tdoc.data()['tutorId']?.toString().trim();
+              if (tid != null && tid.isNotEmpty) {
                 tutorIds.add(tid);
               }
             }
@@ -133,9 +133,12 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
           // Fallbacks from player doc
           if (tutorIds.isEmpty) {
-            if (p['tutorId'] != null) tutorIds.add(p['tutorId'] as String);
-            if (p['parentId'] != null) tutorIds.add(p['parentId'] as String);
-            if (p['fatherId'] != null) tutorIds.add(p['fatherId'] as String);
+            final tId = p['tutorId']?.toString().trim();
+            final pId = p['parentId']?.toString().trim();
+            final fId = p['fatherId']?.toString().trim();
+            if (tId != null && tId.isNotEmpty) tutorIds.add(tId);
+            if (pId != null && pId.isNotEmpty) tutorIds.add(pId);
+            if (fId != null && fId.isNotEmpty) tutorIds.add(fId);
           }
 
           final cDoc = convocatoriaRef.doc(playerId);
