@@ -634,24 +634,31 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                 runSpacing: 4,
                                 children: (match['scorers'] as List).map((sc) {
                                   final scMap = sc as Map<String, dynamic>;
+                                  final isLight = Theme.of(context).brightness == Brightness.light;
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: context.colors.surface,
-                                      borderRadius: BorderRadius.circular(5),
-                                      border: Border.all(color: context.colors.border.withValues(alpha: 0.4)),
+                                      color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF27272A),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: isLight ? const Color(0xFFCBD5E1) : const Color(0xFF3F3F46),
+                                      ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.sports_soccer, size: 11, color: context.colors.accent),
-                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.sports_soccer,
+                                          size: 12,
+                                          color: isLight ? const Color(0xFFB45309) : const Color(0xFFE5B842),
+                                        ),
+                                        const SizedBox(width: 5),
                                         Text(
                                           '${scMap['name']} (${scMap['goals']})',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: context.colors.textPrimary,
+                                            fontWeight: FontWeight.bold,
+                                            color: isLight ? const Color(0xFF0F172A) : Colors.white,
                                           ),
                                         ),
                                       ],
@@ -670,13 +677,18 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                 children: (match['cards'] as List).map((c) {
                                   final cMap = c as Map<String, dynamic>;
                                   final isRed = cMap['cardType']?.toString() == 'red';
+                                  final isLight = Theme.of(context).brightness == Brightness.light;
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: (isRed ? context.colors.error : Colors.amber).withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(5),
+                                      color: isLight
+                                          ? (isRed ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7))
+                                          : (isRed ? context.colors.error.withValues(alpha: 0.15) : Colors.amber.withValues(alpha: 0.15)),
+                                      borderRadius: BorderRadius.circular(6),
                                       border: Border.all(
-                                        color: (isRed ? context.colors.error : Colors.amber).withValues(alpha: 0.5),
+                                        color: isLight
+                                            ? (isRed ? const Color(0xFFFCA5A5) : const Color(0xFFFCD34D))
+                                            : (isRed ? context.colors.error.withValues(alpha: 0.5) : Colors.amber.withValues(alpha: 0.5)),
                                       ),
                                     ),
                                     child: Row(
@@ -684,16 +696,18 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                       children: [
                                         Icon(
                                           Icons.square_rounded,
-                                          size: 11,
-                                          color: isRed ? context.colors.error : Colors.amber,
+                                          size: 12,
+                                          color: isRed
+                                              ? (isLight ? const Color(0xFFDC2626) : context.colors.error)
+                                              : (isLight ? const Color(0xFFD97706) : Colors.amber),
                                         ),
-                                        const SizedBox(width: 4),
+                                        const SizedBox(width: 5),
                                         Text(
                                           cMap['name']?.toString() ?? '',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: context.colors.textPrimary,
+                                            fontWeight: FontWeight.bold,
+                                            color: isLight ? const Color(0xFF0F172A) : Colors.white,
                                           ),
                                         ),
                                       ],
