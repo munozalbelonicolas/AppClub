@@ -369,6 +369,43 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 6),
+                      // Resumen de comprobantes disponibles
+                      Builder(
+                        builder: (_) {
+                          final countReceipts = orders.where((o) {
+                            final r = o['receiptUrl']?.toString() ?? o['imageUrl']?.toString() ?? o['proofUrl']?.toString();
+                            return r != null && r.isNotEmpty;
+                          }).length;
+                          if (countReceipts > 0) {
+                            return Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.receipt_long, size: 14, color: Color(0xFFD97706)),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '$countReceipts comprobante${countReceipts > 1 ? 's' : ''} subido${countReceipts > 1 ? 's' : ''} por el tutor',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isLight ? const Color(0xFFB45309) : const Color(0xFFFDE68A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                       const SizedBox(height: 8),
                       const Divider(),
                     ],
@@ -381,20 +418,35 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                       separatorBuilder: (_, _) => const SizedBox(height: 6),
                       itemBuilder: (context, index) {
                         final monthStr = '${index + 1}'.padLeft(2, '0');
+                        final monthNumStr = '${index + 1}';
                         final quotaMonth = '$monthStr/$currentYear';
                         final isPaid = currentPaidQuotas.contains(quotaMonth);
+                        final monthName = months[index].toLowerCase();
 
                         // Find matching order for this month
                         final matchingOrder = orders.where((o) {
-                          final qm = o['quotaMonth']?.toString();
-                          if (qm == quotaMonth || qm == '${index + 1}/$currentYear' || qm == monthStr || qm == '${index + 1}') {
-                            return true;
-                          }
-                          final pName = o['productName']?.toString().toLowerCase() ?? '';
-                          return pName.contains(months[index].toLowerCase()) && (pName.contains('$currentYear') || !pName.contains('202'));
+                          final qm = (o['quotaMonth']?.toString() ?? '').trim().toLowerCase();
+                          final pName = (o['productName']?.toString() ?? '').toLowerCase();
+                          final oNotes = (o['notes']?.toString() ?? '').toLowerCase();
+
+                          final bool monthMatch = qm == quotaMonth ||
+                              qm == '$monthNumStr/$currentYear' ||
+                              qm == monthStr ||
+                              qm == monthNumStr ||
+                              qm == monthName ||
+                              qm.contains(monthName) ||
+                              pName.contains(monthName) ||
+                              pName.contains(quotaMonth) ||
+                              pName.contains('$monthNumStr/$currentYear') ||
+                              oNotes.contains(monthName);
+
+                          return monthMatch;
                         }).firstOrNull;
 
-                        final receiptUrl = matchingOrder?['receiptUrl']?.toString() ?? matchingOrder?['imageUrl']?.toString() ?? matchingOrder?['proofUrl']?.toString();
+                        final receiptUrl = matchingOrder?['receiptUrl']?.toString() ??
+                            matchingOrder?['imageUrl']?.toString() ??
+                            matchingOrder?['proofUrl']?.toString() ??
+                            matchingOrder?['productImageUrl']?.toString();
                         final hasReceipt = receiptUrl != null && receiptUrl.isNotEmpty;
                         final orderStatus = matchingOrder?['status']?.toString() ?? '';
 
@@ -488,7 +540,7 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                                       ),
                                       if (isPaid)
                                         Text(
-                                          hasReceipt ? 'Pagada (con comprobante)' : 'Pagada',
+                                          hasReceipt ? 'Pagada · Comprobante adjunto' : 'Pagada',
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: context.colors.success,
@@ -538,7 +590,7 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          orderStatus == 'confirmed' ? 'Comprobante' : 'Ver Comprobante',
+                                          orderStatus == 'confirmed' ? 'Comprobante ✓' : 'Ver Comprobante',
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
