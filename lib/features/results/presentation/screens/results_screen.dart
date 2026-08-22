@@ -193,6 +193,18 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
+  Map<String, dynamic>? _findClub(List<Map<String, dynamic>> clubs, dynamic clubIdOrName) {
+    if (clubIdOrName == null) return null;
+    final str = clubIdOrName.toString().trim().toLowerCase();
+    if (str.isEmpty) return null;
+    return clubs.where((c) {
+      final cId = c['id']?.toString().trim().toLowerCase();
+      final cName = c['name']?.toString().trim().toLowerCase();
+      final cShort = c['shortName']?.toString().trim().toLowerCase();
+      return cId == str || cName == str || (cShort != null && cShort == str);
+    }).firstOrNull;
+  }
+
   // ─── 1. Fixture & Resultados Tab (Jornadas y 10 Categorías) ──────────────────────────────────
   Widget _buildFixtureTab(bool canManage) {
     final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
@@ -250,14 +262,14 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
             String? awayClubId;
 
             for (final m in allMatches) {
-              homeClubId ??= m['homeClubId']?.toString();
-              awayClubId ??= m['awayClubId']?.toString();
+              homeClubId ??= m['homeClubId']?.toString() ?? m['homeTeam']?.toString();
+              awayClubId ??= m['awayClubId']?.toString() ?? m['awayTeam']?.toString();
 
               final hScore = m['homeScore'] != null ? int.tryParse(m['homeScore'].toString()) : null;
               final aScore = m['awayScore'] != null ? int.tryParse(m['awayScore'].toString()) : null;
               final status = m['status']?.toString() ?? '';
 
-              if (hScore != null && aScore != null && status != 'scheduled') {
+              if (hScore != null && aScore != null && status != 'scheduled' && status != 'suspended') {
                 playedCount++;
                 final isPromo = m['isPromotional'] == true;
                 if (!isPromo) {
@@ -273,8 +285,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
               }
             }
 
-            final homeClub = clubs.where((c) => c['id'] == homeClubId).firstOrNull;
-            final awayClub = clubs.where((c) => c['id'] == awayClubId).firstOrNull;
+            final homeClub = _findClub(clubs, homeClubId);
+            final awayClub = _findClub(clubs, awayClubId);
             final homeName = homeClub?['name'] ?? 'Local';
             final awayName = awayClub?['name'] ?? 'Visitante';
 
@@ -470,8 +482,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               m['awayClubId'] == match['awayClubId'];
                         });
                       }
-                      final mHomeClub = clubs.where((c) => c['id'] == match['homeClubId']).firstOrNull ?? homeClub;
-                      final mAwayClub = clubs.where((c) => c['id'] == match['awayClubId']).firstOrNull ?? awayClub;
+                      final mHomeClub = _findClub(clubs, match['homeClubId'] ?? match['homeTeam'] ?? match['homeClub']) ?? homeClub;
+                      final mAwayClub = _findClub(clubs, match['awayClubId'] ?? match['awayTeam'] ?? match['awayClub']) ?? awayClub;
 
                       final catLabel = match['category']?.toString() ?? 'Cat. General';
                       final status = match['status']?.toString() ?? 'scheduled';
@@ -590,27 +602,41 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
                                 // Marcador
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
                                     color: context.colors.surface,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: isLive ? context.colors.error.withValues(alpha: 0.5) : context.colors.border.withValues(alpha: 0.4),
+                                      color: status == 'suspended'
+                                          ? const Color(0xFF38BDF8).withValues(alpha: 0.6)
+                                          : (isLive ? context.colors.error.withValues(alpha: 0.5) : context.colors.border.withValues(alpha: 0.4)),
                                     ),
                                   ),
-                                  child: hasScores || isFinished || isLive
-                                      ? Text(
-                                          '${homeScore ?? 0} - ${awayScore ?? 0}',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w900,
-                                            color: isLive ? context.colors.error : context.colors.textPrimary,
-                                          ),
+                                  child: status == 'suspended'
+                                      ? const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.thunderstorm, size: 12, color: Color(0xFF38BDF8)),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'SUSPENDIDO',
+                                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Color(0xFF38BDF8)),
+                                            ),
+                                          ],
                                         )
-                                      : Text(
-                                          'VS',
-                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.accent),
-                                        ),
+                                      : (hasScores || isFinished || isLive
+                                          ? Text(
+                                              '${homeScore ?? 0} - ${awayScore ?? 0}',
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w900,
+                                                color: isLive ? context.colors.error : context.colors.textPrimary,
+                                              ),
+                                            )
+                                          : Text(
+                                              'VS',
+                                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.accent),
+                                            )),
                                 ),
                                 const SizedBox(width: 8),
 
@@ -944,7 +970,11 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
             return AlertDialog(
               backgroundColor: const Color(0xFF18181A),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -957,29 +987,45 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     '${fixture['name'] ?? 'Fecha'}: $homeName vs $awayName',
                     style: const TextStyle(color: Color(0xFFE5B842), fontSize: 13, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFF242427),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF333338)),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Puntos de Jornada: $homeName $liveHomePts - $liveAwayPts $awayName',
-                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          'Puntos de Jornada: $liveHomePts - $liveAwayPts',
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                         ),
-                        const Text('(2 pts Victoria)', style: TextStyle(color: Color(0xFFE5B842), fontSize: 10)),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$homeName ($liveHomePts pts) · $awayName ($liveAwayPts pts)',
+                          style: const TextStyle(color: Colors.white70, fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          '2 pts Victoria · 1 pt Empate (Promocionales no suman)',
+                          style: TextStyle(color: Color(0xFFE5B842), fontSize: 10, fontWeight: FontWeight.w500),
+                        ),
                       ],
                     ),
                   ),
@@ -996,7 +1042,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
                           color: const Color(0xFF222226),
                           borderRadius: BorderRadius.circular(8),
@@ -1006,7 +1052,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                           children: [
                             // Categoría y Chip Promo
                             SizedBox(
-                              width: 80,
+                              width: 76,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
@@ -1048,40 +1094,42 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
                             // Goles Local
                             SizedBox(
-                              width: 45,
+                              width: 38,
                               child: TextField(
                                 controller: homeControllers[i],
                                 keyboardType: TextInputType.number,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                                 decoration: InputDecoration(
                                   filled: true,
                                   fillColor: const Color(0xFF2A2A30),
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                                  isDense: true,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none),
                                 ),
                                 onChanged: (_) => setModalState(() {}),
                               ),
                             ),
 
                             const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 6.0),
+                              padding: EdgeInsets.symmetric(horizontal: 4.0),
                               child: Text('-', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
                             ),
 
                             // Goles Visitante
                             SizedBox(
-                              width: 45,
+                              width: 38,
                               child: TextField(
                                 controller: awayControllers[i],
                                 keyboardType: TextInputType.number,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                                 decoration: InputDecoration(
                                   filled: true,
                                   fillColor: const Color(0xFF2A2A30),
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                                  isDense: true,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none),
                                 ),
                                 onChanged: (_) => setModalState(() {}),
                               ),
@@ -1092,7 +1140,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             // Selector de Estado
                             Expanded(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF2A2A30),
                                   borderRadius: BorderRadius.circular(6),
@@ -1102,11 +1150,13 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                     value: statuses[i],
                                     dropdownColor: const Color(0xFF2A2A30),
                                     isExpanded: true,
-                                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                                    icon: const Icon(Icons.arrow_drop_down, color: Colors.white54, size: 18),
+                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
                                     items: const [
-                                      DropdownMenuItem(value: 'finished', child: Text('Finalizado')),
-                                      DropdownMenuItem(value: 'live', child: Text('En Vivo')),
-                                      DropdownMenuItem(value: 'scheduled', child: Text('Programado')),
+                                      DropdownMenuItem(value: 'finished', child: Text('Finalizado', overflow: TextOverflow.ellipsis)),
+                                      DropdownMenuItem(value: 'live', child: Text('En Vivo', overflow: TextOverflow.ellipsis)),
+                                      DropdownMenuItem(value: 'scheduled', child: Text('Programado', overflow: TextOverflow.ellipsis)),
+                                      DropdownMenuItem(value: 'suspended', child: Text('Suspendido', overflow: TextOverflow.ellipsis)),
                                     ],
                                     onChanged: (val) {
                                       if (val != null) setModalState(() => statuses[i] = val);
@@ -2534,17 +2584,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
           }
         }
 
-        final homeClub = clubs.where((c) => c['id'] == m['homeClubId']).firstOrNull;
-        final awayClub = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
+        final homeClub = _findClub(clubs, m['homeClubId'] ?? m['homeTeam'] ?? m['homeClub']);
+        final awayClub = _findClub(clubs, m['awayClubId'] ?? m['awayTeam'] ?? m['awayClub']);
 
-        final homeName = homeClub?['name']?.toString() ?? 'Local';
-        final awayName = awayClub?['name']?.toString() ?? 'Visitante';
+        final homeName = homeClub?['name']?.toString() ?? m['homeTeam']?.toString() ?? m['homeClub']?.toString() ?? m['homeClubId']?.toString() ?? 'Local';
+        final awayName = awayClub?['name']?.toString() ?? m['awayTeam']?.toString() ?? m['awayClub']?.toString() ?? m['awayClubId']?.toString() ?? 'Visitante';
 
         final status = m['status']?.toString() ?? '';
         final hScore = m['homeScore'] != null ? int.tryParse(m['homeScore'].toString()) : null;
         final aScore = m['awayScore'] != null ? int.tryParse(m['awayScore'].toString()) : null;
 
-        if (hScore != null && aScore != null && status != 'scheduled') {
+        if (hScore != null && aScore != null && status != 'scheduled' && status != 'suspended') {
           if (!standingsMap.containsKey(homeName)) {
             standingsMap[homeName] = {
               'team': homeName,
