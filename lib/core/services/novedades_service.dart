@@ -100,7 +100,8 @@ class NovedadesService {
       String notifBody;
 
       if (isMatch) {
-        final awayTeam = (novedadData['awayTeam'] ?? novedadData['opponentName'] ?? 'Rival').toString();
+        final homeTeam = (novedadData['homeTeam'] ?? (novedadData['isHome'] == false ? (novedadData['opponentName'] ?? 'Rival') : 'Jorge Newbery')).toString();
+        final awayTeam = (novedadData['awayTeam'] ?? (novedadData['isHome'] == false ? 'Jorge Newbery' : (novedadData['opponentName'] ?? 'Rival'))).toString();
         final catLabel = (rawCategory.isNotEmpty && rawCategory.toLowerCase() != 'all' && rawCategory.toLowerCase() != 'todos')
             ? ' (Cat. $rawCategory)'
             : '';
@@ -110,7 +111,7 @@ class NovedadesService {
         final venue = (novedadData['venue'] ?? novedadData['location'] ?? '').toString();
 
         final details = [
-          'Jorge Newbery vs $awayTeam',
+          '$homeTeam vs $awayTeam',
           if (date.isNotEmpty) '📅 $date',
           if (time.isNotEmpty) '⏰ $time',
           if (venue.isNotEmpty) '📍 $venue',

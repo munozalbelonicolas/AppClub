@@ -336,9 +336,6 @@ final allUpcomingMatchesProvider = Provider.family<List<Map<String, dynamic>>, S
       clubs.where((c) => (c['name'] as String?)?.toLowerCase().contains('newbery') == true).firstOrNull ??
       (clubs.isNotEmpty ? clubs.first : null);
 
-  final String defaultLocalName = localClub?['name'] ?? 'Los Pibes';
-  final String? defaultLocalLogo = localClub?['logoUrl'] ?? localClub?['logo'] ?? localClub?['imageUrl'];
-
   final List<Map<String, dynamic>> candidates = [];
 
   // Helper to extract match details cleanly
@@ -350,87 +347,121 @@ final allUpcomingMatchesProvider = Provider.family<List<Map<String, dynamic>>, S
     int? homeScore,
     int? awayScore,
   }) {
-    final homeTeamName = defaultLocalName;
-    final homeLogoUrl = defaultLocalLogo;
+    final String defaultLocalName = localClub?['name'] ?? 'Jorge Newbery';
+    final String? defaultLocalLogo = localClub?['logoUrl'] ?? localClub?['logo'] ?? localClub?['imageUrl'];
+
+    String homeTeamName = defaultLocalName;
+    String? homeLogoUrl = defaultLocalLogo;
     String awayTeamName = 'Rival';
     String? awayLogoUrl;
 
-    // 1. Resolve opponent from opponentClubId / awayClubId
-    final opponentId = raw['opponentClubId'] ?? raw['awayClubId'] ?? raw['rivalClubId'] ?? raw['opponentId'];
-    if (opponentId != null) {
-      final club = clubs.where((c) => c['id'] == opponentId || c['name'] == opponentId).firstOrNull;
-      if (club != null && club['name'] != null) {
-        awayTeamName = club['name'] as String;
-        awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
-      }
-    }
+    final homeClubId = raw['homeClubId']?.toString();
+    final awayClubId = raw['awayClubId']?.toString();
 
-    // 2. Check direct fields (awayTeam, opponentName, rival, opponent)
-    if (awayTeamName == 'Rival') {
-      for (final k in ['awayTeam', 'opponentName', 'rival', 'opponent']) {
-        final val = raw[k]?.toString().trim();
-        if (val != null && val.isNotEmpty && val != 'Rival') {
-          awayTeamName = val;
-          final club = clubs.where((c) => c['name'] == val || c['id'] == val).firstOrNull;
-          if (club != null) {
-            awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
-          }
-          break;
-        }
-      }
-    }
+    // 1. If explicit homeClubId and awayClubId exist (e.g. from fixtures)
+    if (homeClubId != null && awayClubId != null) {
+      final homeClub = clubs.where((c) => c['id'] == homeClubId || c['name'] == homeClubId).firstOrNull;
+      final awayClub = clubs.where((c) => c['id'] == awayClubId || c['name'] == awayClubId).firstOrNull;
 
-    // 3. If raw['homeTeam'] was saved as a rival club name (e.g. 'Reina Mora'), swap it to awayTeam
-    final rawHome = raw['homeTeam']?.toString().trim();
-    if (rawHome != null && rawHome.isNotEmpty && rawHome != defaultLocalName && rawHome != 'Jorge Newbery') {
-      final club = clubs.where((c) => c['name'] == rawHome || c['id'] == rawHome).firstOrNull;
-      if (club != null && club['isLocal'] != true) {
-        awayTeamName = club['name'] as String;
-        awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
-      } else if (awayTeamName == 'Rival') {
-        awayTeamName = rawHome;
-      }
-    }
+      final isHomeLocal = homeClub?['isLocal'] == true || (homeClub?['name'] as String?)?.toLowerCase().contains('newbery') == true || homeClubId == localClub?['id'];
+      final isAwayLocal = awayClub?['isLocal'] == true || (awayClub?['name'] as String?)?.toLowerCase().contains('newbery') == true || awayClubId == localClub?['id'];
 
-    // 4. Check if any club name is mentioned in title or body
-    if (awayTeamName == 'Rival') {
-      for (final club in clubs) {
-        final clubName = (club['name'] as String?)?.trim();
-        if (clubName != null && clubName.isNotEmpty && club['isLocal'] != true) {
-          final titleStr = (raw['title']?.toString() ?? '').toLowerCase();
-          final bodyStr = (raw['body']?.toString() ?? '').toLowerCase();
-          if (titleStr.contains(clubName.toLowerCase()) || bodyStr.contains(clubName.toLowerCase())) {
-            awayTeamName = clubName;
-            awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
-            break;
-          }
-        }
-      }
-    }
+      homeTeamName = homeClub?['name'] ?? raw['homeTeam'] ?? (isHomeLocal ? defaultLocalName : 'Local');
+      homeLogoUrl = homeClub?['logoUrl'] ?? homeClub?['logo'] ?? homeClub?['imageUrl'] ?? raw['homeLogoUrl'] ?? (isHomeLocal ? defaultLocalLogo : null);
 
-    // 5. Look for "vs X" pattern in title, or use title if it's a specific name
-    if (awayTeamName == 'Rival' && raw['title'] != null) {
-      final title = raw['title'].toString().trim();
-      final vsIndex = title.toLowerCase().indexOf('vs');
-      if (vsIndex != -1 && vsIndex + 2 < title.length) {
-        final candidate = title.substring(vsIndex + 2).trim();
-        if (candidate.isNotEmpty) {
-          awayTeamName = candidate;
-          final club = clubs.where((c) => c['name']?.toString().toLowerCase() == candidate.toLowerCase()).firstOrNull;
-          if (club != null) {
-            awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+      awayTeamName = awayClub?['name'] ?? raw['awayTeam'] ?? (isAwayLocal ? defaultLocalName : 'Visitante');
+      awayLogoUrl = awayClub?['logoUrl'] ?? awayClub?['logo'] ?? awayClub?['imageUrl'] ?? raw['awayLogoUrl'] ?? (isAwayLocal ? defaultLocalLogo : null);
+    } else {
+      // 2. From Novedades or Matches collection
+      final rawHome = raw['homeTeam']?.toString().trim();
+      final rawAway = raw['awayTeam']?.toString().trim();
+      final bool isVisitor = raw['isHome'] == false ||
+          raw['isVisitor'] == true ||
+          raw['condition'] == 'visitante' ||
+          (rawAway != null && (rawAway.toLowerCase().contains('newbery') || rawAway.toLowerCase().contains('jorge newbery')));
+
+      // Resolve opponent club
+      final opponentId = raw['opponentClubId'] ?? raw['awayClubId'] ?? raw['rivalClubId'] ?? raw['opponentId'] ?? (isVisitor ? raw['homeClubId'] : raw['awayClubId']);
+      Map<String, dynamic>? opponentClub;
+
+      if (opponentId != null) {
+        opponentClub = clubs.where((c) => (c['id'] == opponentId || c['name'] == opponentId) && c['isLocal'] != true).firstOrNull;
+      }
+
+      if (opponentClub == null && raw['opponentName'] != null) {
+        final oppName = raw['opponentName'].toString().trim().toLowerCase();
+        opponentClub = clubs.where((c) => c['name']?.toString().trim().toLowerCase() == oppName && c['isLocal'] != true).firstOrNull;
+      }
+
+      // Check direct fields
+      if (opponentClub == null) {
+        for (final k in ['awayTeam', 'opponentName', 'rival', 'opponent', 'homeTeam']) {
+          final val = raw[k]?.toString().trim();
+          if (val != null && val.isNotEmpty && val != 'Rival' && val != defaultLocalName && val != 'Jorge Newbery') {
+            final club = clubs.where((c) => (c['name']?.toString().toLowerCase() == val.toLowerCase() || c['id'] == val) && c['isLocal'] != true).firstOrNull;
+            if (club != null) {
+              opponentClub = club;
+              break;
+            }
           }
         }
-      } else if (title.isNotEmpty &&
-          title.toLowerCase() != 'partido' &&
-          title.toLowerCase() != 'partido amistoso' &&
-          title.toLowerCase() != 'convocatoria' &&
-          title.toLowerCase() != 'novedad') {
-        awayTeamName = title;
-        final club = clubs.where((c) => c['name']?.toString().toLowerCase() == title.toLowerCase()).firstOrNull;
-        if (club != null) {
-          awayLogoUrl = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+      }
+
+      // Check title and body for club names
+      if (opponentClub == null) {
+        for (final club in clubs) {
+          final clubName = (club['name'] as String?)?.trim();
+          if (clubName != null && clubName.isNotEmpty && club['isLocal'] != true) {
+            final titleStr = (raw['title']?.toString() ?? '').toLowerCase();
+            final bodyStr = (raw['body']?.toString() ?? '').toLowerCase();
+            if (titleStr.contains(clubName.toLowerCase()) || bodyStr.contains(clubName.toLowerCase())) {
+              opponentClub = club;
+              break;
+            }
+          }
         }
+      }
+
+      String opponentName = opponentClub?['name'] ?? raw['opponentName'] ?? 'Rival';
+      String? opponentLogo = opponentClub?['logoUrl'] ?? opponentClub?['logo'] ?? opponentClub?['imageUrl'];
+
+      if (opponentName == 'Rival' && raw['title'] != null) {
+        final title = raw['title'].toString().trim();
+        final vsIndex = title.toLowerCase().indexOf('vs');
+        if (vsIndex != -1 && vsIndex + 2 < title.length) {
+          final candidate = title.substring(vsIndex + 2).trim();
+          if (candidate.isNotEmpty && !candidate.toLowerCase().contains('newbery')) {
+            opponentName = candidate;
+            final club = clubs.where((c) => c['name']?.toString().toLowerCase() == candidate.toLowerCase() && c['isLocal'] != true).firstOrNull;
+            if (club != null) {
+              opponentLogo = club['logoUrl'] ?? club['logo'] ?? club['imageUrl'];
+            }
+          }
+        }
+      }
+
+      if (isVisitor) {
+        // Jorge Newbery is AWAY / VISITANTE
+        homeTeamName = (rawHome != null && rawHome.isNotEmpty && !rawHome.toLowerCase().contains('newbery'))
+            ? rawHome
+            : opponentName;
+        homeLogoUrl = raw['homeLogoUrl'] ?? (homeTeamName == opponentName ? opponentLogo : null);
+
+        awayTeamName = (rawAway != null && rawAway.isNotEmpty && rawAway.toLowerCase().contains('newbery'))
+            ? rawAway
+            : defaultLocalName;
+        awayLogoUrl = raw['awayLogoUrl'] ?? defaultLocalLogo;
+      } else {
+        // Jorge Newbery is HOME / LOCAL
+        homeTeamName = (rawHome != null && rawHome.isNotEmpty && rawHome.toLowerCase().contains('newbery'))
+            ? rawHome
+            : defaultLocalName;
+        homeLogoUrl = raw['homeLogoUrl'] ?? defaultLocalLogo;
+
+        awayTeamName = (rawAway != null && rawAway.isNotEmpty && !rawAway.toLowerCase().contains('newbery'))
+            ? rawAway
+            : opponentName;
+        awayLogoUrl = raw['awayLogoUrl'] ?? (awayTeamName == opponentName ? opponentLogo : null);
       }
     }
 

@@ -63,6 +63,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
     final bool isDT = sessionUser.role == 'dt';
     String eventType = isDT ? 'partido' : 'ninguno';
     bool hasTransport = false;
+    bool isHome = true;
     String? selectedOpponentId;
     DateTime? eventDate;
 
@@ -252,6 +253,85 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           validator: (val) => val == null ? 'Requerido para eventos' : null,
                         ),
                         const SizedBox(height: 12),
+                        if (eventType == 'partido') ...[
+                          const SizedBox(height: 12),
+                          // Condición: Local / Visitante
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    setDialogState(() {
+                                      isHome = true;
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isHome ? context.colors.primary : context.colors.border,
+                                        width: isHome ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.home_outlined, size: 18, color: isHome ? context.colors.primary : context.colors.textSecondary),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Local (JN)',
+                                          style: TextStyle(
+                                            fontWeight: isHome ? FontWeight.bold : FontWeight.normal,
+                                            color: isHome ? context.colors.primary : context.colors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    setDialogState(() {
+                                      isHome = false;
+                                      hasTransport = true;
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: !isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: !isHome ? context.colors.primary : context.colors.border,
+                                        width: !isHome ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.directions_bus_outlined, size: 18, color: !isHome ? context.colors.primary : context.colors.textSecondary),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Visitante',
+                                          style: TextStyle(
+                                            fontWeight: !isHome ? FontWeight.bold : FontWeight.normal,
+                                            color: !isHome ? context.colors.primary : context.colors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
                         SwitchListTile(
                           title: const Row(
                             children: [
@@ -275,7 +355,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           dropdownColor: context.colors.surface,
                           initialValue: selectedOpponentId,
                           decoration: const InputDecoration(labelText: 'Club Rival (Opcional)'),
-                          items: clubs.map((club) {
+                          items: clubs.where((c) => c['isLocal'] != true).map((club) {
                             return DropdownMenuItem<String>(
                               value: club['id'],
                               child: Text(club['name'], style: context.typography.bodyLarge),
@@ -335,7 +415,22 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                       try {
                         final now = DateTime.now();
                         final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-                        
+
+                        final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
+                        final opponentClub = selectedOpponentId != null
+                            ? clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull
+                            : null;
+
+                        final String localName = localClub?['name'] ?? 'Jorge Newbery';
+                        final String? localLogo = localClub?['logoUrl'] ?? 'assets/images/app_logo.jpg';
+                        final String opponentName = opponentClub?['name'] ?? 'Rival';
+                        final String? opponentLogo = opponentClub?['logoUrl'];
+
+                        final homeTeam = isHome ? localName : opponentName;
+                        final homeLogoUrl = isHome ? localLogo : opponentLogo;
+                        final awayTeam = isHome ? opponentName : localName;
+                        final awayLogoUrl = isHome ? opponentLogo : localLogo;
+
                         final announcementRepo = ref.read(announcementRepositoryProvider);
                         await announcementRepo.addAnnouncement({
                           'title': titleController.text.trim(),
@@ -351,13 +446,14 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           'isMatch': eventType == 'partido', // Backwards compatibility
                           'eventType': eventType,
                           'hasTransport': hasTransport,
+                          'isHome': isHome,
+                          'condition': isHome ? 'local' : 'visitante',
                           'opponentClubId': (eventType != 'ninguno') ? selectedOpponentId : null,
-                          'awayTeam': (selectedOpponentId != null)
-                              ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                              : 'Rival',
-                          'opponentName': (selectedOpponentId != null)
-                              ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                              : null,
+                          'awayTeam': awayTeam,
+                          'homeTeam': homeTeam,
+                          'awayLogoUrl': awayLogoUrl,
+                          'homeLogoUrl': homeLogoUrl,
+                          'opponentName': opponentName,
                           'eventDate': eventDate != null
                               ? '${eventDate!.year}-${eventDate!.month.toString().padLeft(2, '0')}-${eventDate!.day.toString().padLeft(2, '0')}'
                               : null,
@@ -366,8 +462,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                               : dateStr,
                           'eventTime': 'A confirmar',
                           'time': 'A confirmar',
-                          'location': 'Cancha Principal JN',
-                          'venue': 'Cancha Principal JN',
+                          'location': isHome ? 'Cancha Principal JN' : 'Cancha Visitante',
+                          'venue': isHome ? 'Cancha Principal JN' : 'Cancha Visitante',
                         });
 
                         // Disparar Notificación Push vía OneSignal
@@ -416,7 +512,31 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
         );
     final isNormalUser = sessionUser.isNormalUser;
     final clubs = ref.watch(clubsStreamProvider).valueOrNull ?? [];
-    final query = UserAnnouncementQuery(category: sessionUser.category, isAdmin: sessionUser.isAdmin);
+    final List<String> userCategories = [];
+    if (sessionUser.role == 'dt') {
+      if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
+        userCategories.addAll(sessionUser.assignedCategories!);
+      } else if (sessionUser.category != null) {
+        userCategories.add(sessionUser.category!);
+      }
+    } else if (sessionUser.role == 'tutor') {
+      final tutorChildren = ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ?? [];
+      for (final child in tutorChildren) {
+        final cat = child['category']?.toString();
+        if (cat != null && cat.isNotEmpty) {
+          userCategories.add(cat);
+        }
+      }
+      if (sessionUser.category != null) {
+        userCategories.add(sessionUser.category!);
+      }
+    } else {
+      if (sessionUser.category != null && sessionUser.category!.isNotEmpty) {
+        userCategories.add(sessionUser.category!);
+      }
+    }
+
+    final query = UserAnnouncementQuery(categories: userCategories, isAdmin: sessionUser.isAdmin);
     final announcementsAsync = ref.watch(userAnnouncementsStreamProvider(query));
 
     return Scaffold(

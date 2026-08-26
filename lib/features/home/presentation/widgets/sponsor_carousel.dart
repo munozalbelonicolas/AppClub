@@ -94,100 +94,109 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
           child: Column(
             children: [
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                  child: Stack(
-                    children: [
-                      PageView.builder(
-                        controller: _pageController,
-                        onPageChanged: (page) {
-                          setState(() {
-                            _currentPage = page;
-                          });
-                        },
-                        itemCount: sponsors.length,
-                        itemBuilder: (context, index) {
-                          final sponsor = sponsors[index];
-                          return GestureDetector(
-                            onTap: () {
-                              final link = sponsor['linkUrl']?.toString() ?? '';
-                              if (link.isNotEmpty) {
-                                _launchSponsorUrl(link, context);
-                              }
-                            },
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                // Sponsor Image
-                                _buildSponsorImage(sponsor['imageUrl'] ?? ''),
-                                // Gradient Overlay
-                                Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.black.withValues(alpha: 0.1),
-                                        Colors.black.withValues(alpha: 0.7),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                // Sponsor Text
-                                Positioned(
-                                  bottom: 12,
-                                  left: 16,
-                                  right: 16,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'SPONSOR OFICIAL',
-                                        style: context.typography.labelSmall.copyWith(
-                                          color: context.colors.accent,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 1.5,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        sponsor['name'] ?? '',
-                                        style: context.typography.titleLarge.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      // Dot indicators inside the image
-                      Positioned(
-                        bottom: 12,
-                        right: 16,
-                        child: Row(
-                          children: List.generate(
-                            sponsors.length,
-                            (index) => Container(
-                              width: _currentPage == index ? 16 : 6,
-                              height: 6,
-                              margin: const EdgeInsets.only(left: 4),
+                child: Stack(
+                  children: [
+                    PageView.builder(
+                      controller: _pageController,
+                      onPageChanged: (page) {
+                        setState(() {
+                          _currentPage = page;
+                        });
+                      },
+                      itemCount: sponsors.length,
+                      itemBuilder: (context, index) {
+                        final sponsor = sponsors[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                            child: Container(
                               decoration: BoxDecoration(
-                                color: _currentPage == index
-                                    ? context.colors.accent
-                                    : Colors.white.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(3),
+                                color: context.colors.surface,
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                               ),
+                              child: GestureDetector(
+                                onTap: () {
+                                  final link = sponsor['linkUrl']?.toString() ?? '';
+                                  if (link.isNotEmpty) {
+                                    _launchSponsorUrl(link, context);
+                                  }
+                                },
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    // Sponsor Image
+                                    _buildSponsorImage(sponsor['imageUrl'] ?? ''),
+                                    // Gradient Overlay
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.black.withValues(alpha: 0.1),
+                                            Colors.black.withValues(alpha: 0.75),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // Sponsor Text
+                                    Positioned(
+                                      bottom: 12,
+                                      left: 16,
+                                      right: 16,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'SPONSOR OFICIAL',
+                                            style: context.typography.labelSmall.copyWith(
+                                              color: context.colors.accent,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 1.5,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            sponsor['name'] ?? '',
+                                            style: context.typography.titleLarge.copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    // Dot indicators inside the image
+                    Positioned(
+                      bottom: 12,
+                      right: 24,
+                      child: Row(
+                        children: List.generate(
+                          sponsors.length,
+                          (index) => Container(
+                            width: _currentPage == index ? 16 : 6,
+                            height: 6,
+                            margin: const EdgeInsets.only(left: 4),
+                            decoration: BoxDecoration(
+                              color: _currentPage == index
+                                  ? context.colors.accent
+                                  : Colors.white.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(3),
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -232,14 +241,19 @@ class _SponsorCarouselState extends ConsumerState<SponsorCarousel> {
   }
 
   Widget _buildSponsorImage(String url) {
+    if (url.isEmpty) {
+      return Container(
+        color: context.colors.surfaceLight,
+        child: const Icon(Icons.business, size: 40, color: Colors.grey),
+      );
+    }
     if (url.startsWith('assets/')) {
       return Image.asset(url, fit: BoxFit.cover);
     }
     return CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
-      memCacheWidth: 400,
-      memCacheHeight: 400,
+      memCacheWidth: 800,
       placeholder: (context, url) => Shimmer.fromColors(
         baseColor: context.colors.surfaceLight,
         highlightColor: context.colors.surface,

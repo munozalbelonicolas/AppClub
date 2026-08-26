@@ -327,7 +327,6 @@ class JNMatchCard extends StatelessWidget {
                 height: 52,
                 fit: BoxFit.cover,
                 memCacheWidth: 200,
-                memCacheHeight: 200,
                 errorWidget: (context, url, error) => Center(
                   child: Text(
                     displayInitials,

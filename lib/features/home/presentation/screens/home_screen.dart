@@ -511,6 +511,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     String eventType = isDT ? 'partido' : 'ninguno';
     bool hasTransport = false;
+    bool isHome = true;
     String? selectedOpponentId;
     bool isPublishing = false;
 
@@ -651,7 +652,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           dropdownColor: context.colors.surface,
                           initialValue: selectedCategory,
                           decoration: const InputDecoration(
-                            labelText: 'Visibilidad / Categoría',
+                            labelText: 'Categoría de destino',
                           ),
                           items: categories.map((cat) {
                             return DropdownMenuItem<String>(
@@ -738,6 +739,93 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       if (eventType != 'ninguno' &&
                           eventType != 'comunicado') ...[
+                        if (eventType == 'partido') ...[
+                          const SizedBox(height: 12),
+                          // Condición: Local / Visitante
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    setDialogState(() {
+                                      isHome = true;
+                                      if (venueController.text.isEmpty || venueController.text == 'Cancha Visitante' || venueController.text.startsWith('Cancha de ')) {
+                                        venueController.text = 'Cancha Principal JN';
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isHome ? context.colors.primary : context.colors.border,
+                                        width: isHome ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.home_outlined, size: 18, color: isHome ? context.colors.primary : context.colors.textSecondary),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Local (JN)',
+                                          style: TextStyle(
+                                            fontWeight: isHome ? FontWeight.bold : FontWeight.normal,
+                                            color: isHome ? context.colors.primary : context.colors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    setDialogState(() {
+                                      isHome = false;
+                                      hasTransport = true;
+                                      final oppClub = clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull;
+                                      if (oppClub != null) {
+                                        venueController.text = 'Cancha de ${oppClub['name']}';
+                                      } else {
+                                        venueController.text = 'Cancha Visitante';
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: !isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: !isHome ? context.colors.primary : context.colors.border,
+                                        width: !isHome ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.directions_bus_outlined, size: 18, color: !isHome ? context.colors.primary : context.colors.textSecondary),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Visitante',
+                                          style: TextStyle(
+                                            fontWeight: !isHome ? FontWeight.bold : FontWeight.normal,
+                                            color: !isHome ? context.colors.primary : context.colors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         // Fecha del Partido / Evento
                         InkWell(
@@ -859,6 +947,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           onChanged: (val) {
                             setDialogState(() {
                               selectedOpponentId = val;
+                              if (!isHome && val != null) {
+                                final oppClub = clubs.where((c) => c['id'] == val).firstOrNull;
+                                if (oppClub != null && (venueController.text.isEmpty || venueController.text == 'Cancha Principal JN' || venueController.text == 'Cancha Visitante')) {
+                                  venueController.text = 'Cancha de ${oppClub['name']}';
+                                }
+                              }
                             });
                           },
                         ),
@@ -900,7 +994,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               final venueStr =
                                   venueController.text.trim().isNotEmpty
                                   ? venueController.text.trim()
-                                  : 'Cancha Principal JN';
+                                  : (isHome ? 'Cancha Principal JN' : 'Cancha Visitante');
 
                               String? finalImageUrl;
                               if (selectedImagePath != null &&
@@ -923,6 +1017,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ? clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull
                                   : null;
                               final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
+
+                              final String localName = localClub?['name'] ?? 'Jorge Newbery';
+                              final String? localLogo = localClub?['logoUrl'] ?? 'assets/images/app_logo.jpg';
+                              final String opponentName = opponentClub?['name'] ?? 'Rival';
+                              final String? opponentLogo = opponentClub?['logoUrl'];
+
+                              final homeTeam = isHome ? localName : opponentName;
+                              final homeLogoUrl = isHome ? localLogo : opponentLogo;
+                              final awayTeam = isHome ? opponentName : localName;
+                              final awayLogoUrl = isHome ? opponentLogo : localLogo;
 
                               await firestoreService.addNovedad({
                                 'title': titleController.text.trim(),
@@ -947,16 +1051,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     'partido', // Kept for backwards compatibility
                                 'eventType': eventType,
                                 'hasTransport': hasTransport,
+                                'isHome': isHome,
+                                'condition': isHome ? 'local' : 'visitante',
                                 'opponentClubId':
                                     (eventType != 'ninguno' &&
                                         eventType != 'comunicado')
                                     ? selectedOpponentId
                                     : null,
-                                'awayTeam': opponentClub?['name'] ?? 'Rival',
-                                'opponentName': opponentClub?['name'] ?? 'Rival',
-                                'awayLogoUrl': opponentClub?['logoUrl'],
-                                'homeTeam': localClub?['name'] ?? 'Jorge Newbery',
-                                'homeLogoUrl': localClub?['logoUrl'] ?? 'assets/images/app_logo.jpg',
+                                'awayTeam': awayTeam,
+                                'opponentName': opponentName,
+                                'awayLogoUrl': awayLogoUrl,
+                                'homeTeam': homeTeam,
+                                'homeLogoUrl': homeLogoUrl,
                                 'eventDate': dateStr,
                                 'date': dateStr,
                                 'read': false,
@@ -2805,22 +2911,54 @@ Widget _buildMatchPostCard(
   BuildContext context, [
   UserSession? sessionUser,
 ]) {
-  final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
-  final String homeTeamName = post['homeTeam'] ?? localClub?['name'] ?? 'Jorge Newbery';
-  final String? homeLogoUrl = post['homeLogoUrl'] ?? localClub?['logoUrl'];
+  final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull ??
+      clubs.where((c) => (c['name'] as String?)?.toLowerCase().contains('newbery') == true).firstOrNull;
+  final String defaultLocalName = localClub?['name'] ?? 'Jorge Newbery';
+  final String? defaultLocalLogo = localClub?['logoUrl'] ?? 'assets/images/app_logo.jpg';
+
+  final bool isVisitor = post['isHome'] == false ||
+      post['condition'] == 'visitante' ||
+      post['isVisitor'] == true ||
+      (post['awayTeam'] != null && post['awayTeam'].toString().toLowerCase().contains('newbery'));
 
   final opponentClub = clubs.where((c) =>
-      c['id'] == post['opponentClubId'] ||
-      (post['awayTeam'] != null && c['name']?.toString().toLowerCase() == post['awayTeam'].toString().toLowerCase()) ||
-      (post['opponentName'] != null && c['name']?.toString().toLowerCase() == post['opponentName'].toString().toLowerCase())
+      (post['opponentClubId'] != null && c['id'] == post['opponentClubId']) ||
+      (post['awayClubId'] != null && c['id'] == post['awayClubId'] && c['isLocal'] != true) ||
+      (post['homeClubId'] != null && c['id'] == post['homeClubId'] && c['isLocal'] != true) ||
+      (post['awayTeam'] != null && c['name']?.toString().toLowerCase() == post['awayTeam'].toString().toLowerCase() && c['isLocal'] != true) ||
+      (post['homeTeam'] != null && c['name']?.toString().toLowerCase() == post['homeTeam'].toString().toLowerCase() && c['isLocal'] != true) ||
+      (post['opponentName'] != null && c['name']?.toString().toLowerCase() == post['opponentName'].toString().toLowerCase() && c['isLocal'] != true)
   ).firstOrNull;
 
-  final String awayTeamName = opponentClub?['name'] ?? post['awayTeam'] ?? post['opponentName'] ?? 'Rival';
-  final String? awayLogoUrl = post['awayLogoUrl'] ?? opponentClub?['logoUrl'];
+  final String opponentName = opponentClub?['name'] ?? post['opponentName'] ?? (isVisitor ? post['homeTeam'] : post['awayTeam']) ?? 'Rival';
+  final String? opponentLogo = opponentClub?['logoUrl'] ?? (isVisitor ? post['homeLogoUrl'] : post['awayLogoUrl']);
+
+  final String homeTeamName;
+  final String? homeLogoUrl;
+  final String awayTeamName;
+  final String? awayLogoUrl;
+
+  if (isVisitor) {
+    homeTeamName = (post['homeTeam'] != null && !post['homeTeam'].toString().toLowerCase().contains('newbery'))
+        ? post['homeTeam']
+        : opponentName;
+    homeLogoUrl = post['homeLogoUrl'] ?? (homeTeamName == opponentName ? opponentLogo : null);
+
+    awayTeamName = post['awayTeam'] ?? defaultLocalName;
+    awayLogoUrl = post['awayLogoUrl'] ?? defaultLocalLogo;
+  } else {
+    homeTeamName = post['homeTeam'] ?? defaultLocalName;
+    homeLogoUrl = post['homeLogoUrl'] ?? defaultLocalLogo;
+
+    awayTeamName = (post['awayTeam'] != null && !post['awayTeam'].toString().toLowerCase().contains('newbery'))
+        ? post['awayTeam']
+        : opponentName;
+    awayLogoUrl = post['awayLogoUrl'] ?? (awayTeamName == opponentName ? opponentLogo : null);
+  }
 
   final String dateStr = post['eventDate'] ?? post['date'] ?? '';
   final String timeStr = post['eventTime'] ?? post['time'] ?? 'A confirmar';
-  final String venueStr = post['venue'] ?? post['location'] ?? 'Cancha Principal JN';
+  final String venueStr = post['venue'] ?? post['location'] ?? (isVisitor ? 'Cancha Visitante' : 'Cancha Principal JN');
   final String catStr = post['category'] ?? '';
 
   String formatMatchDate(String rawDate) {
