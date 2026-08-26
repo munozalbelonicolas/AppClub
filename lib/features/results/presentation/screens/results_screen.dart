@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../utils/league_jornada_utils.dart';
 import 'manage_scorers_screen.dart';
 
 class ResultsScreen extends ConsumerStatefulWidget {
@@ -20,13 +21,23 @@ class ResultsScreen extends ConsumerStatefulWidget {
 class _ResultsScreenState extends ConsumerState<ResultsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
+  // Estado de Planilla UCIV
+  String _sheetTournamentFilter = 'apertura'; // 'apertura' | 'clausura'
+  String? _selectedJornadaId;
+
+  // Estado de Tabla de Posiciones
+  String _standingsTournament = 'apertura'; // 'apertura' | 'clausura' (sin anual)
+  String _standingsCategory = 'all';
+
+  // Estado de Fixture y Goleadores
   String _selectedCategory = 'all';
   String? _lastChildId;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -95,26 +106,35 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: context.colors.accent,
+          indicatorColor: const Color(0xFFE5B842),
+          labelColor: const Color(0xFFE5B842),
+          unselectedLabelColor: context.colors.textSecondary,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: const [
-            Tab(text: 'Fixture'),
+            Tab(text: 'Planilla UCIV'),
             Tab(text: 'Posiciones'),
+            Tab(text: 'Fixture'),
             Tab(text: 'Goleadores'),
           ],
         ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          _buildCategorySelector(categories, isPlayer: isPlayer, playerCategory: playerCategory),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildFixtureTab(canManage),
-                _buildStandingsTab(),
-                _buildScorersTab(canManage),
-              ],
-            ),
+          _buildLeagueJornadaSheetTab(),
+          _buildStandingsTab(),
+          Column(
+            children: [
+              _buildCategorySelector(categories, isPlayer: isPlayer, playerCategory: playerCategory),
+              Expanded(child: _buildFixtureTab(canManage)),
+            ],
+          ),
+          Column(
+            children: [
+              _buildCategorySelector(categories, isPlayer: isPlayer, playerCategory: playerCategory),
+              Expanded(child: _buildScorersTab(canManage)),
+            ],
           ),
         ],
       ),
@@ -909,12 +929,77 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   }
 
   Widget _buildClubSmallAvatar(Map<String, dynamic>? club) {
-    final logoUrl = club?['logoUrl']?.toString();
-    return CircleAvatar(
-      radius: 12,
-      backgroundColor: context.colors.surfaceLight,
-      backgroundImage: logoUrl != null && logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null,
-      child: logoUrl == null || logoUrl.isEmpty ? const Icon(Icons.shield, size: 12) : null,
+    final logoUrl = club?['logoUrl']?.toString() ??
+        club?['shieldUrl']?.toString() ??
+        club?['imageUrl']?.toString() ??
+        club?['logo']?.toString();
+    final name = club?['name']?.toString() ?? '';
+    final isLocal = club?['isLocal'] == true ||
+        name.toLowerCase().contains('newbery') ||
+        name.toLowerCase().contains('jn');
+
+    if (isLocal) {
+      return Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFE5B842), width: 1.2),
+        ),
+        child: ClipOval(
+          child: Image.asset(
+            'assets/images/app_logo.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => const Center(
+              child: Icon(Icons.shield, size: 12, color: Color(0xFFE5B842)),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (logoUrl != null && logoUrl.isNotEmpty) {
+      return Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 0.8),
+        ),
+        child: ClipOval(
+          child: Image.network(
+            logoUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _buildFallbackInitial(name),
+          ),
+        ),
+      );
+    }
+
+    return _buildFallbackInitial(name);
+  }
+
+  Widget _buildFallbackInitial(String name) {
+    final clean = name.trim();
+    final initial = clean.isNotEmpty ? clean[0].toUpperCase() : 'C';
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        color: const Color(0xFF27272A),
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE5B842).withValues(alpha: 0.4), width: 0.8),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFFE5B842),
+          ),
+        ),
+      ),
     );
   }
 
@@ -2541,350 +2626,1177 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
-  Widget _buildStandingsTab() {
-    final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
+  // ─── 1. Planilla de Resultados Oficiales UCIV ─────────────────────────────
+  Widget _buildLeagueJornadaSheetTab() {
+    final jornadasAsync = ref.watch(leagueJornadasStreamProvider);
     final clubsAsync = ref.watch(clubsStreamProvider);
-
-    final fixtures = fixturesAsync.valueOrNull ?? [];
     final clubs = clubsAsync.valueOrNull ?? [];
 
-    final Map<String, Map<String, dynamic>> standingsMap = {};
+    return jornadasAsync.when(
+      data: (allJornadas) {
+        final filteredJornadas = allJornadas.where((j) {
+          final t = (j['tournamentType'] ?? 'apertura').toString().toLowerCase().trim();
+          return t == _sheetTournamentFilter;
+        }).toList();
 
-    for (final c in clubs) {
-      final name = c['name']?.toString() ?? '';
-      if (name.isEmpty) continue;
-      standingsMap[name] = {
-        'team': name,
-        'logoUrl': c['logoUrl'],
-        'isClub': name.toLowerCase().contains('newbery'),
-        'played': 0,
-        'won': 0,
-        'drawn': 0,
-        'lost': 0,
-        'gf': 0,
-        'gc': 0,
-        'gd': 0,
-        'points': 0,
-      };
-    }
-
-    for (final f in fixtures) {
-      final matches = List<Map<String, dynamic>>.from(f['matches'] ?? []);
-      for (final m in matches) {
-        // Los partidos de categorías promocionales son de exhibición y no suman puntos para la tabla
-        if (m['isPromotional'] == true) {
-          continue;
+        Map<String, dynamic>? currentJornada;
+        if (filteredJornadas.isNotEmpty) {
+          if (_selectedJornadaId != null) {
+            currentJornada = filteredJornadas.where((j) => j['id'] == _selectedJornadaId).firstOrNull;
+          }
+          currentJornada ??= filteredJornadas.first;
         }
 
-        // Filtrar por categoría si no está seleccionada 'all'
-        if (_selectedCategory != 'all') {
-          final cat = m['category']?.toString();
-          if (cat != null && cat != _selectedCategory) {
-            continue;
-          }
-        }
+        final rawCats = currentJornada?['categories'] as List?;
+        final List<String> categories = (rawCats != null && rawCats.isNotEmpty)
+            ? rawCats.map((c) => c.toString()).toList()
+            : kDefaultCategories;
 
-        final homeClub = _findClub(clubs, m['homeClubId'] ?? m['homeTeam'] ?? m['homeClub']);
-        final awayClub = _findClub(clubs, m['awayClubId'] ?? m['awayTeam'] ?? m['awayClub']);
+        final matches = (currentJornada?['matches'] as List?)
+            ?.map((m) => m is Map ? Map<String, dynamic>.from(m) : <String, dynamic>{})
+            .where((m) => m.isNotEmpty)
+            .toList() ?? [];
 
-        final homeName = homeClub?['name']?.toString() ?? m['homeTeam']?.toString() ?? m['homeClub']?.toString() ?? m['homeClubId']?.toString() ?? 'Local';
-        final awayName = awayClub?['name']?.toString() ?? m['awayTeam']?.toString() ?? m['awayClub']?.toString() ?? m['awayClubId']?.toString() ?? 'Visitante';
+        // Encontrar partido de Jorge Newbery en esta fecha si existe
+        final jnMatch = matches.where((m) {
+          final h = (m['homeTeam'] ?? '').toString().toLowerCase();
+          final a = (m['awayTeam'] ?? '').toString().toLowerCase();
+          return h.contains('newbery') || h.contains('jn') || a.contains('newbery') || a.contains('jn');
+        }).firstOrNull;
 
-        final status = m['status']?.toString() ?? '';
-        final hScore = m['homeScore'] != null ? int.tryParse(m['homeScore'].toString()) : null;
-        final aScore = m['awayScore'] != null ? int.tryParse(m['awayScore'].toString()) : null;
-
-        if (hScore != null && aScore != null && status != 'scheduled' && status != 'suspended') {
-          if (!standingsMap.containsKey(homeName)) {
-            standingsMap[homeName] = {
-              'team': homeName,
-              'logoUrl': homeClub?['logoUrl'],
-              'isClub': homeName.toLowerCase().contains('newbery'),
-              'played': 0,
-              'won': 0,
-              'drawn': 0,
-              'lost': 0,
-              'gf': 0,
-              'gc': 0,
-              'gd': 0,
-              'points': 0,
-            };
-          }
-          if (!standingsMap.containsKey(awayName)) {
-            standingsMap[awayName] = {
-              'team': awayName,
-              'logoUrl': awayClub?['logoUrl'],
-              'isClub': awayName.toLowerCase().contains('newbery'),
-              'played': 0,
-              'won': 0,
-              'drawn': 0,
-              'lost': 0,
-              'gf': 0,
-              'gc': 0,
-              'gd': 0,
-              'points': 0,
-            };
-          }
-
-          final homeStat = standingsMap[homeName]!;
-          final awayStat = standingsMap[awayName]!;
-
-          homeStat['played'] = (homeStat['played'] as int) + 1;
-          awayStat['played'] = (awayStat['played'] as int) + 1;
-
-          homeStat['gf'] = (homeStat['gf'] as int) + hScore;
-          homeStat['gc'] = (homeStat['gc'] as int) + aScore;
-          homeStat['gd'] = (homeStat['gf'] as int) - (homeStat['gc'] as int);
-
-          awayStat['gf'] = (awayStat['gf'] as int) + aScore;
-          awayStat['gc'] = (awayStat['gc'] as int) + hScore;
-          awayStat['gd'] = (awayStat['gf'] as int) - (awayStat['gc'] as int);
-
-          // REGLA DE TORNEO: 2 puntos por victoria, 1 por empate, 0 por derrota
-          if (hScore > aScore) {
-            homeStat['won'] = (homeStat['won'] as int) + 1;
-            homeStat['points'] = (homeStat['points'] as int) + 2;
-            awayStat['lost'] = (awayStat['lost'] as int) + 1;
-          } else if (hScore < aScore) {
-            awayStat['won'] = (awayStat['won'] as int) + 1;
-            awayStat['points'] = (awayStat['points'] as int) + 2;
-            homeStat['lost'] = (homeStat['lost'] as int) + 1;
-          } else {
-            homeStat['drawn'] = (homeStat['drawn'] as int) + 1;
-            homeStat['points'] = (homeStat['points'] as int) + 1;
-            awayStat['drawn'] = (awayStat['drawn'] as int) + 1;
-            awayStat['points'] = (awayStat['points'] as int) + 1;
-          }
-        }
-      }
-    }
-
-    final standings = standingsMap.values.toList();
-    standings.sort((a, b) {
-      final pA = a['points'] as int;
-      final pB = b['points'] as int;
-      if (pA != pB) return pB.compareTo(pA);
-
-      final gdA = a['gd'] as int;
-      final gdB = b['gd'] as int;
-      if (gdA != gdB) return gdB.compareTo(gdA);
-
-      final gfA = a['gf'] as int;
-      final gfB = b['gf'] as int;
-      if (gfA != gfB) return gfB.compareTo(gfA);
-
-      final wA = a['won'] as int;
-      final wB = b['won'] as int;
-      return wB.compareTo(wA);
-    });
-
-    for (int i = 0; i < standings.length; i++) {
-      standings[i]['pos'] = i + 1;
-    }
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-      children: [
-        // Info Banner Puntos
-        Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: context.colors.surfaceVariant.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _selectedCategory == 'all'
-                    ? 'Tabla General de Clubes (Suma de Jornadas)'
-                    : 'Tabla de Posiciones · Categoría $_selectedCategory',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.textPrimary),
-              ),
-              const Text('PG = 2 pts · PE = 1 pt', style: TextStyle(fontSize: 10, color: Color(0xFFE5B842), fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-
-        // Table Header
-        JNCard(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          color: context.colors.surfaceVariant,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 24,
-                child: Text('#', style: context.typography.labelSmall, textAlign: TextAlign.center),
-              ),
-              const SizedBox(width: 6),
-              Expanded(child: Text('EQUIPO', style: context.typography.labelSmall)),
-              SizedBox(
-                width: 24,
-                child: Text('PJ', style: context.typography.labelSmall, textAlign: TextAlign.center),
-              ),
-              SizedBox(
-                width: 24,
-                child: Text('G', style: context.typography.labelSmall, textAlign: TextAlign.center),
-              ),
-              SizedBox(
-                width: 24,
-                child: Text('E', style: context.typography.labelSmall, textAlign: TextAlign.center),
-              ),
-              SizedBox(
-                width: 24,
-                child: Text('P', style: context.typography.labelSmall, textAlign: TextAlign.center),
-              ),
-              SizedBox(
-                width: 28,
-                child: Text('DG', style: context.typography.labelSmall, textAlign: TextAlign.center),
-              ),
-              SizedBox(
-                width: 34,
-                child: Text(
-                  'PTS',
-                  style: context.typography.labelSmall.copyWith(fontWeight: FontWeight.bold, color: context.colors.accent),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-        ).animate().fadeIn(duration: 300.ms),
-
-        const SizedBox(height: 4),
-
-        if (standings.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                children: [
-                  Icon(Icons.format_list_numbered, size: 48, color: context.colors.textTertiary),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Aún no hay posiciones registradas',
-                    style: context.typography.titleMedium.copyWith(color: context.colors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-        ...standings.asMap().entries.map((entry) {
-          final index = entry.key;
-          final team = entry.value;
-          final isClub = team['isClub'] as bool;
-          final logoUrl = team['logoUrl']?.toString();
-
-          return JNCard(
-            margin: const EdgeInsets.only(bottom: 3),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            color: isClub ? context.colors.primary.withValues(alpha: 0.1) : null,
-            border: isClub
-                ? Border.all(color: context.colors.primary.withValues(alpha: 0.35))
-                : Border.all(color: Colors.transparent),
-            child: Row(
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 100),
+          children: [
+            // ─── Header: UCIV Badge & Selector Torneo ───
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(
-                  width: 24,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: index < 2
-                          ? context.colors.success.withValues(alpha: 0.2)
-                          : (index >= standings.length - 2 && standings.length > 4
-                              ? context.colors.error.withValues(alpha: 0.2)
-                              : Colors.transparent),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${team['pos']}',
-                        style: context.typography.labelMedium.copyWith(
-                          color: index < 2
-                              ? context.colors.success
-                              : (index >= standings.length - 2 && standings.length > 4
-                                  ? context.colors.error
-                                  : context.colors.textSecondary),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5B842).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE5B842).withValues(alpha: 0.4)),
                   ),
-                ),
-                const SizedBox(width: 6),
-
-                Expanded(
-                  child: Row(
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (logoUrl != null && logoUrl.isNotEmpty) ...[
-                        CircleAvatar(
-                          radius: 10,
-                          backgroundColor: Colors.transparent,
-                          backgroundImage: NetworkImage(logoUrl),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      Expanded(
-                        child: Text(
-                          team['team'] as String,
-                          style: context.typography.titleSmall.copyWith(
-                            color: isClub ? context.colors.textPrimary : context.colors.textSecondary,
-                            fontWeight: isClub ? FontWeight.bold : FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Icon(Icons.verified, size: 14, color: Color(0xFFE5B842)),
+                      SizedBox(width: 5),
+                      Text(
+                        'UCIV · Oficial',
+                        style: TextStyle(
+                          color: Color(0xFFE5B842),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                SizedBox(
-                  width: 24,
-                  child: Text('${team['played']}', style: context.typography.bodySmall, textAlign: TextAlign.center),
-                ),
-                SizedBox(
-                  width: 24,
-                  child: Text('${team['won']}', style: context.typography.bodySmall, textAlign: TextAlign.center),
-                ),
-                SizedBox(
-                  width: 24,
-                  child: Text('${team['drawn']}', style: context.typography.bodySmall, textAlign: TextAlign.center),
-                ),
-                SizedBox(
-                  width: 24,
-                  child: Text('${team['lost']}', style: context.typography.bodySmall, textAlign: TextAlign.center),
-                ),
-                SizedBox(
-                  width: 28,
-                  child: Text(
-                    '${(team['gd'] as int) > 0 ? '+' : ''}${team['gd']}',
-                    style: context.typography.bodySmall.copyWith(
-                      color: (team['gd'] as int) > 0
-                          ? context.colors.success
-                          : ((team['gd'] as int) < 0 ? context.colors.error : context.colors.textTertiary),
-                    ),
-                    textAlign: TextAlign.center,
+                // Selector Torneo Apertura / Clausura
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: context.colors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: context.colors.border.withValues(alpha: 0.4)),
                   ),
-                ),
-                SizedBox(
-                  width: 34,
-                  child: Text(
-                    '${team['points']}',
-                    style: context.typography.titleMedium.copyWith(
-                      color: isClub ? context.colors.accent : context.colors.textPrimary,
-                      fontWeight: FontWeight.bold,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _sheetTournamentFilter,
+                      dropdownColor: context.colors.surface,
+                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFE5B842)),
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'apertura', child: Text('🏆 Torneo Apertura')),
+                        DropdownMenuItem(value: 'clausura', child: Text('🏆 Torneo Clausura')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _sheetTournamentFilter = val;
+                            final matching = allJornadas.where((j) => (j['tournamentType'] ?? 'apertura') == val).firstOrNull;
+                            _selectedJornadaId = matching?['id']?.toString();
+                          });
+                        }
+                      },
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
             ),
-          ).animate(delay: (60 + index * 30).ms).fadeIn(duration: 300.ms);
-        }),
+
+            const SizedBox(height: 12),
+
+            // ─── Selector de Fechas (Pills) ───
+            if (filteredJornadas.isNotEmpty)
+              SizedBox(
+                height: 38,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: filteredJornadas.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, idx) {
+                    final j = filteredJornadas[idx];
+                    final isSelected = j['id'] == (currentJornada?['id']);
+                    final title = j['fechaTitle']?.toString() ?? 'Fecha ${j['fechaNumber'] ?? (idx + 1)}';
+
+                    return ChoiceChip(
+                      label: Text(title),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() {
+                          _selectedJornadaId = j['id']?.toString();
+                        });
+                      },
+                      selectedColor: const Color(0xFFE5B842),
+                      backgroundColor: context.colors.surfaceVariant,
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.black : context.colors.textSecondary,
+                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(
+                          color: isSelected ? const Color(0xFFE5B842) : context.colors.border.withValues(alpha: 0.3),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            const SizedBox(height: 14),
+
+            if (currentJornada == null)
+              JNCard(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(Icons.table_chart_outlined, size: 48, color: context.colors.textTertiary),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No hay planillas cargadas para el Torneo ${_sheetTournamentFilter == 'apertura' ? 'Apertura' : 'Clausura'}',
+                      style: context.typography.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Las hojas de resultados oficiales de la liga se sincronizarán aquí automáticamente.',
+                      style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              // ─── Card Destacada Jorge Newbery ───
+              if (jnMatch != null) ...[
+                _buildJorgeNewberyMatchHighlightCard(jnMatch, categories, clubs),
+                const SizedBox(height: 14),
+              ],
+
+              // ─── Tabla Matriz Oficial de la Liga ───
+              _buildOfficialMatrixTableCard(currentJornada, categories, matches, clubs),
+            ],
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Center(child: Text('Error al cargar planillas: $err', style: TextStyle(color: context.colors.error))),
+    );
+  }
+
+  Widget _buildJorgeNewberyMatchHighlightCard(
+    Map<String, dynamic> jnMatch,
+    List<String> categories,
+    List<Map<String, dynamic>> clubs,
+  ) {
+    final matchCats = jnMatch['categories'] as Map<String, dynamic>?;
+    final pts = calculateMatchPoints(matchCats, categories);
+
+    final homePts = jnMatch['homeReportedPts'] != null
+        ? int.tryParse(jnMatch['homeReportedPts'].toString()) ?? pts['homePts']!
+        : pts['homePts']!;
+    final awayPts = jnMatch['awayReportedPts'] != null
+        ? int.tryParse(jnMatch['awayReportedPts'].toString()) ?? pts['awayPts']!
+        : pts['awayPts']!;
+
+    final homeName = jnMatch['homeTeam']?.toString() ?? 'Jorge Newbery';
+    final awayName = jnMatch['awayTeam']?.toString() ?? 'Rival';
+
+    final hClub = findMatchingClub(clubs, homeName);
+    final aClub = findMatchingClub(clubs, awayName);
+    final hDisplayName = hClub?['name'] ?? normalizeClubName(homeName);
+    final aDisplayName = aClub?['name'] ?? normalizeClubName(awayName);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFE5B842).withValues(alpha: 0.18),
+            context.colors.surface,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5B842), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.star, color: Color(0xFFE5B842), size: 16),
+              SizedBox(width: 6),
+              Text(
+                'RESULTADO DEL CLUB EN ESTA FECHA',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFE5B842),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Enfrentamiento y Puntaje
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    _buildClubSmallAvatar(hClub),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '$hDisplayName ($homePts pts)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: hDisplayName.toLowerCase().contains('newbery') ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Text('vs', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white38)),
+              ),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$aDisplayName ($awayPts pts)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: aDisplayName.toLowerCase().contains('newbery') ? const Color(0xFFE5B842) : context.colors.textSecondary,
+                        ),
+                        textAlign: TextAlign.end,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildClubSmallAvatar(aClub),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Badges por categoría
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: categories.map((cat) {
+                final hG = getCategoryGoals(matchCats, cat, 'home');
+                final aG = getCategoryGoals(matchCats, cat, 'away');
+                final hasScore = hG != null && aG != null;
+
+                return Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: context.colors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: context.colors.border.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Cat. $cat',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: context.colors.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        hasScore ? '$hG - $aG' : '-',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: hasScore ? context.colors.textPrimary : context.colors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfficialMatrixTableCard(
+    Map<String, dynamic> currentJornada,
+    List<String> categories,
+    List<Map<String, dynamic>> matches,
+    List<Map<String, dynamic>> clubs,
+  ) {
+    final tournamentType = (currentJornada['tournamentType'] ?? 'apertura').toString().toUpperCase();
+    final fechaTitle = (currentJornada['fechaTitle'] ?? 'FECHA ${currentJornada['fechaNumber'] ?? ''}').toString().toUpperCase();
+    final dateStr = formatDisplayDate(currentJornada['date']?.toString());
+
+    const double rowHeight = 38.0;
+    const double leftColWidth = 148.0;
+    const double catColWidth = 46.0;
+    const double ptsColWidth = 44.0;
+
+    return JNCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Table Top Header Banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceVariant,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+              border: Border(bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.4))),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'UNIÓN DE CLUBES INFANTILES VARELENSES (UCIV)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFFE5B842),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'TORNEO $tournamentType · $fechaTitle RESULTADOS${dateStr.isNotEmpty ? ' ($dateStr)' : ''}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: context.colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${matches.length} Partidos · ${categories.length} Categorías',
+                  style: TextStyle(fontSize: 10, color: context.colors.textTertiary, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+
+          // Side-by-Side: Fixed Left Column + Horizontal Scrollable Right Table
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ─── 1. COLUMNA FIJA: CLUBES ───
+              SizedBox(
+                width: leftColWidth,
+                child: Column(
+                  children: [
+                    // Header Clubes
+                    Container(
+                      height: rowHeight,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      alignment: Alignment.centerLeft,
+                      decoration: BoxDecoration(
+                        color: context.colors.surfaceVariant,
+                        border: Border(
+                          right: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
+                          bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
+                        ),
+                      ),
+                      child: const Text(
+                        'CLUBES',
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Color(0xFFE5B842)),
+                      ),
+                    ),
+
+                    // Filas de Clubes
+                    ...matches.asMap().entries.map((entry) {
+                      final mIdx = entry.key;
+                      final m = entry.value;
+                      final rawH = (m['homeTeam'] ?? '').toString();
+                      final rawA = (m['awayTeam'] ?? '').toString();
+                      final isJNLocal = rawH.toLowerCase().contains('newbery') || rawH.toLowerCase().contains('jn');
+                      final isJNAway = rawA.toLowerCase().contains('newbery') || rawA.toLowerCase().contains('jn');
+
+                      final hClub = findMatchingClub(clubs, rawH);
+                      final aClub = findMatchingClub(clubs, rawA);
+                      final hDisplayName = hClub?['name'] ?? normalizeClubName(rawH);
+                      final aDisplayName = aClub?['name'] ?? normalizeClubName(rawA);
+
+                      final isEven = mIdx % 2 == 0;
+                      final homeBg = isJNLocal
+                          ? const Color(0xFFE5B842).withValues(alpha: 0.15)
+                          : (isEven ? Colors.transparent : Colors.white.withValues(alpha: 0.02));
+                      final awayBg = isJNAway
+                          ? const Color(0xFFE5B842).withValues(alpha: 0.15)
+                          : (isEven ? Colors.white.withValues(alpha: 0.03) : Colors.transparent);
+
+                      return Column(
+                        children: [
+                          // Fila Local
+                          Container(
+                            height: rowHeight,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: homeBg,
+                              border: Border(
+                                right: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
+                                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                _buildClubSmallAvatar(hClub),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    hDisplayName,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: isJNLocal ? FontWeight.w900 : FontWeight.w600,
+                                      color: isJNLocal ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isJNLocal) ...[
+                                  const SizedBox(width: 2),
+                                  const Text('⭐', style: TextStyle(fontSize: 9)),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                          // Fila Visitante (con división más marcada para separar partidos)
+                          Container(
+                            height: rowHeight,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: awayBg,
+                              border: Border(
+                                right: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
+                                bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.4), width: 1.5),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                _buildClubSmallAvatar(aClub),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    aDisplayName,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: isJNAway ? FontWeight.w900 : FontWeight.w600,
+                                      color: isJNAway ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isJNAway) ...[
+                                  const SizedBox(width: 2),
+                                  const Text('⭐', style: TextStyle(fontSize: 9)),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+              ),
+
+              // ─── 2. SECCIÓN SCROLLABLE: CATEGORÍAS + PTS ───
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Categorías
+                      Container(
+                        height: rowHeight,
+                        decoration: BoxDecoration(
+                          color: context.colors.surfaceVariant,
+                          border: Border(
+                            bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            ...categories.map(
+                              (cat) => SizedBox(
+                                width: catColWidth,
+                                child: Center(
+                                  child: Text(
+                                    cat,
+                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: ptsColWidth,
+                              color: const Color(0xFFE5B842).withValues(alpha: 0.1),
+                              child: const Center(
+                                child: Text(
+                                  'Pts',
+                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFFE5B842)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Filas de Goles y Puntos
+                      ...matches.asMap().entries.map((entry) {
+                        final mIdx = entry.key;
+                        final m = entry.value;
+                        final matchCats = m['categories'] as Map<String, dynamic>?;
+                        final calcPts = calculateMatchPoints(matchCats, categories);
+
+                        final rawH = (m['homeTeam'] ?? '').toString();
+                        final rawA = (m['awayTeam'] ?? '').toString();
+                        final isJNLocal = rawH.toLowerCase().contains('newbery') || rawH.toLowerCase().contains('jn');
+                        final isJNAway = rawA.toLowerCase().contains('newbery') || rawA.toLowerCase().contains('jn');
+
+                        final finalHomePts = m['homeReportedPts'] != null
+                            ? int.tryParse(m['homeReportedPts'].toString()) ?? calcPts['homePts']!
+                            : calcPts['homePts']!;
+                        final finalAwayPts = m['awayReportedPts'] != null
+                            ? int.tryParse(m['awayReportedPts'].toString()) ?? calcPts['awayPts']!
+                            : calcPts['awayPts']!;
+
+                        final isEven = mIdx % 2 == 0;
+                        final homeBg = isJNLocal
+                            ? const Color(0xFFE5B842).withValues(alpha: 0.15)
+                            : (isEven ? Colors.transparent : Colors.white.withValues(alpha: 0.02));
+                        final awayBg = isJNAway
+                            ? const Color(0xFFE5B842).withValues(alpha: 0.15)
+                            : (isEven ? Colors.white.withValues(alpha: 0.03) : Colors.transparent);
+
+                        return Column(
+                          children: [
+                            // Goles Local
+                            Container(
+                              height: rowHeight,
+                              decoration: BoxDecoration(
+                                color: homeBg,
+                                border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
+                              ),
+                              child: Row(
+                                children: [
+                                  ...categories.map((cat) {
+                                    final g = getCategoryGoals(matchCats, cat, 'home');
+                                    return SizedBox(
+                                      width: catColWidth,
+                                      child: Center(
+                                        child: Text(
+                                          g != null ? g.toString() : '-',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: g != null ? FontWeight.w800 : FontWeight.normal,
+                                            color: g != null ? context.colors.textPrimary : context.colors.textTertiary,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                  Container(
+                                    width: ptsColWidth,
+                                    color: isJNLocal
+                                        ? const Color(0xFFE5B842).withValues(alpha: 0.25)
+                                        : const Color(0xFFE5B842).withValues(alpha: 0.05),
+                                    child: Center(
+                                      child: Text(
+                                        '$finalHomePts',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: isJNLocal ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Goles Visitante
+                            Container(
+                              height: rowHeight,
+                              decoration: BoxDecoration(
+                                color: awayBg,
+                                border: Border(bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.4), width: 1.5)),
+                              ),
+                              child: Row(
+                                children: [
+                                  ...categories.map((cat) {
+                                    final g = getCategoryGoals(matchCats, cat, 'away');
+                                    return SizedBox(
+                                      width: catColWidth,
+                                      child: Center(
+                                        child: Text(
+                                          g != null ? g.toString() : '-',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: g != null ? FontWeight.w800 : FontWeight.normal,
+                                            color: g != null ? context.colors.textPrimary : context.colors.textTertiary,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                  Container(
+                                    width: ptsColWidth,
+                                    color: isJNAway
+                                        ? const Color(0xFFE5B842).withValues(alpha: 0.25)
+                                        : const Color(0xFFE5B842).withValues(alpha: 0.05),
+                                    child: Center(
+                                      child: Text(
+                                        '$finalAwayPts',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: isJNAway ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Table Footer Legend
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceVariant.withValues(alpha: 0.4),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
+              border: Border(top: BorderSide(color: context.colors.border.withValues(alpha: 0.3))),
+            ),
+            child: const Text(
+              'Regla de Puntuación: Victoria = 2 pts · Empate = 1 pt · Derrota = 0 pts',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFE5B842),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── 2. Tabla de Posiciones ──────────────────────────────────
+  Widget _buildStandingsTab() {
+    final jornadasAsync = ref.watch(leagueJornadasStreamProvider);
+    final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
+    final clubsAsync = ref.watch(clubsStreamProvider);
+    final rawCategories = ref.watch(appCategoriesProvider);
+
+    final jornadas = jornadasAsync.valueOrNull ?? [];
+    final fixtures = fixturesAsync.valueOrNull ?? [];
+    final clubs = clubsAsync.valueOrNull ?? [];
+
+    const double rowHeight = 42.0;
+    const double leftColWidth = 158.0;
+
+    // Categorías para la tabla de posiciones (excluyendo promocionales 2020 y 2021)
+    final standingsCategoryOptions = rawCategories
+        .where((cat) {
+          final clean = cat.replaceAll(RegExp(r'^cat\.?\s*', caseSensitive: false), '').trim();
+          return clean != '2020' && clean != '2021';
+        })
+        .toList();
+
+    if (standingsCategoryOptions.isEmpty) {
+      standingsCategoryOptions.addAll(kDefaultCategories);
+    }
+
+    final standings = calculateStandings(
+      leagueJornadas: jornadas,
+      fixtures: fixtures,
+      clubs: clubs,
+      tournament: _standingsTournament,
+      category: _standingsCategory,
+    );
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 100),
+      children: [
+        // ─── Header: Controles de Torneo y Categoría ───
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _standingsTournament == 'anual'
+                      ? 'Tabla Anual Acumulada'
+                      : (_standingsTournament == 'apertura' ? 'Torneo Apertura' : 'Torneo Clausura'),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFE5B842),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _standingsCategory == 'all'
+                      ? 'Tabla General (Tira Completa)'
+                      : 'Tabla de Posiciones · Cat. $_standingsCategory',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: context.colors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+
+            // Dropdown de Torneo (Anual Acumulada, Apertura, Clausura)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.colors.border.withValues(alpha: 0.4)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _standingsTournament,
+                  dropdownColor: context.colors.surface,
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFE5B842)),
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'anual', child: Text('🏆 Anual (Acumulada)')),
+                    DropdownMenuItem(value: 'apertura', child: Text('🏆 Apertura')),
+                    DropdownMenuItem(value: 'clausura', child: Text('🏆 Clausura')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => _standingsTournament = val);
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // ─── Pills Selector de Categorías ───
+        SizedBox(
+          height: 36,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChoiceChip(
+                  label: const Text('🏆 General (Tira)'),
+                  selected: _standingsCategory == 'all',
+                  onSelected: (_) => setState(() => _standingsCategory = 'all'),
+                  selectedColor: const Color(0xFFE5B842),
+                  backgroundColor: context.colors.surfaceVariant,
+                  labelStyle: TextStyle(
+                    color: _standingsCategory == 'all' ? Colors.black : context.colors.textSecondary,
+                    fontWeight: _standingsCategory == 'all' ? FontWeight.w900 : FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: _standingsCategory == 'all' ? const Color(0xFFE5B842) : context.colors.border.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ),
+              ),
+              ...standingsCategoryOptions.map((cat) {
+                final cleanCat = cat.replaceAll(RegExp(r'^cat\.?\s*', caseSensitive: false), '').trim();
+                final isSelected = _standingsCategory == cleanCat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text('Cat. $cleanCat'),
+                    selected: isSelected,
+                    onSelected: (_) => setState(() => _standingsCategory = cleanCat),
+                    selectedColor: const Color(0xFFE5B842),
+                    backgroundColor: context.colors.surfaceVariant,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.black : context.colors.textSecondary,
+                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isSelected ? const Color(0xFFE5B842) : context.colors.border.withValues(alpha: 0.3),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        if (standings.isEmpty)
+          JNCard(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              children: [
+                Icon(Icons.emoji_events_outlined, size: 48, color: context.colors.textTertiary),
+                const SizedBox(height: 12),
+                Text(
+                  'Sin datos de partidos jugados',
+                  style: context.typography.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Carga las planillas de resultados para ver la tabla en vivo.',
+                  style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          JNCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Side-by-Side: Fixed Left Column (# and EQUIPO) + Horizontal Scrollable Right Table
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ─── 1. COLUMNA FIJA: # Y EQUIPO ───
+                    SizedBox(
+                      width: leftColWidth,
+                      child: Column(
+                        children: [
+                          // Header Fijo
+                          Container(
+                            height: rowHeight,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: context.colors.surfaceVariant,
+                              border: Border(
+                                right: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
+                                bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
+                              ),
+                            ),
+                            child: const Row(
+                              children: [
+                                SizedBox(
+                                  width: 22,
+                                  child: Center(
+                                    child: Text('#', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+                                  ),
+                                ),
+                                SizedBox(width: 6),
+                                Expanded(
+                                  child: Text('EQUIPO', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Filas de Equipos Fijos
+                          ...standings.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final row = entry.value;
+                            final isNewbery = row['isLocal'] == true ||
+                                (row['name']?.toString() ?? '').toLowerCase().contains('newbery') ||
+                                (row['name']?.toString() ?? '').toLowerCase().contains('jn');
+                            final isPodium = idx < 3;
+                            final isEven = idx % 2 == 0;
+                            final rowBg = isNewbery
+                                ? const Color(0xFFE5B842).withValues(alpha: 0.15)
+                                : (isEven ? Colors.transparent : Colors.white.withValues(alpha: 0.02));
+
+                            return Container(
+                              height: rowHeight,
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              decoration: BoxDecoration(
+                                color: rowBg,
+                                border: Border(
+                                  right: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
+                                  bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.25)),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  // # Posición con Medalla
+                                  SizedBox(
+                                    width: 22,
+                                    child: Center(
+                                      child: Container(
+                                        width: 18,
+                                        height: 18,
+                                        decoration: BoxDecoration(
+                                          color: isPodium
+                                              ? (idx == 0
+                                                  ? const Color(0xFFFFD700).withValues(alpha: 0.25)
+                                                  : idx == 1
+                                                      ? const Color(0xFFC0C0C0).withValues(alpha: 0.25)
+                                                      : const Color(0xFFCD7F32).withValues(alpha: 0.25))
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '${idx + 1}',
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w900,
+                                              color: isPodium
+                                                  ? (idx == 0
+                                                      ? const Color(0xFFFFD700)
+                                                      : idx == 1
+                                                          ? const Color(0xFFE0E0E0)
+                                                          : const Color(0xFFCD7F32))
+                                                  : context.colors.textTertiary,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+
+                                  // Escudo + Nombre
+                                  _buildClubSmallAvatar(row),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      '${row['name']}',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: isNewbery ? FontWeight.w900 : FontWeight.w600,
+                                        color: isNewbery ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isNewbery) ...[
+                                    const SizedBox(width: 2),
+                                    const Text('⭐', style: TextStyle(fontSize: 9)),
+                                  ],
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+
+                    // ─── 2. SECCIÓN SCROLLABLE: PJ..PTS ───
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header Estadísticas
+                            Container(
+                              height: rowHeight,
+                              decoration: BoxDecoration(
+                                color: context.colors.surfaceVariant,
+                                border: Border(
+                                  bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
+                                ),
+                              ),
+                              child: const Row(
+                                children: [
+                                  SizedBox(width: 32, child: Center(child: Text('PJ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)))),
+                                  SizedBox(width: 32, child: Center(child: Text('PG', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)))),
+                                  SizedBox(width: 32, child: Center(child: Text('PE', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)))),
+                                  SizedBox(width: 32, child: Center(child: Text('PP', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)))),
+                                  SizedBox(width: 34, child: Center(child: Text('GF', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)))),
+                                  SizedBox(width: 34, child: Center(child: Text('GC', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)))),
+                                  SizedBox(width: 36, child: Center(child: Text('DG', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)))),
+                                  SizedBox(
+                                    width: 44,
+                                    child: Center(
+                                      child: Text('PTS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFFE5B842))),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Filas de Estadísticas
+                            ...standings.asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final row = entry.value;
+                              final isNewbery = row['isLocal'] == true ||
+                                  (row['name']?.toString() ?? '').toLowerCase().contains('newbery') ||
+                                  (row['name']?.toString() ?? '').toLowerCase().contains('jn');
+                              final dg = row['dg'] as int;
+                              final isEven = idx % 2 == 0;
+                              final rowBg = isNewbery
+                                  ? const Color(0xFFE5B842).withValues(alpha: 0.15)
+                                  : (isEven ? Colors.transparent : Colors.white.withValues(alpha: 0.02));
+
+                              return Container(
+                                height: rowHeight,
+                                decoration: BoxDecoration(
+                                  color: rowBg,
+                                  border: Border(bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.25))),
+                                ),
+                                child: Row(
+                                  children: [
+                                    SizedBox(width: 32, child: Center(child: Text('${row['pj']}', style: const TextStyle(fontSize: 11)))),
+                                    SizedBox(width: 32, child: Center(child: Text('${row['pg']}', style: const TextStyle(fontSize: 11)))),
+                                    SizedBox(width: 32, child: Center(child: Text('${row['pe']}', style: const TextStyle(fontSize: 11)))),
+                                    SizedBox(width: 32, child: Center(child: Text('${row['pp']}', style: const TextStyle(fontSize: 11)))),
+                                    SizedBox(width: 34, child: Center(child: Text('${row['gf']}', style: const TextStyle(fontSize: 11)))),
+                                    SizedBox(width: 34, child: Center(child: Text('${row['gc']}', style: const TextStyle(fontSize: 11)))),
+                                    SizedBox(
+                                      width: 36,
+                                      child: Center(
+                                        child: Text(
+                                          dg > 0 ? '+$dg' : '$dg',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: dg > 0
+                                                ? context.colors.success
+                                                : (dg < 0 ? context.colors.error : context.colors.textTertiary),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 44,
+                                      color: isNewbery
+                                          ? const Color(0xFFE5B842).withValues(alpha: 0.25)
+                                          : const Color(0xFFE5B842).withValues(alpha: 0.05),
+                                      child: Center(
+                                        child: Text(
+                                          '${row['pts']}',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w900,
+                                            color: isNewbery ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Table Footer Legend
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: context.colors.surfaceVariant.withValues(alpha: 0.4),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
+                    ),
+                    border: Border(top: BorderSide(color: context.colors.border.withValues(alpha: 0.3))),
+                  ),
+                  child: const Text(
+                    'Criterio de Desempate: Puntos > Dif. Goles > Goles a Favor > Nombre',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFE5B842),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

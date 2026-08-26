@@ -25,7 +25,7 @@ import '../../../communications/presentation/screens/story_export_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../lineup/presentation/screens/lineup_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
-import '../../../results/presentation/screens/league_report_screen.dart';
+import '../../../results/presentation/screens/results_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
 import '../widgets/sponsor_carousel.dart';
 
@@ -1621,14 +1621,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
-                      icon: Icons.article_outlined,
-                      label: 'Informe Liga',
-                      color: context.colors.accent,
+                      icon: Icons.emoji_events_outlined,
+                      label: 'Resultados',
+                      color: const Color(0xFFE5B842),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const LeagueReportScreen(),
+                            builder: (context) => const ResultsScreen(),
                           ),
                         );
                       },

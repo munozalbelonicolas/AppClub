@@ -7,6 +7,7 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../utils/league_jornada_utils.dart';
 
 class FixtureScreen extends ConsumerStatefulWidget {
   const FixtureScreen({super.key});
@@ -319,42 +320,16 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(fixture['name'] ?? 'Fecha', style: context.typography.titleMedium, overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    fixture['name'] ?? 'Fecha',
+                    style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 if (isAdmin)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Botón Suspender por lluvia / Reanudar
-                      if (isFixtureSuspended)
-                        TextButton.icon(
-                          style: TextButton.styleFrom(
-                            backgroundColor: Colors.amber.withValues(alpha: 0.15),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              side: BorderSide(color: Colors.amber.withValues(alpha: 0.4)),
-                            ),
-                          ),
-                          icon: const Icon(Icons.wb_sunny_outlined, size: 14, color: Colors.amber),
-                          label: const Text('Reanudar', style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold)),
-                          onPressed: () => _showResumeFixtureDialog(context, fixture),
-                        )
-                      else
-                        TextButton.icon(
-                          style: TextButton.styleFrom(
-                            backgroundColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              side: const BorderSide(color: Color(0xFF38BDF8), width: 0.8),
-                            ),
-                          ),
-                          icon: const Icon(Icons.thunderstorm, size: 14, color: Color(0xFF38BDF8)),
-                          label: const Text('Suspender por lluvia', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold)),
-                          onPressed: () => _showSuspendByRainDialog(context, fixture),
-                        ),
-                      const SizedBox(width: 4),
                       IconButton(
                         icon: Icon(Icons.edit_outlined, color: context.colors.primary, size: 20),
                         tooltip: 'Editar Fecha y Partidos',
@@ -384,6 +359,39 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                   ),
               ],
             ),
+
+            // ─── Botón Suspender por lluvia / Reanudar (Debajo del label de fecha) ───
+            if (isAdmin) ...[
+              const SizedBox(height: 8),
+              if (isFixtureSuspended)
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.amber.withValues(alpha: 0.15),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.amber.withValues(alpha: 0.4)),
+                    ),
+                  ),
+                  icon: const Icon(Icons.wb_sunny_outlined, size: 14, color: Colors.amber),
+                  label: const Text('Reanudar Fecha', style: TextStyle(color: Colors.amber, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                  onPressed: () => _showResumeFixtureDialog(context, fixture),
+                )
+              else
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFF38BDF8), width: 0.8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.thunderstorm, size: 14, color: Color(0xFF38BDF8)),
+                  label: const Text('Suspender por lluvia', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11.5, fontWeight: FontWeight.bold)),
+                  onPressed: () => _showSuspendByRainDialog(context, fixture),
+                ),
+            ],
 
             // ─── Banner de Jornada Suspendida ───
             if (isFixtureSuspended) ...[
@@ -417,8 +425,8 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
 
             const SizedBox(height: 12),
             ...matches.map((m) {
-              final homeClub = clubs.where((c) => c['id'] == m['homeClubId']).firstOrNull;
-              final awayClub = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
+              final homeClub = findMatchingClub(clubs, m['homeClubId']?.toString() ?? m['homeTeam']?.toString());
+              final awayClub = findMatchingClub(clubs, m['awayClubId']?.toString() ?? m['awayTeam']?.toString());
               final bool isMatchSuspended = m['status'] == 'suspended';
 
               return Padding(
@@ -549,29 +557,72 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
   }
 
   Widget _buildClubLogo(Map<String, dynamic>? club) {
-    if (club == null) {
+    final name = club?['name']?.toString() ?? '';
+    final isLocal = club?['isLocal'] == true ||
+        name.toLowerCase().contains('newbery') ||
+        name.toLowerCase().contains('jn');
+    final logoUrl = club?['logoUrl']?.toString() ??
+        club?['shieldUrl']?.toString() ??
+        club?['imageUrl']?.toString() ??
+        club?['logo']?.toString();
+
+    if (isLocal) {
       return Column(
         children: [
-          CircleAvatar(radius: 20, backgroundColor: context.colors.surfaceLight, child: const Icon(Icons.shield, size: 20)),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFE5B842), width: 1.5),
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/app_logo.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const Icon(Icons.shield, size: 20, color: Color(0xFFE5B842)),
+              ),
+            ),
+          ),
           const SizedBox(height: 4),
-          Text('?', style: context.typography.labelSmall),
+          Text(name.isNotEmpty ? name : 'Jorge Newbery', style: context.typography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
         ],
       );
     }
+
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+
     return Column(
       children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: context.colors.surfaceLight,
-          backgroundImage: club['logoUrl'] != null && club['logoUrl'].toString().isNotEmpty
-              ? NetworkImage(club['logoUrl'])
-              : null,
-          child: (club['logoUrl'] == null || club['logoUrl'].toString().isEmpty)
-              ? const Icon(Icons.shield, size: 20)
-              : null,
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          ),
+          child: ClipOval(
+            child: logoUrl != null && logoUrl.isNotEmpty
+                ? Image.network(
+                    logoUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      color: const Color(0xFF27272A),
+                      child: Center(
+                        child: Text(initial, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFFE5B842))),
+                      ),
+                    ),
+                  )
+                : Container(
+                    color: const Color(0xFF27272A),
+                    child: Center(
+                      child: Text(initial, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFFE5B842))),
+                    ),
+                  ),
+          ),
         ),
         const SizedBox(height: 4),
-        Text(club['name'] ?? '', style: context.typography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
+        Text(name, style: context.typography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
       ],
     );
   }

@@ -194,6 +194,9 @@ class FirestoreService {
   Future<void> addScorer(Map<String, dynamic> data) => _match.addScorer(data);
   Future<void> updateScorer(String id, Map<String, dynamic> data) => _match.updateScorer(id, data);
   Future<void> deleteScorer(String id) => _match.deleteScorer(id);
+
+  // ─── League Jornadas (delegated) ──────────────────
+  Stream<List<Map<String, dynamic>>> getLeagueJornadas() => _match.getLeagueJornadas();
 }
 
 // ─── Riverpod Providers ──────────────────────────────
@@ -292,6 +295,10 @@ final clubsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 
 final fixturesStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, category) {
   return ref.watch(firestoreServiceProvider).getFixtures(category);
+});
+
+final leagueJornadasStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  return ref.watch(firestoreServiceProvider).getLeagueJornadas();
 });
 
 final leagueReportsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
