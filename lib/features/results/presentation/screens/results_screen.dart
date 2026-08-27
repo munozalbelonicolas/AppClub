@@ -106,15 +106,15 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: const Color(0xFFE5B842),
-          labelColor: const Color(0xFFE5B842),
+          indicatorColor: const Color(0xFFC1121F),
+          labelColor: const Color(0xFFE63946),
           unselectedLabelColor: context.colors.textSecondary,
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(text: 'Planilla UCIV'),
             Tab(text: 'Posiciones'),
-            Tab(text: 'Fixture'),
+            Tab(text: 'Nuestras Fechas'),
             Tab(text: 'Goleadores'),
           ],
         ),
@@ -243,7 +243,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   Icon(Icons.sports_soccer, size: 48, color: context.colors.textTertiary),
                   const SizedBox(height: 16),
                   Text(
-                    'No hay fechas programadas en el fixture',
+                    'No hay fechas cargadas en Nuestras Fechas',
                     style: context.typography.titleMedium.copyWith(color: context.colors.textSecondary),
                     textAlign: TextAlign.center,
                   ),
@@ -709,7 +709,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                         Icon(
                                           Icons.sports_soccer,
                                           size: 12,
-                                          color: isLight ? const Color(0xFFB45309) : const Color(0xFFE5B842),
+                                          color: isLight ? const Color(0xFFC1121F) : const Color(0xFFE63946),
                                         ),
                                         const SizedBox(width: 5),
                                         Text(
@@ -929,10 +929,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   }
 
   Widget _buildClubSmallAvatar(Map<String, dynamic>? club) {
-    final logoUrl = club?['logoUrl']?.toString() ??
-        club?['shieldUrl']?.toString() ??
-        club?['imageUrl']?.toString() ??
-        club?['logo']?.toString();
+    final logoUrl = extractClubLogo(club);
     final name = club?['name']?.toString() ?? '';
     final isLocal = club?['isLocal'] == true ||
         name.toLowerCase().contains('newbery') ||
@@ -944,14 +941,14 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
         height: 22,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFE5B842), width: 1.2),
+          border: Border.all(color: const Color(0xFFC1121F), width: 1.2),
         ),
         child: ClipOval(
           child: Image.asset(
             'assets/images/app_logo.jpg',
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) => const Center(
-              child: Icon(Icons.shield, size: 12, color: Color(0xFFE5B842)),
+              child: Icon(Icons.shield, size: 12, color: Color(0xFFE63946)),
             ),
           ),
         ),
@@ -988,7 +985,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       decoration: BoxDecoration(
         color: const Color(0xFF27272A),
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFE5B842).withValues(alpha: 0.4), width: 0.8),
+        border: Border.all(color: const Color(0xFFC1121F).withValues(alpha: 0.6), width: 0.8),
       ),
       child: Center(
         child: Text(
@@ -996,7 +993,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
           style: const TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w900,
-            color: Color(0xFFE5B842),
+            color: Color(0xFFE63946),
           ),
         ),
       ),
@@ -1081,7 +1078,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   const SizedBox(height: 4),
                   Text(
                     '${fixture['name'] ?? 'Fecha'}: $homeName vs $awayName',
-                    style: const TextStyle(color: Color(0xFFE5B842), fontSize: 13, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: Color(0xFFE63946), fontSize: 13, fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
@@ -1109,7 +1106,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         const SizedBox(height: 2),
                         const Text(
                           '2 pts Victoria · 1 pt Empate (Promocionales no suman)',
-                          style: TextStyle(color: Color(0xFFE5B842), fontSize: 10, fontWeight: FontWeight.w500),
+                          style: TextStyle(color: Color(0xFFE63946), fontSize: 10, fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -1264,7 +1261,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE5B842),
+                    backgroundColor: const Color(0xFFC1121F),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
@@ -1295,7 +1292,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       );
                     }
                   },
-                  child: const Text('Guardar Todos los Resultados', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  child: const Text('Guardar Todos los Resultados', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -1351,7 +1348,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Resultado del Partido', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text(category.startsWith('20') ? 'Categoría $category' : category, style: const TextStyle(color: Color(0xFFE5B842), fontSize: 12)),
+                      Text(category.startsWith('20') ? 'Categoría $category' : category, style: const TextStyle(color: Color(0xFFE63946), fontSize: 12)),
                     ],
                   ),
                   IconButton(
@@ -1409,7 +1406,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 6.0),
-                          child: Text('VS', style: TextStyle(color: Color(0xFFE5B842), fontWeight: FontWeight.w900, fontSize: 15)),
+                          child: Text('VS', style: TextStyle(color: Color(0xFFE63946), fontWeight: FontWeight.w900, fontSize: 15)),
                         ),
 
                         // Visitante
@@ -1502,8 +1499,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         title: const Text('Categoría Promocional', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                         subtitle: const Text('No computa puntos para la tabla de posiciones', style: TextStyle(color: Colors.white54, fontSize: 11)),
                         value: isPromotional,
-                        activeThumbColor: const Color(0xFFE5B842),
-                        trackColor: WidgetStateProperty.resolveWith((states) => isPromotional ? const Color(0xFFE5B842).withValues(alpha: 0.5) : const Color(0xFF333338)),
+                        activeThumbColor: const Color(0xFFE63946),
+                        trackColor: WidgetStateProperty.resolveWith((states) => isPromotional ? const Color(0xFFC1121F).withValues(alpha: 0.5) : const Color(0xFF333338)),
                         onChanged: (val) {
                           setDialogState(() => isPromotional = val);
                         },
@@ -1519,7 +1516,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE5B842),
+                    backgroundColor: const Color(0xFFC1121F),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
@@ -1645,7 +1642,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.emoji_events_outlined, color: Color(0xFFE5B842), size: 22),
+                          Icon(Icons.emoji_events_outlined, color: Color(0xFFE63946), size: 22),
                           SizedBox(width: 8),
                           Text('Goleadores', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                         ],
@@ -1663,7 +1660,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       children: [
                         Text(
                           '$homeName vs $awayName (${category.startsWith('20') ? 'Cat. $category' : category})',
-                          style: const TextStyle(color: Color(0xFFE5B842), fontSize: 13, fontWeight: FontWeight.w600),
+                          style: const TextStyle(color: Color(0xFFE63946), fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 12),
 
@@ -1695,7 +1692,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.sports_soccer, size: 16, color: Color(0xFFE5B842)),
+                                    const Icon(Icons.sports_soccer, size: 16, color: Color(0xFFE63946)),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Column(
@@ -1739,7 +1736,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                                           child: Text(
                                             '$currentGoals ${currentGoals == 1 ? 'gol' : 'goles'}',
-                                            style: const TextStyle(color: Color(0xFFE5B842), fontWeight: FontWeight.bold, fontSize: 12),
+                                            style: const TextStyle(color: Color(0xFFE63946), fontWeight: FontWeight.bold, fontSize: 12),
                                           ),
                                         ),
                                         InkWell(
@@ -1754,7 +1751,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                               color: const Color(0xFF333338),
                                               borderRadius: BorderRadius.circular(4),
                                             ),
-                                            child: const Icon(Icons.add, size: 14, color: Color(0xFFE5B842)),
+                                            child: const Icon(Icons.add, size: 14, color: Color(0xFFE63946)),
                                           ),
                                         ),
                                         const SizedBox(width: 6),
@@ -1843,7 +1840,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                               nameController.clear();
                                             });
                                           },
-                                          child: const Text('📋 Usar lista', style: TextStyle(color: Color(0xFFE5B842), fontSize: 11)),
+                                          child: const Text('📋 Usar lista', style: TextStyle(color: Color(0xFFE63946), fontSize: 11)),
                                         ),
                                     ],
                                   ),
@@ -1878,7 +1875,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                             }),
                                             const DropdownMenuItem<String>(
                                               value: 'MANUAL',
-                                              child: Text('✍️ Escribir otro nombre...', style: TextStyle(color: Color(0xFFE5B842))),
+                                              child: Text('✍️ Escribir otro nombre...', style: TextStyle(color: Color(0xFFE63946))),
                                             ),
                                           ],
                                           onChanged: (val) {
@@ -1954,8 +1951,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFE5B842),
-                            side: const BorderSide(color: Color(0xFFE5B842)),
+                            foregroundColor: const Color(0xFFE63946),
+                            side: const BorderSide(color: Color(0xFFC1121F)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           icon: const Icon(Icons.add, size: 16),
@@ -1994,7 +1991,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE5B842),
+                        backgroundColor: const Color(0xFFC1121F),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () async {
@@ -2187,7 +2184,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         Text(
                           '$homeName vs $awayName (${category.startsWith('20') ? 'Cat. $category' : category})',
                           style: const TextStyle(
-                              color: Color(0xFFE5B842),
+                              color: Color(0xFFE63946),
                               fontSize: 13,
                               fontWeight: FontWeight.w600),
                         ),
@@ -2406,7 +2403,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                 },
                                 child: const Text('📋 Usar lista',
                                     style: TextStyle(
-                                        color: Color(0xFFE5B842), fontSize: 11)),
+                                        color: Color(0xFFE63946), fontSize: 11)),
                               ),
                           ],
                         ),
@@ -2449,7 +2446,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                     value: 'MANUAL',
                                     child: Text('✍️ Escribir otro nombre...',
                                         style: TextStyle(
-                                            color: Color(0xFFE5B842))),
+                                            color: Color(0xFFE63946))),
                                   ),
                                 ],
                                 onChanged: (val) {
@@ -2674,19 +2671,19 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE5B842).withValues(alpha: 0.15),
+                    color: const Color(0xFFC1121F).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE5B842).withValues(alpha: 0.4)),
+                    border: Border.all(color: const Color(0xFFC1121F).withValues(alpha: 0.4)),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.verified, size: 14, color: Color(0xFFE5B842)),
+                      Icon(Icons.verified, size: 14, color: Color(0xFFE63946)),
                       SizedBox(width: 5),
                       Text(
                         'UCIV · Oficial',
                         style: TextStyle(
-                          color: Color(0xFFE5B842),
+                          color: Color(0xFFE63946),
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.3,
@@ -2708,7 +2705,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     child: DropdownButton<String>(
                       value: _sheetTournamentFilter,
                       dropdownColor: context.colors.surface,
-                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFE5B842)),
+                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFE63946)),
                       style: TextStyle(
                         color: context.colors.textPrimary,
                         fontWeight: FontWeight.bold,
@@ -2756,17 +2753,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                           _selectedJornadaId = j['id']?.toString();
                         });
                       },
-                      selectedColor: const Color(0xFFE5B842),
+                      selectedColor: const Color(0xFFC1121F),
                       backgroundColor: context.colors.surfaceVariant,
                       labelStyle: TextStyle(
-                        color: isSelected ? Colors.black : context.colors.textSecondary,
+                        color: isSelected ? Colors.white : context.colors.textSecondary,
                         fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                         fontSize: 12,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
-                          color: isSelected ? const Color(0xFFE5B842) : context.colors.border.withValues(alpha: 0.3),
+                          color: isSelected ? const Color(0xFFC1121F) : context.colors.border.withValues(alpha: 0.3),
                         ),
                       ),
                     );
@@ -2843,28 +2840,28 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFE5B842).withValues(alpha: 0.18),
+            const Color(0xFFC1121F).withValues(alpha: 0.18),
             context.colors.surface,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5B842), width: 1.5),
+        border: Border.all(color: const Color(0xFFC1121F), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.star, color: Color(0xFFE5B842), size: 16),
+              Icon(Icons.star, color: Color(0xFFE63946), size: 16),
               SizedBox(width: 6),
               Text(
                 'RESULTADO DEL CLUB EN ESTA FECHA',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFFE5B842),
+                  color: Color(0xFFE63946),
                   letterSpacing: 0.5,
                 ),
               ),
@@ -2873,54 +2870,121 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
           const SizedBox(height: 8),
 
           // Enfrentamiento y Puntaje
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    _buildClubSmallAvatar(hClub),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '$hDisplayName ($homePts pts)',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: hDisplayName.toLowerCase().contains('newbery') ? const Color(0xFFE5B842) : context.colors.textPrimary,
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceVariant.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: context.colors.border.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                // Local
+                Expanded(
+                  child: Row(
+                    children: [
+                      _buildClubSmallAvatar(hClub),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              hDisplayName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: hDisplayName.toLowerCase().contains('newbery')
+                                    ? const Color(0xFFE63946)
+                                    : context.colors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$homePts pts',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w900,
+                                color: hDisplayName.toLowerCase().contains('newbery')
+                                    ? const Color(0xFFE63946)
+                                    : context.colors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Text('vs', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white38)),
-              ),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '$aDisplayName ($awayPts pts)',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: aDisplayName.toLowerCase().contains('newbery') ? const Color(0xFFE5B842) : context.colors.textSecondary,
+
+                // Center VS Badge
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC1121F).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFC1121F).withValues(alpha: 0.3)),
+                  ),
+                  child: const Text(
+                    'VS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFE63946),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+
+                // Visitante
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              aDisplayName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: aDisplayName.toLowerCase().contains('newbery')
+                                    ? const Color(0xFFE63946)
+                                    : context.colors.textPrimary,
+                              ),
+                              textAlign: TextAlign.end,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$awayPts pts',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w900,
+                                color: aDisplayName.toLowerCase().contains('newbery')
+                                    ? const Color(0xFFE63946)
+                                    : context.colors.textSecondary,
+                              ),
+                              textAlign: TextAlign.end,
+                            ),
+                          ],
                         ),
-                        textAlign: TextAlign.end,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildClubSmallAvatar(aClub),
-                  ],
+                      const SizedBox(width: 8),
+                      _buildClubSmallAvatar(aClub),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
 
           const SizedBox(height: 12),
@@ -3012,7 +3076,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFFE5B842),
+                    color: Color(0xFFE63946),
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -3057,7 +3121,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       ),
                       child: const Text(
                         'CLUBES',
-                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Color(0xFFE5B842)),
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Color(0xFFE63946)),
                       ),
                     ),
 
@@ -3069,19 +3133,32 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       final rawA = (m['awayTeam'] ?? '').toString();
                       final isJNLocal = rawH.toLowerCase().contains('newbery') || rawH.toLowerCase().contains('jn');
                       final isJNAway = rawA.toLowerCase().contains('newbery') || rawA.toLowerCase().contains('jn');
+                      final isJNMatch = isJNLocal || isJNAway;
 
                       final hClub = findMatchingClub(clubs, rawH);
                       final aClub = findMatchingClub(clubs, rawA);
                       final hDisplayName = hClub?['name'] ?? normalizeClubName(rawH);
                       final aDisplayName = aClub?['name'] ?? normalizeClubName(rawA);
 
-                      final isEven = mIdx % 2 == 0;
+                      final isEvenMatch = mIdx % 2 == 0;
+                      final defaultMatchBg = isEvenMatch ? context.colors.surfaceVariant.withValues(alpha: 0.45) : Colors.transparent;
+
                       final homeBg = isJNLocal
-                          ? const Color(0xFFE5B842).withValues(alpha: 0.15)
-                          : (isEven ? Colors.transparent : Colors.white.withValues(alpha: 0.02));
+                          ? const Color(0xFFC1121F).withValues(alpha: 0.22)
+                          : (isJNMatch ? const Color(0xFFC1121F).withValues(alpha: 0.08) : defaultMatchBg);
+
                       final awayBg = isJNAway
-                          ? const Color(0xFFE5B842).withValues(alpha: 0.15)
-                          : (isEven ? Colors.white.withValues(alpha: 0.03) : Colors.transparent);
+                          ? const Color(0xFFC1121F).withValues(alpha: 0.22)
+                          : (isJNMatch ? const Color(0xFFC1121F).withValues(alpha: 0.08) : defaultMatchBg);
+
+                      final matchDividerBorder = BorderSide(
+                        color: isJNMatch ? const Color(0xFFC1121F).withValues(alpha: 0.7) : context.colors.border.withValues(alpha: 0.85),
+                        width: 2.2,
+                      );
+                      final innerRowBorder = BorderSide(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        width: 1.0,
+                      );
 
                       return Column(
                         children: [
@@ -3093,7 +3170,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               color: homeBg,
                               border: Border(
                                 right: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
-                                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                                bottom: innerRowBorder,
                               ),
                             ),
                             child: Row(
@@ -3106,7 +3183,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                     style: TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: isJNLocal ? FontWeight.w900 : FontWeight.w600,
-                                      color: isJNLocal ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                      color: isJNLocal ? const Color(0xFFE63946) : context.colors.textPrimary,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -3119,7 +3196,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             ),
                           ),
 
-                          // Fila Visitante (con división más marcada para separar partidos)
+                          // Fila Visitante (con división gruesa que separa partidos)
                           Container(
                             height: rowHeight,
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -3127,7 +3204,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               color: awayBg,
                               border: Border(
                                 right: BorderSide(color: context.colors.border.withValues(alpha: 0.5), width: 1.5),
-                                bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.4), width: 1.5),
+                                bottom: matchDividerBorder,
                               ),
                             ),
                             child: Row(
@@ -3140,7 +3217,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                     style: TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: isJNAway ? FontWeight.w900 : FontWeight.w600,
-                                      color: isJNAway ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                      color: isJNAway ? const Color(0xFFE63946) : context.colors.textPrimary,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -3190,11 +3267,11 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             ),
                             Container(
                               width: ptsColWidth,
-                              color: const Color(0xFFE5B842).withValues(alpha: 0.1),
+                              color: const Color(0xFFC1121F).withValues(alpha: 0.1),
                               child: const Center(
                                 child: Text(
                                   'Pts',
-                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFFE5B842)),
+                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFFE63946)),
                                 ),
                               ),
                             ),
@@ -3213,6 +3290,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         final rawA = (m['awayTeam'] ?? '').toString();
                         final isJNLocal = rawH.toLowerCase().contains('newbery') || rawH.toLowerCase().contains('jn');
                         final isJNAway = rawA.toLowerCase().contains('newbery') || rawA.toLowerCase().contains('jn');
+                        final isJNMatch = isJNLocal || isJNAway;
 
                         final finalHomePts = m['homeReportedPts'] != null
                             ? int.tryParse(m['homeReportedPts'].toString()) ?? calcPts['homePts']!
@@ -3221,13 +3299,25 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             ? int.tryParse(m['awayReportedPts'].toString()) ?? calcPts['awayPts']!
                             : calcPts['awayPts']!;
 
-                        final isEven = mIdx % 2 == 0;
+                        final isEvenMatch = mIdx % 2 == 0;
+                        final defaultMatchBg = isEvenMatch ? context.colors.surfaceVariant.withValues(alpha: 0.45) : Colors.transparent;
+
                         final homeBg = isJNLocal
-                            ? const Color(0xFFE5B842).withValues(alpha: 0.15)
-                            : (isEven ? Colors.transparent : Colors.white.withValues(alpha: 0.02));
+                            ? const Color(0xFFC1121F).withValues(alpha: 0.22)
+                            : (isJNMatch ? const Color(0xFFC1121F).withValues(alpha: 0.08) : defaultMatchBg);
+
                         final awayBg = isJNAway
-                            ? const Color(0xFFE5B842).withValues(alpha: 0.15)
-                            : (isEven ? Colors.white.withValues(alpha: 0.03) : Colors.transparent);
+                            ? const Color(0xFFC1121F).withValues(alpha: 0.22)
+                            : (isJNMatch ? const Color(0xFFC1121F).withValues(alpha: 0.08) : defaultMatchBg);
+
+                        final matchDividerBorder = BorderSide(
+                          color: isJNMatch ? const Color(0xFFC1121F).withValues(alpha: 0.7) : context.colors.border.withValues(alpha: 0.85),
+                          width: 2.2,
+                        );
+                        final innerRowBorder = BorderSide(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          width: 1.0,
+                        );
 
                         return Column(
                           children: [
@@ -3236,7 +3326,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               height: rowHeight,
                               decoration: BoxDecoration(
                                 color: homeBg,
-                                border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
+                                border: Border(bottom: innerRowBorder),
                               ),
                               child: Row(
                                 children: [
@@ -3259,15 +3349,15 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                   Container(
                                     width: ptsColWidth,
                                     color: isJNLocal
-                                        ? const Color(0xFFE5B842).withValues(alpha: 0.25)
-                                        : const Color(0xFFE5B842).withValues(alpha: 0.05),
+                                        ? const Color(0xFFC1121F).withValues(alpha: 0.3)
+                                        : const Color(0xFFC1121F).withValues(alpha: 0.05),
                                     child: Center(
                                       child: Text(
                                         '$finalHomePts',
                                         style: TextStyle(
                                           fontSize: 12.5,
                                           fontWeight: FontWeight.w900,
-                                          color: isJNLocal ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                          color: isJNLocal ? const Color(0xFFE63946) : context.colors.textPrimary,
                                         ),
                                       ),
                                     ),
@@ -3281,7 +3371,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               height: rowHeight,
                               decoration: BoxDecoration(
                                 color: awayBg,
-                                border: Border(bottom: BorderSide(color: context.colors.border.withValues(alpha: 0.4), width: 1.5)),
+                                border: Border(bottom: matchDividerBorder),
                               ),
                               child: Row(
                                 children: [
@@ -3304,15 +3394,15 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                   Container(
                                     width: ptsColWidth,
                                     color: isJNAway
-                                        ? const Color(0xFFE5B842).withValues(alpha: 0.25)
-                                        : const Color(0xFFE5B842).withValues(alpha: 0.05),
+                                        ? const Color(0xFFC1121F).withValues(alpha: 0.3)
+                                        : const Color(0xFFC1121F).withValues(alpha: 0.05),
                                     child: Center(
                                       child: Text(
                                         '$finalAwayPts',
                                         style: TextStyle(
                                           fontSize: 12.5,
                                           fontWeight: FontWeight.w900,
-                                          color: isJNAway ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                          color: isJNAway ? const Color(0xFFE63946) : context.colors.textPrimary,
                                         ),
                                       ),
                                     ),
@@ -3347,7 +3437,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
               style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFFE5B842),
+                color: Color(0xFFE63946),
               ),
             ),
           ),
@@ -3407,7 +3497,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFFE5B842),
+                    color: Color(0xFFE63946),
                     letterSpacing: 0.3,
                   ),
                 ),
@@ -3437,7 +3527,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 child: DropdownButton<String>(
                   value: _standingsTournament,
                   dropdownColor: context.colors.surface,
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFE5B842)),
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFE63946)),
                   style: TextStyle(
                     color: context.colors.textPrimary,
                     fontWeight: FontWeight.bold,
@@ -3471,17 +3561,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   label: const Text('🏆 General (Tira)'),
                   selected: _standingsCategory == 'all',
                   onSelected: (_) => setState(() => _standingsCategory = 'all'),
-                  selectedColor: const Color(0xFFE5B842),
+                  selectedColor: const Color(0xFFC1121F),
                   backgroundColor: context.colors.surfaceVariant,
                   labelStyle: TextStyle(
-                    color: _standingsCategory == 'all' ? Colors.black : context.colors.textSecondary,
+                    color: _standingsCategory == 'all' ? Colors.white : context.colors.textSecondary,
                     fontWeight: _standingsCategory == 'all' ? FontWeight.w900 : FontWeight.w600,
                     fontSize: 11,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
-                      color: _standingsCategory == 'all' ? const Color(0xFFE5B842) : context.colors.border.withValues(alpha: 0.3),
+                      color: _standingsCategory == 'all' ? const Color(0xFFC1121F) : context.colors.border.withValues(alpha: 0.3),
                     ),
                   ),
                 ),
@@ -3495,17 +3585,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     label: Text('Cat. $cleanCat'),
                     selected: isSelected,
                     onSelected: (_) => setState(() => _standingsCategory = cleanCat),
-                    selectedColor: const Color(0xFFE5B842),
+                    selectedColor: const Color(0xFFC1121F),
                     backgroundColor: context.colors.surfaceVariant,
                     labelStyle: TextStyle(
-                      color: isSelected ? Colors.black : context.colors.textSecondary,
+                      color: isSelected ? Colors.white : context.colors.textSecondary,
                       fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                       fontSize: 11,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: BorderSide(
-                        color: isSelected ? const Color(0xFFE5B842) : context.colors.border.withValues(alpha: 0.3),
+                        color: isSelected ? const Color(0xFFC1121F) : context.colors.border.withValues(alpha: 0.3),
                       ),
                     ),
                   ),
@@ -3590,7 +3680,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                             final isPodium = idx < 3;
                             final isEven = idx % 2 == 0;
                             final rowBg = isNewbery
-                                ? const Color(0xFFE5B842).withValues(alpha: 0.15)
+                                ? const Color(0xFFC1121F).withValues(alpha: 0.15)
                                 : (isEven ? Colors.transparent : Colors.white.withValues(alpha: 0.02));
 
                             return Container(
@@ -3652,7 +3742,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                       style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: isNewbery ? FontWeight.w900 : FontWeight.w600,
-                                        color: isNewbery ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                        color: isNewbery ? const Color(0xFFE63946) : context.colors.textPrimary,
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -3697,7 +3787,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                   SizedBox(
                                     width: 44,
                                     child: Center(
-                                      child: Text('PTS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFFE5B842))),
+                                      child: Text('PTS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFFE63946))),
                                     ),
                                   ),
                                 ],
@@ -3714,7 +3804,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               final dg = row['dg'] as int;
                               final isEven = idx % 2 == 0;
                               final rowBg = isNewbery
-                                  ? const Color(0xFFE5B842).withValues(alpha: 0.15)
+                                  ? const Color(0xFFC1121F).withValues(alpha: 0.15)
                                   : (isEven ? Colors.transparent : Colors.white.withValues(alpha: 0.02));
 
                               return Container(
@@ -3749,15 +3839,15 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                     Container(
                                       width: 44,
                                       color: isNewbery
-                                          ? const Color(0xFFE5B842).withValues(alpha: 0.25)
-                                          : const Color(0xFFE5B842).withValues(alpha: 0.05),
+                                          ? const Color(0xFFC1121F).withValues(alpha: 0.25)
+                                          : const Color(0xFFC1121F).withValues(alpha: 0.05),
                                       child: Center(
                                         child: Text(
                                           '${row['pts']}',
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w900,
-                                            color: isNewbery ? const Color(0xFFE5B842) : context.colors.textPrimary,
+                                            color: isNewbery ? const Color(0xFFE63946) : context.colors.textPrimary,
                                           ),
                                         ),
                                       ),
@@ -3790,7 +3880,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFE5B842),
+                      color: Color(0xFFE63946),
                     ),
                   ),
                 ),

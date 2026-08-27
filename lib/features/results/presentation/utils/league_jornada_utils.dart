@@ -163,76 +163,155 @@ String normalizeClubName(String? rawName) {
   return rawName.trim();
 }
 
+String stripClubAffixes(String? str) {
+  if (str == null) return '';
+  String s = simplifyClubName(str);
+  const affixes = [
+    'sociedaddefomento',
+    'socdefom',
+    'centrosocialydeportivo',
+    'clubsocialydeportivo',
+    'centrodefomento',
+    'clubatletico',
+    'asociacion',
+    'deportivo',
+    'socfom',
+    'club',
+    'csyd',
+    'csd',
+    'sdf',
+    'dep',
+    'fc',
+    'ca',
+    'sf',
+    'cf',
+  ];
+  for (final affix in affixes) {
+    if (s.startsWith(affix) && s.length > affix.length + 2) {
+      s = s.substring(affix.length);
+    }
+  }
+  return s;
+}
+
+String? extractClubLogo(Map<String, dynamic>? c) {
+  if (c == null) return null;
+  final url = c['logoUrl'] ??
+      c['shieldUrl'] ??
+      c['imageUrl'] ??
+      c['logo'] ??
+      c['image'] ??
+      c['photoUrl'] ??
+      c['url'] ??
+      c['badgeUrl'] ??
+      c['escudoUrl'] ??
+      c['escudo'] ??
+      c['shield'];
+  final str = url?.toString().trim();
+  return (str != null && str.isNotEmpty && str != 'null') ? str : null;
+}
+
 Map<String, dynamic>? findMatchingClub(List<Map<String, dynamic>> clubs, String? rawTeamName) {
   if (rawTeamName == null || rawTeamName.trim().isEmpty) return null;
   final canonical = normalizeClubName(rawTeamName);
   final simpleRaw = simplifyClubName(rawTeamName);
   final simpleCanonical = simplifyClubName(canonical);
+  final strippedRaw = stripClubAffixes(rawTeamName);
+  final strippedCanonical = stripClubAffixes(canonical);
 
   // Jorge Newbery Check
   if (simpleRaw.contains('newbery') || simpleRaw.contains('jn') || simpleCanonical.contains('newbery')) {
     final jnClub = clubs.where((c) {
       final name = simplifyClubName(c['name']?.toString());
-      return name.contains('newbery') || name.contains('jn');
+      return c['isLocal'] == true || name.contains('newbery') || name.contains('jn');
     }).firstOrNull;
 
     return {
       'id': jnClub?['id'] ?? 'jn',
       'name': 'Jorge Newbery',
       'isLocal': true,
-      'logoUrl': jnClub?['logoUrl'] ?? jnClub?['shieldUrl'] ?? jnClub?['imageUrl'] ?? jnClub?['logo'],
+      'logoUrl': extractClubLogo(jnClub),
     };
   }
 
-  // 1. Direct match with canonical name
+  // 1. Direct ID match
+  for (final c in clubs) {
+    if (c['id'] != null && c['id'].toString() == rawTeamName.trim()) {
+      return {
+        ...c,
+        'name': canonical,
+        'logoUrl': extractClubLogo(c),
+      };
+    }
+  }
+
+  // 2. Direct match with canonical name or normalized club name
   for (final c in clubs) {
     final cName = (c['name']?.toString() ?? '').trim();
-    if (cName.toLowerCase() == canonical.toLowerCase()) {
+    final cCanonical = normalizeClubName(cName);
+    if (cName.toLowerCase() == canonical.toLowerCase() ||
+        cCanonical.toLowerCase() == canonical.toLowerCase() ||
+        cName.toLowerCase() == rawTeamName.trim().toLowerCase()) {
       return {
         ...c,
         'name': canonical,
-        'logoUrl': c['logoUrl'] ?? c['shieldUrl'] ?? c['imageUrl'] ?? c['logo'] ?? c['badgeUrl'],
+        'logoUrl': extractClubLogo(c),
       };
     }
   }
 
-  // 2. Simplified match
+  // 3. Simplified exact match
   for (final c in clubs) {
-    final sc = simplifyClubName(c['name']?.toString());
-    if (sc == simpleRaw || sc == simpleCanonical) {
+    final cName = c['name']?.toString();
+    final sc = simplifyClubName(cName);
+    final scCanonical = simplifyClubName(normalizeClubName(cName));
+    if (sc == simpleRaw || sc == simpleCanonical || scCanonical == simpleCanonical) {
       return {
         ...c,
         'name': canonical,
-        'logoUrl': c['logoUrl'] ?? c['shieldUrl'] ?? c['imageUrl'] ?? c['logo'] ?? c['badgeUrl'],
+        'logoUrl': extractClubLogo(c),
       };
     }
   }
 
-  // 3. Alias check
+  // 4. Stripped affixes match
   for (final c in clubs) {
-    final cCanonical = normalizeClubName(c['name']?.toString());
-    if (simplifyClubName(cCanonical) == simpleCanonical) {
+    final cName = c['name']?.toString();
+    final strippedC = stripClubAffixes(cName);
+    final strippedCCanonical = stripClubAffixes(normalizeClubName(cName));
+    if (strippedC.isNotEmpty &&
+        (strippedC == strippedRaw ||
+            strippedC == strippedCanonical ||
+            strippedCCanonical == strippedCanonical)) {
       return {
         ...c,
         'name': canonical,
-        'logoUrl': c['logoUrl'] ?? c['shieldUrl'] ?? c['imageUrl'] ?? c['logo'] ?? c['badgeUrl'],
+        'logoUrl': extractClubLogo(c),
       };
     }
   }
 
-  // 4. Substring / contains match
+  // 5. Substring / contains match
   for (final c in clubs) {
-    final sc = simplifyClubName(c['name']?.toString());
-    if (sc.isNotEmpty && (sc.contains(simpleCanonical) || simpleCanonical.contains(sc) || sc.contains(simpleRaw) || simpleRaw.contains(sc))) {
+    final cName = c['name']?.toString();
+    final sc = simplifyClubName(cName);
+    final strippedC = stripClubAffixes(cName);
+    if (sc.isNotEmpty &&
+        (sc.contains(simpleCanonical) ||
+            simpleCanonical.contains(sc) ||
+            sc.contains(simpleRaw) ||
+            simpleRaw.contains(sc) ||
+            (strippedC.length >= 4 && strippedCanonical.contains(strippedC)) ||
+            (strippedCanonical.length >= 4 && strippedC.contains(strippedCanonical)))) {
       return {
         ...c,
         'name': canonical,
-        'logoUrl': c['logoUrl'] ?? c['shieldUrl'] ?? c['imageUrl'] ?? c['logo'] ?? c['badgeUrl'],
+        'logoUrl': extractClubLogo(c),
       };
     }
   }
 
-  // 5. Fallback synthetic map with canonical name
+  // 6. Fallback synthetic map with canonical name
   return {
     'id': simpleCanonical,
     'name': canonical,
@@ -347,7 +426,7 @@ List<Map<String, dynamic>> calculateStandings({
       table[canonicalName] = {
         'id': c['id'],
         'name': canonicalName,
-        'logoUrl': c['logoUrl'] ?? c['logo'] ?? c['imageUrl'] ?? c['shieldUrl'] ?? c['badgeUrl'],
+        'logoUrl': extractClubLogo(c),
         'isLocal': isNewbery,
         'pj': 0,
         'pg': 0,
@@ -377,14 +456,10 @@ List<Map<String, dynamic>> calculateStandings({
       };
     }
 
-    // 2. Loop through all matching jornadas
-    for (final jornada in relevantJornadas) {
-      final rawCats = jornada['categories'] as List?;
-      final List<String> cats = (rawCats != null && rawCats.isNotEmpty)
-          ? rawCats.map((c) => c.toString()).toList()
-          : kDefaultCategories;
-
-      final matches = (jornada['matches'] as List?) ?? [];
+    // 2. Iterate official league jornadas
+    for (final j in relevantJornadas) {
+      final matches = List<dynamic>.from(j['matches'] ?? []);
+      final cats = List<String>.from(j['categories'] ?? kDefaultCategories);
 
       for (final rawM in matches) {
         if (rawM is! Map) continue;
@@ -405,21 +480,29 @@ List<Map<String, dynamic>> calculateStandings({
         final hName = isHNewbery ? 'Jorge Newbery' : (hClub?['name']?.toString() ?? rawH);
         final aName = isANewbery ? 'Jorge Newbery' : (aClub?['name']?.toString() ?? rawA);
 
-        table.putIfAbsent(hName, () => {
-          'id': hClub?['id'] ?? hName,
-          'name': hName,
-          'logoUrl': hClub?['logoUrl'] ?? hClub?['logo'],
-          'isLocal': isHNewbery,
-          'pj': 0, 'pg': 0, 'pe': 0, 'pp': 0, 'gf': 0, 'gc': 0, 'dg': 0, 'pts': 0,
-        });
+        if (!table.containsKey(hName)) {
+          table[hName] = {
+            'id': hClub?['id'] ?? hName,
+            'name': hName,
+            'logoUrl': extractClubLogo(hClub),
+            'isLocal': isHNewbery,
+            'pj': 0, 'pg': 0, 'pe': 0, 'pp': 0, 'gf': 0, 'gc': 0, 'dg': 0, 'pts': 0,
+          };
+        } else if (table[hName]!['logoUrl'] == null && extractClubLogo(hClub) != null) {
+          table[hName]!['logoUrl'] = extractClubLogo(hClub);
+        }
 
-        table.putIfAbsent(aName, () => {
-          'id': aClub?['id'] ?? aName,
-          'name': aName,
-          'logoUrl': aClub?['logoUrl'] ?? aClub?['logo'],
-          'isLocal': isANewbery,
-          'pj': 0, 'pg': 0, 'pe': 0, 'pp': 0, 'gf': 0, 'gc': 0, 'dg': 0, 'pts': 0,
-        });
+        if (!table.containsKey(aName)) {
+          table[aName] = {
+            'id': aClub?['id'] ?? aName,
+            'name': aName,
+            'logoUrl': extractClubLogo(aClub),
+            'isLocal': isANewbery,
+            'pj': 0, 'pg': 0, 'pe': 0, 'pp': 0, 'gf': 0, 'gc': 0, 'dg': 0, 'pts': 0,
+          };
+        } else if (table[aName]!['logoUrl'] == null && extractClubLogo(aClub) != null) {
+          table[aName]!['logoUrl'] = extractClubLogo(aClub);
+        }
 
         final matchCatsMap = m['categories'] as Map<String, dynamic>?;
 
