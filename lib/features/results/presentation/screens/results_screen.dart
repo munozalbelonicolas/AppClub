@@ -85,7 +85,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       _selectedCategory = categories.first;
     }
 
-    final bool canManage = sessionUser?.isAdmin == true || sessionUser?.role == 'dt' || sessionUser?.isCoach == true;
+    final bool isAdmin = sessionUser?.isAdmin == true;
+    final bool canManage = isAdmin || sessionUser?.role == 'dt' || sessionUser?.isCoach == true;
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -127,7 +128,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
           Column(
             children: [
               _buildCategorySelector(categories, isPlayer: isPlayer, playerCategory: playerCategory),
-              Expanded(child: _buildFixtureTab(canManage)),
+              Expanded(child: _buildFixtureTab(canManage, isAdmin)),
             ],
           ),
           Column(
@@ -226,7 +227,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   }
 
   // ─── 1. Fixture & Resultados Tab (Jornadas y 10 Categorías) ──────────────────────────────────
-  Widget _buildFixtureTab(bool canManage) {
+  Widget _buildFixtureTab(bool canManage, bool isAdmin) {
     final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
     final clubsAsync = ref.watch(clubsStreamProvider);
     final clubs = clubsAsync.valueOrNull ?? [];
@@ -339,8 +340,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                           ],
                         ),
 
-                        // Botón de Cargar Jornada Completa (Admin / DT)
-                        if (canManage && allMatches.isNotEmpty)
+                        // Botón de Cargar Jornada Completa (Solo Admin)
+                        if (isAdmin && allMatches.isNotEmpty)
                           InkWell(
                             onTap: () => _showFullMatchdayResultsModal(
                               context,
@@ -869,43 +870,45 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 5),
 
-                                          // Botón Resultado
-                                          InkWell(
-                                            onTap: () => _showSingleMatchResultModal(
-                                              context,
-                                              fixture: fixture,
-                                              matchIndex: matchIndexInAll,
-                                              homeClub: mHomeClub,
-                                              awayClub: mAwayClub,
-                                              category: catLabel,
-                                            ),
-                                            borderRadius: BorderRadius.circular(6),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: context.colors.accent.withValues(alpha: 0.15),
-                                                borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: context.colors.accent.withValues(alpha: 0.5)),
+                                          // Botón Resultado (Solo Admin)
+                                          if (isAdmin) ...[
+                                            const SizedBox(width: 5),
+                                            InkWell(
+                                              onTap: () => _showSingleMatchResultModal(
+                                                context,
+                                                fixture: fixture,
+                                                matchIndex: matchIndexInAll,
+                                                homeClub: mHomeClub,
+                                                awayClub: mAwayClub,
+                                                category: catLabel,
                                               ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(Icons.edit_outlined, size: 12, color: context.colors.accent),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    hasScores ? 'Editar Goles' : 'Resultado',
-                                                    style: TextStyle(
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: context.colors.accent,
+                                              borderRadius: BorderRadius.circular(6),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: context.colors.accent.withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: context.colors.accent.withValues(alpha: 0.5)),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.edit_outlined, size: 12, color: context.colors.accent),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      hasScores ? 'Editar Goles' : 'Resultado',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: context.colors.accent,
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             ),
-                                          ),
+                                          ],
                                         ],
                                       ),
                                     ),
