@@ -405,6 +405,49 @@ List<Map<String, dynamic>> calculateStandings({
 
   final String sType = tournament.toLowerCase().trim();
 
+  // Check if a manual custom standings doc was saved (from Web or Admin)
+  final customDoc = leagueJornadas.firstWhere(
+    (j) => (j['isStandings'] == true || j['type'] == 'custom_standings' || (j['id'] != null && j['id'].toString().startsWith('standings_'))) &&
+           (j['tournament']?.toString().toLowerCase().trim() == sType || (j['id'] != null && j['id'].toString().contains(sType))),
+    orElse: () => <String, dynamic>{},
+  );
+
+  if (customDoc.isNotEmpty && customDoc['rows'] is List && (customDoc['rows'] as List).isNotEmpty) {
+    final customRows = List<dynamic>.from(customDoc['rows'] as List);
+    final List<Map<String, dynamic>> result = [];
+    for (final rawRow in customRows) {
+      if (rawRow is! Map) continue;
+      final row = Map<String, dynamic>.from(rawRow);
+      final rawName = row['name']?.toString().trim() ?? '';
+      final isNewbery = (row['isLocal'] == true) || rawName.toLowerCase().contains('newbery') || rawName.toLowerCase().contains('jn');
+      final matchingClub = findMatchingClub(clubs, rawName);
+
+      result.add({
+        'id': row['id'] ?? matchingClub?['id'] ?? rawName,
+        'name': rawName,
+        'logoUrl': extractClubLogo(matchingClub) ?? row['logo'] ?? row['logoUrl'],
+        'isLocal': isNewbery,
+        'pj': num.tryParse(row['pj']?.toString() ?? '0') ?? 0,
+        'pg': num.tryParse(row['pg']?.toString() ?? '0') ?? 0,
+        'pe': num.tryParse(row['pe']?.toString() ?? '0') ?? 0,
+        'pp': num.tryParse(row['pp']?.toString() ?? '0') ?? 0,
+        'gf': num.tryParse(row['gf']?.toString() ?? '0') ?? 0,
+        'gc': num.tryParse(row['gc']?.toString() ?? '0') ?? 0,
+        'dg': num.tryParse(row['dg']?.toString() ?? '0') ?? 0,
+        'pts': num.tryParse(row['pts']?.toString() ?? '0') ?? 0,
+      });
+    }
+
+    result.sort((a, b) {
+      if (b['pts'] != a['pts']) return (b['pts'] as num).compareTo(a['pts'] as num);
+      if (b['dg'] != a['dg']) return (b['dg'] as num).compareTo(a['dg'] as num);
+      if (b['gf'] != a['gf']) return (b['gf'] as num).compareTo(a['gf'] as num);
+      return (a['name'] as String).compareTo(b['name'] as String);
+    });
+
+    return result;
+  }
+
   // Filter official league jornadas by tournament (if 'anual', sum both apertura & clausura)
   final relevantJornadas = leagueJornadas.where((j) {
     if (sType == 'anual' || sType == 'todos' || sType == 'general') return true;

@@ -3479,25 +3479,23 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       leagueJornadas: jornadas,
       fixtures: fixtures,
       clubs: clubs,
-      tournament: _standingsTournament,
-      category: _standingsCategory,
+      tournament: 'anual',
+      category: 'all',
     );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 100),
       children: [
-        // ─── Header: Controles de Torneo y Categoría ───
+        // ─── Header: Tabla Anual Acumulada ───
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _standingsTournament == 'anual'
-                      ? 'Tabla Anual Acumulada'
-                      : (_standingsTournament == 'apertura' ? 'Torneo Apertura' : 'Torneo Clausura'),
-                  style: const TextStyle(
+                const Text(
+                  '🏆 Tabla Anual Acumulada',
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFFE63946),
@@ -3506,9 +3504,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _standingsCategory == 'all'
-                      ? 'Tabla General (Tira Completa)'
-                      : 'Tabla de Posiciones · Cat. $_standingsCategory',
+                  'Tabla General de Clubes (Tira Completa)',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
@@ -3517,95 +3513,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 ),
               ],
             ),
-
-            // Dropdown de Torneo (Anual Acumulada, Apertura, Clausura)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-              decoration: BoxDecoration(
-                color: context.colors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.colors.border.withValues(alpha: 0.4)),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _standingsTournament,
-                  dropdownColor: context.colors.surface,
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFE63946)),
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'anual', child: Text('🏆 Anual (Acumulada)')),
-                    DropdownMenuItem(value: 'apertura', child: Text('🏆 Apertura')),
-                    DropdownMenuItem(value: 'clausura', child: Text('🏆 Clausura')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _standingsTournament = val);
-                  },
-                ),
-              ),
-            ),
           ],
-        ),
-
-        const SizedBox(height: 12),
-
-        // ─── Pills Selector de Categorías ───
-        SizedBox(
-          height: 36,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: ChoiceChip(
-                  label: const Text('🏆 General (Tira)'),
-                  selected: _standingsCategory == 'all',
-                  onSelected: (_) => setState(() => _standingsCategory = 'all'),
-                  selectedColor: const Color(0xFFC1121F),
-                  backgroundColor: context.colors.surfaceVariant,
-                  labelStyle: TextStyle(
-                    color: _standingsCategory == 'all' ? Colors.white : context.colors.textSecondary,
-                    fontWeight: _standingsCategory == 'all' ? FontWeight.w900 : FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: _standingsCategory == 'all' ? const Color(0xFFC1121F) : context.colors.border.withValues(alpha: 0.3),
-                    ),
-                  ),
-                ),
-              ),
-              ...standingsCategoryOptions.map((cat) {
-                final cleanCat = cat.replaceAll(RegExp(r'^cat\.?\s*', caseSensitive: false), '').trim();
-                final isSelected = _standingsCategory == cleanCat;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text('Cat. $cleanCat'),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() => _standingsCategory = cleanCat),
-                    selectedColor: const Color(0xFFC1121F),
-                    backgroundColor: context.colors.surfaceVariant,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : context.colors.textSecondary,
-                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                      fontSize: 11,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: isSelected ? const Color(0xFFC1121F) : context.colors.border.withValues(alpha: 0.3),
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
         ),
 
         const SizedBox(height: 14),
