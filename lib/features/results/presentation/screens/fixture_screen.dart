@@ -320,10 +320,45 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    fixture['name'] ?? 'Fecha',
-                    style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fixture['name'] ?? 'Fecha',
+                        style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (fixture['venue'] != null && fixture['venue'].toString().isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              fixture['isHomeVenue'] == false
+                                  ? Icons.directions_bus_outlined
+                                  : Icons.stadium_outlined,
+                              size: 13,
+                              color: fixture['isHomeVenue'] == false
+                                  ? const Color(0xFF38BDF8)
+                                  : const Color(0xFFE5B842),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                '${fixture['venue']}',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: fixture['isHomeVenue'] == false
+                                      ? const Color(0xFF38BDF8)
+                                      : const Color(0xFFE5B842),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 if (isAdmin)
@@ -648,6 +683,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
   TimeOfDay? _matchTime;
   String? _homeClubId;
   String? _awayClubId;
+  bool _isHomeVenue = true;
   bool _isSaving = false;
   final Set<String> _promotionalCategories = {};
   final Map<String, TimeOfDay> _categoryTimes = {};
@@ -690,6 +726,12 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
     return list;
   }
 
+  void _setVenueMode(bool isHome) {
+    setState(() {
+      _isHomeVenue = isHome;
+    });
+  }
+
   void _applyOfficialSchedule() {
     setState(() {
       _promotionalCategories.remove('2019');
@@ -717,6 +759,20 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
     _awayClubId = firstMatch?['awayClubId'] ??
         widget.clubs.where((c) => c['id'] != _homeClubId).firstOrNull?['id'] ??
         (widget.clubs.length > 1 ? widget.clubs[1]['id'] : null);
+
+    final existingVenue = f?['venue']?.toString() ??
+        f?['location']?.toString() ??
+        firstMatch?['venue']?.toString() ??
+        firstMatch?['location']?.toString();
+    final isHomeVenueStored = f?['isHomeVenue'] ?? firstMatch?['isHomeVenue'];
+
+    if (isHomeVenueStored != null) {
+      _isHomeVenue = isHomeVenueStored == true;
+    } else if (existingVenue != null && existingVenue.isNotEmpty) {
+      _isHomeVenue = !existingVenue.toLowerCase().contains('visitante');
+    } else {
+      _isHomeVenue = true;
+    }
 
     if (f != null) {
       for (final m in matches) {
@@ -834,6 +890,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
       final categories = _sortCategories(rawCategories);
       final List<Map<String, dynamic>> matchesList = [];
       final existingMatches = List<Map<String, dynamic>>.from(widget.fixture?['matches'] ?? []);
+      final venueStr = _isHomeVenue ? 'Cancha Local' : 'Cancha Visitante';
 
       if (_selectedCategory == 'all' || _selectedCategory.isEmpty) {
         for (final cat in categories) {
@@ -850,6 +907,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               'date': dateIso,
               'time': timeStr,
               'isPromotional': isPromo,
+              'venue': venueStr,
+              'location': venueStr,
+              'isHomeVenue': _isHomeVenue,
             });
           } else {
             matchesList.add({
@@ -863,6 +923,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               'awayScore': null,
               'scorers': [],
               'isPromotional': isPromo,
+              'venue': venueStr,
+              'location': venueStr,
+              'isHomeVenue': _isHomeVenue,
             });
           }
         }
@@ -881,6 +944,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
             'date': dateIso,
             'time': timeStr,
             'isPromotional': isPromo,
+            'venue': venueStr,
+            'location': venueStr,
+            'isHomeVenue': _isHomeVenue,
           });
         } else {
           matchesList.add({
@@ -894,6 +960,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
             'awayScore': null,
             'scorers': [],
             'isPromotional': isPromo,
+            'venue': venueStr,
+            'location': venueStr,
+            'isHomeVenue': _isHomeVenue,
           });
         }
       }
@@ -904,6 +973,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
           'name': name,
           'category': _selectedCategory,
           'date': dateIso,
+          'venue': venueStr,
+          'location': venueStr,
+          'isHomeVenue': _isHomeVenue,
           'matches': matchesList,
         });
       } else {
@@ -911,6 +983,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
           'name': name,
           'category': _selectedCategory,
           'date': dateIso,
+          'venue': venueStr,
+          'location': venueStr,
+          'isHomeVenue': _isHomeVenue,
           'matches': matchesList,
         });
       }
@@ -1139,7 +1214,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Los partidos promocionales (2019 y 2020) no computan puntos en la tabla de posiciones.',
+                      'Los partidos promocionales no computan puntos en la tabla de posiciones.',
                       style: TextStyle(fontSize: 11, color: Colors.white60, height: 1.3),
                     ),
                     const SizedBox(height: 10),
@@ -1205,7 +1280,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               ),
               const SizedBox(height: 16),
 
-              // ─── Encuentro / Equipos ───
+              // ─── Encuentro / Equipos y Cancha ───
               const Text(
                 'Encuentro / Partido',
                 style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
@@ -1213,102 +1288,197 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               const SizedBox(height: 8),
 
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E22),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFF2E2E33)),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Local
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Local', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF28282D),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF3A3A40)),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: effectiveHomeClubId,
-                                dropdownColor: const Color(0xFF28282D),
-                                isExpanded: true,
-                                icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                                items: widget.clubs.map((c) {
-                                  return DropdownMenuItem<String>(
-                                    value: c['id'] as String,
-                                    child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
-                                  );
-                                }).toList(),
-                                onChanged: (val) => setState(() => _homeClubId = val),
+                    // Equipos Local y Visitante
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Local
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Local', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF28282D),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF3A3A40)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: effectiveHomeClubId,
+                                    dropdownColor: const Color(0xFF28282D),
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                    items: widget.clubs.map((c) {
+                                      return DropdownMenuItem<String>(
+                                        value: c['id'] as String,
+                                        child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) => setState(() => _homeClubId = val),
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    // VS
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                      child: Text(
-                        'VS',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFE5B842),
                         ),
-                      ),
-                    ),
-                    // Visitante
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          RichText(
-                            text: const TextSpan(
-                              text: 'Visitante / Rival ',
-                              style: TextStyle(fontSize: 12, color: Colors.white70),
-                              children: [
-                                TextSpan(text: '*', style: TextStyle(color: Colors.redAccent)),
-                              ],
+                        // VS
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+                          child: Text(
+                            'VS',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFE5B842),
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF28282D),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF3A3A40)),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: effectiveAwayClubId,
-                                dropdownColor: const Color(0xFF28282D),
-                                isExpanded: true,
-                                icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                                items: widget.clubs.map((c) {
-                                  return DropdownMenuItem<String>(
-                                    value: c['id'] as String,
-                                    child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
-                                  );
-                                }).toList(),
-                                onChanged: (val) => setState(() => _awayClubId = val),
+                        ),
+                        // Visitante
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RichText(
+                                text: const TextSpan(
+                                  text: 'Visitante / Rival ',
+                                  style: TextStyle(fontSize: 12, color: Colors.white70),
+                                  children: [
+                                    TextSpan(text: '*', style: TextStyle(color: Colors.redAccent)),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF28282D),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF3A3A40)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: effectiveAwayClubId,
+                                    dropdownColor: const Color(0xFF28282D),
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                    items: widget.clubs.map((c) {
+                                      return DropdownMenuItem<String>(
+                                        value: c['id'] as String,
+                                        child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) => setState(() => _awayClubId = val),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    const Divider(color: Color(0xFF2E2E33), height: 1),
+                    const SizedBox(height: 12),
+
+                    // ─── Cancha Local o Visitante ───
+                    const Text(
+                      'Cancha / Condición',
+                      style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _setVenueMode(true),
+                            borderRadius: BorderRadius.circular(8),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: _isHomeVenue ? const Color(0xFFE5B842).withValues(alpha: 0.2) : const Color(0xFF242427),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _isHomeVenue ? const Color(0xFFE5B842) : const Color(0xFF333338),
+                                  width: _isHomeVenue ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.stadium_outlined,
+                                    size: 16,
+                                    color: _isHomeVenue ? const Color(0xFFE5B842) : Colors.white60,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Cancha Local',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: _isHomeVenue ? FontWeight.bold : FontWeight.normal,
+                                      color: _isHomeVenue ? const Color(0xFFE5B842) : Colors.white70,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _setVenueMode(false),
+                            borderRadius: BorderRadius.circular(8),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: !_isHomeVenue ? const Color(0xFF38BDF8).withValues(alpha: 0.2) : const Color(0xFF242427),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: !_isHomeVenue ? const Color(0xFF38BDF8) : const Color(0xFF333338),
+                                  width: !_isHomeVenue ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.directions_bus_outlined,
+                                    size: 16,
+                                    color: !_isHomeVenue ? const Color(0xFF38BDF8) : Colors.white60,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Cancha Visitante',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: !_isHomeVenue ? FontWeight.bold : FontWeight.normal,
+                                      color: !_isHomeVenue ? const Color(0xFF38BDF8) : Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
