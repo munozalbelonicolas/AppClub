@@ -372,6 +372,65 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     );
   }
 
+  String _formatMatchDropdownItem(Map<String, dynamic> m) {
+    final home = (m['homeTeam'] ?? '').toString().trim();
+    final away = (m['awayTeam'] ?? '').toString().trim();
+    final bool isHomeJN = home.toLowerCase().contains('newbery');
+    final bool isAwayJN = away.toLowerCase().contains('newbery');
+
+    String opponent = 'Rival';
+    if (isHomeJN && away.isNotEmpty && !isAwayJN) {
+      opponent = away;
+    } else if (isAwayJN && home.isNotEmpty && !isHomeJN) {
+      opponent = home;
+    } else {
+      final oppName = (m['opponentName'] ?? '').toString().trim();
+      if (oppName.isNotEmpty && !oppName.toLowerCase().contains('newbery') && oppName != 'Rival') {
+        opponent = oppName;
+      } else if (!isHomeJN && home.isNotEmpty && home != 'Local') {
+        opponent = home;
+      } else if (!isAwayJN && away.isNotEmpty && away != 'Visitante') {
+        opponent = away;
+      }
+    }
+
+    final rawDate = m['date'];
+    String dateFormatted = '';
+    if (rawDate != null) {
+      final str = rawDate.toString().trim();
+      if (str.isNotEmpty && str.toLowerCase() != 'a confirmar') {
+        try {
+          final parsed = DateTime.tryParse(str);
+          if (parsed != null) {
+            dateFormatted = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}';
+          } else {
+            final dashParts = str.split('-');
+            if (dashParts.length == 3) {
+              final p0 = dashParts[0].trim();
+              final p1 = dashParts[1].trim();
+              final p2 = dashParts[2].trim().split(' ').first;
+              if (p0.length == 4) {
+                dateFormatted = '${p2.padLeft(2, '0')}/${p1.padLeft(2, '0')}';
+              } else {
+                dateFormatted = '${p0.padLeft(2, '0')}/${p1.padLeft(2, '0')}';
+              }
+            } else {
+              final slashParts = str.split('/');
+              if (slashParts.length >= 2) {
+                dateFormatted = '${slashParts[0].trim().padLeft(2, '0')}/${slashParts[1].trim().padLeft(2, '0')}';
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (dateFormatted.isNotEmpty) {
+      return '$opponent · $dateFormatted';
+    }
+    return opponent;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
@@ -536,10 +595,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                     ),
                     isExpanded: true,
                     items: matchItems.map((m) {
-                      final isFriendly = m['source'] == 'novedad';
-                      final typeLabel = isFriendly ? 'Amistoso' : 'Oficial';
-                      final dateLabel = (m['date']?.toString().isNotEmpty == true) ? m['date'] : 'A confirmar';
-                      final titleText = '${m['homeTeam']} vs ${m['awayTeam']} · $dateLabel ($typeLabel)';
+                      final titleText = _formatMatchDropdownItem(m);
                       return DropdownMenuItem<String>(
                         value: m['id'] as String,
                         child: Text(
@@ -583,9 +639,24 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                               '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
                               style: context.typography.titleMedium,
                             ),
-                            Text(
-                              '${nextMatch['date'] != null && nextMatch['date'].toString().isNotEmpty ? "${nextMatch['date']} " : ""}${nextMatch['time'] != null && nextMatch['time'].toString().isNotEmpty && nextMatch['time'] != 'A confirmar' ? "· ${nextMatch['time']} " : ""}· Cancha: ${nextMatch['venue'] ?? 'Cancha Principal'}',
-                              style: context.typography.bodySmall,
+                            Builder(
+                              builder: (context) {
+                                final rawV = (nextMatch['venue'] ?? nextMatch['location'] ?? '').toString().trim();
+                                final isVis = nextMatch['isVisitor'] == true ||
+                                    (nextMatch['awayTeam'] != null && nextMatch['awayTeam'].toString().toLowerCase().contains('newbery'));
+                                final venueStr = (rawV.isEmpty ||
+                                        rawV.toLowerCase().contains('cancha principal') ||
+                                        rawV.toLowerCase().contains('cancha visitante') ||
+                                        rawV == 'Cancha Club')
+                                    ? (isVis ? 'Visitante' : 'Local')
+                                    : (rawV.toLowerCase() == 'local'
+                                        ? 'Local'
+                                        : (rawV.toLowerCase() == 'visitante' ? 'Visitante' : rawV));
+                                return Text(
+                                  '${nextMatch['date'] != null && nextMatch['date'].toString().isNotEmpty ? "${nextMatch['date']} " : ""}${nextMatch['time'] != null && nextMatch['time'].toString().isNotEmpty && nextMatch['time'] != 'A confirmar' ? "· ${nextMatch['time']} " : ""}· $venueStr',
+                                  style: context.typography.bodySmall,
+                                );
+                              },
                             ),
                           ],
                         ),
