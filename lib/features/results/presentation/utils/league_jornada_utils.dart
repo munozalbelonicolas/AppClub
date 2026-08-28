@@ -213,11 +213,34 @@ String? extractClubLogo(Map<String, dynamic>? c) {
 
 Map<String, dynamic>? findMatchingClub(List<Map<String, dynamic>> clubs, String? rawTeamName) {
   if (rawTeamName == null || rawTeamName.trim().isEmpty) return null;
-  final canonical = normalizeClubName(rawTeamName);
-  final simpleRaw = simplifyClubName(rawTeamName);
+  final trimmed = rawTeamName.trim();
+  final canonical = normalizeClubName(trimmed);
+  final simpleRaw = simplifyClubName(trimmed);
   final simpleCanonical = simplifyClubName(canonical);
-  final strippedRaw = stripClubAffixes(rawTeamName);
+  final strippedRaw = stripClubAffixes(trimmed);
   final strippedCanonical = stripClubAffixes(canonical);
+
+  // Helper to build resolved club output from a matched club 'c'
+  Map<String, dynamic> buildResult(Map<String, dynamic> c) {
+    final cName = (c['name']?.toString() ?? '').trim();
+    final isJN = c['isLocal'] == true ||
+        cName.toLowerCase().contains('newbery') ||
+        cName.toLowerCase().contains('jn') ||
+        simpleRaw.contains('newbery') ||
+        simpleRaw.contains('jn');
+    final isFirestoreId = trimmed.length >= 15 && !trimmed.contains(' ');
+    final resolvedName = isJN
+        ? 'Jorge Newbery'
+        : (cName.isNotEmpty
+            ? normalizeClubName(cName)
+            : (isFirestoreId ? 'Club' : canonical));
+    return {
+      ...c,
+      'name': resolvedName,
+      'isLocal': isJN ? true : (c['isLocal'] == true),
+      'logoUrl': extractClubLogo(c),
+    };
+  }
 
   // Jorge Newbery Check
   if (simpleRaw.contains('newbery') || simpleRaw.contains('jn') || simpleCanonical.contains('newbery')) {
@@ -226,22 +249,22 @@ Map<String, dynamic>? findMatchingClub(List<Map<String, dynamic>> clubs, String?
       return c['isLocal'] == true || name.contains('newbery') || name.contains('jn');
     }).firstOrNull;
 
+    if (jnClub != null) {
+      return buildResult(jnClub);
+    }
+
     return {
-      'id': jnClub?['id'] ?? 'jn',
+      'id': 'jn',
       'name': 'Jorge Newbery',
       'isLocal': true,
-      'logoUrl': extractClubLogo(jnClub),
+      'logoUrl': null,
     };
   }
 
   // 1. Direct ID match
   for (final c in clubs) {
-    if (c['id'] != null && c['id'].toString() == rawTeamName.trim()) {
-      return {
-        ...c,
-        'name': canonical,
-        'logoUrl': extractClubLogo(c),
-      };
+    if (c['id'] != null && c['id'].toString().trim() == trimmed) {
+      return buildResult(c);
     }
   }
 
@@ -251,12 +274,8 @@ Map<String, dynamic>? findMatchingClub(List<Map<String, dynamic>> clubs, String?
     final cCanonical = normalizeClubName(cName);
     if (cName.toLowerCase() == canonical.toLowerCase() ||
         cCanonical.toLowerCase() == canonical.toLowerCase() ||
-        cName.toLowerCase() == rawTeamName.trim().toLowerCase()) {
-      return {
-        ...c,
-        'name': canonical,
-        'logoUrl': extractClubLogo(c),
-      };
+        cName.toLowerCase() == trimmed.toLowerCase()) {
+      return buildResult(c);
     }
   }
 
@@ -266,11 +285,7 @@ Map<String, dynamic>? findMatchingClub(List<Map<String, dynamic>> clubs, String?
     final sc = simplifyClubName(cName);
     final scCanonical = simplifyClubName(normalizeClubName(cName));
     if (sc == simpleRaw || sc == simpleCanonical || scCanonical == simpleCanonical) {
-      return {
-        ...c,
-        'name': canonical,
-        'logoUrl': extractClubLogo(c),
-      };
+      return buildResult(c);
     }
   }
 
@@ -283,11 +298,7 @@ Map<String, dynamic>? findMatchingClub(List<Map<String, dynamic>> clubs, String?
         (strippedC == strippedRaw ||
             strippedC == strippedCanonical ||
             strippedCCanonical == strippedCanonical)) {
-      return {
-        ...c,
-        'name': canonical,
-        'logoUrl': extractClubLogo(c),
-      };
+      return buildResult(c);
     }
   }
 
@@ -303,18 +314,15 @@ Map<String, dynamic>? findMatchingClub(List<Map<String, dynamic>> clubs, String?
             simpleRaw.contains(sc) ||
             (strippedC.length >= 4 && strippedCanonical.contains(strippedC)) ||
             (strippedCanonical.length >= 4 && strippedC.contains(strippedCanonical)))) {
-      return {
-        ...c,
-        'name': canonical,
-        'logoUrl': extractClubLogo(c),
-      };
+      return buildResult(c);
     }
   }
 
   // 6. Fallback synthetic map with canonical name
+  final isFirestoreId = trimmed.length >= 15 && !trimmed.contains(' ') && RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(trimmed);
   return {
     'id': simpleCanonical,
-    'name': canonical,
+    'name': isFirestoreId ? 'Club' : canonical,
     'logoUrl': null,
   };
 }

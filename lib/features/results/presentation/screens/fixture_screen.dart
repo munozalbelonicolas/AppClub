@@ -27,6 +27,16 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
     final isPlayer = sessionUser.role == 'jugador';
     final playerCategory = sessionUser.category;
 
+    if (fixturesAsync.isLoading || (clubsAsync.isLoading && clubs.isEmpty)) {
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        appBar: AppBar(
+          title: Text(isPlayer && playerCategory != null && playerCategory.isNotEmpty ? 'Fixture (Cat. $playerCategory)' : 'Fixture'),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(
@@ -592,10 +602,14 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
   }
 
   Widget _buildClubLogo(Map<String, dynamic>? club) {
-    final name = club?['name']?.toString() ?? '';
+    final rawName = club?['name']?.toString() ?? '';
     final isLocal = club?['isLocal'] == true ||
-        name.toLowerCase().contains('newbery') ||
-        name.toLowerCase().contains('jn');
+        rawName.toLowerCase().contains('newbery') ||
+        rawName.toLowerCase().contains('jn');
+    final isFirestoreId = rawName.length >= 15 && !rawName.contains(' ');
+    final name = isLocal
+        ? 'Jorge Newbery'
+        : (isFirestoreId ? 'Club' : rawName);
     final logoUrl = club?['logoUrl']?.toString() ??
         club?['shieldUrl']?.toString() ??
         club?['imageUrl']?.toString() ??
@@ -620,7 +634,7 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(name.isNotEmpty ? name : 'Jorge Newbery', style: context.typography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
+          Text('Jorge Newbery', style: context.typography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
         ],
       );
     }
@@ -892,6 +906,15 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
       final existingMatches = List<Map<String, dynamic>>.from(widget.fixture?['matches'] ?? []);
       final venueStr = _isHomeVenue ? 'Cancha Local' : 'Cancha Visitante';
 
+      final homeClubObj = widget.clubs.where((c) => c['id'] == _homeClubId).firstOrNull;
+      final awayClubObj = widget.clubs.where((c) => c['id'] == _awayClubId).firstOrNull;
+      final String homeClubName = (homeClubObj?['isLocal'] == true || (homeClubObj?['name'] as String?)?.toLowerCase().contains('newbery') == true)
+          ? 'Jorge Newbery'
+          : (homeClubObj?['name'] ?? 'Local');
+      final String awayClubName = (awayClubObj?['isLocal'] == true || (awayClubObj?['name'] as String?)?.toLowerCase().contains('newbery') == true)
+          ? 'Jorge Newbery'
+          : (awayClubObj?['name'] ?? 'Visitante');
+
       if (_selectedCategory == 'all' || _selectedCategory.isEmpty) {
         for (final cat in categories) {
           final isPromo = _promotionalCategories.contains(cat);
@@ -904,6 +927,12 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               'category': cat,
               'homeClubId': _homeClubId,
               'awayClubId': _awayClubId,
+              'homeTeam': homeClubName,
+              'awayTeam': awayClubName,
+              'homeClubName': homeClubName,
+              'awayClubName': awayClubName,
+              'homeLogoUrl': extractClubLogo(homeClubObj),
+              'awayLogoUrl': extractClubLogo(awayClubObj),
               'date': dateIso,
               'time': timeStr,
               'isPromotional': isPromo,
@@ -916,6 +945,12 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               'category': cat,
               'homeClubId': _homeClubId,
               'awayClubId': _awayClubId,
+              'homeTeam': homeClubName,
+              'awayTeam': awayClubName,
+              'homeClubName': homeClubName,
+              'awayClubName': awayClubName,
+              'homeLogoUrl': extractClubLogo(homeClubObj),
+              'awayLogoUrl': extractClubLogo(awayClubObj),
               'date': dateIso,
               'time': timeStr,
               'status': 'scheduled',
@@ -941,6 +976,12 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
             'category': _selectedCategory,
             'homeClubId': _homeClubId,
             'awayClubId': _awayClubId,
+            'homeTeam': homeClubName,
+            'awayTeam': awayClubName,
+            'homeClubName': homeClubName,
+            'awayClubName': awayClubName,
+            'homeLogoUrl': extractClubLogo(homeClubObj),
+            'awayLogoUrl': extractClubLogo(awayClubObj),
             'date': dateIso,
             'time': timeStr,
             'isPromotional': isPromo,
@@ -953,6 +994,12 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
             'category': _selectedCategory,
             'homeClubId': _homeClubId,
             'awayClubId': _awayClubId,
+            'homeTeam': homeClubName,
+            'awayTeam': awayClubName,
+            'homeClubName': homeClubName,
+            'awayClubName': awayClubName,
+            'homeLogoUrl': extractClubLogo(homeClubObj),
+            'awayLogoUrl': extractClubLogo(awayClubObj),
             'date': dateIso,
             'time': timeStr,
             'status': 'scheduled',
