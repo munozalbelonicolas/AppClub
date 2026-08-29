@@ -27,6 +27,7 @@ import '../../../lineup/presentation/screens/lineup_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
 import '../../../results/presentation/screens/results_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
+import '../widgets/club_social_banner.dart';
 import '../widgets/sponsor_carousel.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -1678,6 +1679,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             // ─── Sponsor Carousel ────────────────────────
             const SliverToBoxAdapter(child: SponsorCarousel()),
+
+            // ─── Club Social Media Banner ────────────────
+            const SliverToBoxAdapter(child: SizedBox(height: 14)),
+            const SliverToBoxAdapter(child: ClubSocialBanner()),
 
             // ─── Convocatoria Pending Cards (For Tutors) ───
             if (pendingConvocatorias.isNotEmpty) ...[
