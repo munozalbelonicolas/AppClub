@@ -42,10 +42,12 @@ class MatchService {
   }
 
   Future<void> saveFormation(String matchId, Map<String, dynamic> formationData) async {
-    await _db.collection('matches').doc(matchId).update({
+    // Use set+merge so the document is created if it doesn't exist yet.
+    // update() throws NOT_FOUND when the match doc hasn't been saved in Firestore.
+    await _db.collection('matches').doc(matchId).set({
       'formation': formationData,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
   }
 
   // ─── Fixtures ──────────────────────────────────────

@@ -114,7 +114,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: context.colors.surface,
-          title: Text('Pagar Cuota Cooperadora', style: context.typography.titleLarge.copyWith(color: Colors.black87)),
+          title: Text('Pagar Cuota Cooperadora', style: context.typography.titleLarge.copyWith(color: context.colors.textPrimary)),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.separated(
@@ -124,11 +124,11 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               itemBuilder: (context, index) {
                 final p = players[index];
                 return ListTile(
-                  tileColor: context.colors.background,
+                  tileColor: context.colors.surfaceVariant,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  title: Text('${p['name']} ${p['lastName']}', style: context.typography.titleMedium.copyWith(color: Colors.black87)),
-                  subtitle: Text('Categoría: ${p['category'] ?? "Sin categoría"}', style: context.typography.bodySmall.copyWith(color: Colors.black54)),
-                  trailing: const Icon(Icons.payment, color: Colors.black54),
+                  title: Text('${p['name']} ${p['lastName']}', style: context.typography.titleMedium.copyWith(color: context.colors.textPrimary)),
+                  subtitle: Text('Categoría: ${p['category'] ?? "Sin categoría"}', style: context.typography.bodySmall.copyWith(color: context.colors.textSecondary)),
+                  trailing: Icon(Icons.payment, color: context.colors.textSecondary),
                   onTap: () {
                     Navigator.pop(ctx);
                     _showMonthSelectionDialog(p);
@@ -160,7 +160,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: context.colors.surface,
-          title: Text('Seleccionar Mes', style: context.typography.titleLarge.copyWith(color: Colors.black87)),
+          title: Text('Seleccionar Mes', style: context.typography.titleLarge.copyWith(color: context.colors.textPrimary)),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.separated(
@@ -176,18 +176,18 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 final isPaid = paidQuotas.contains(quotaMonth);
 
                 return ListTile(
-                  tileColor: context.colors.background,
+                  tileColor: context.colors.surfaceVariant,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   title: Text(
                     '$monthName $currentYear',
                     style: context.typography.titleMedium.copyWith(
-                      color: isPaid ? Colors.black38 : Colors.black87,
+                      color: isPaid ? context.colors.textTertiary : context.colors.textPrimary,
                       fontWeight: isPaid ? FontWeight.normal : FontWeight.w600,
                     ),
                   ),
                   trailing: isPaid 
                     ? const Icon(Icons.check_circle, color: Colors.green) 
-                    : const Icon(Icons.chevron_right, color: Colors.grey),
+                    : Icon(Icons.chevron_right, color: context.colors.textTertiary),
                   enabled: !isPaid,
                   onTap: () {
                     Navigator.pop(ctx);
@@ -240,7 +240,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               children: [
                 // ─── Header Card ─────────────────────────
                 JNCard(
-                  color: context.colors.surfaceLight,
+                  color: context.colors.surface,
                   border: Border.all(
                     color: context.colors.primary.withValues(alpha: 0.25),
                   ),
@@ -271,13 +271,13 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                                   isPlayer ? 'Estado de Mis Cuotas' : 'Administración de Cuotas',
                                   style: context.typography.titleMedium.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                                    color: context.colors.textPrimary,
                                   ),
                                 ),
                                 Text(
                                   '${sessionUser.name} ${sessionUser.lastName}',
                                   style: context.typography.bodySmall.copyWith(
-                                    color: Colors.black54,
+                                    color: context.colors.textSecondary,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -292,7 +292,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                             ? 'Consulta y abona tus cuotas sociales o cooperadoras desde aquí.'
                             : 'Paga las cuotas cooperadoras de tus hijos vinculados desde aquí.',
                         style: context.typography.bodyMedium.copyWith(
-                          color: Colors.black87,
+                          color: context.colors.textPrimary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -306,7 +306,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 Text(
                   isPlayer ? 'Mi Cuota' : 'Mis Hijos',
                   style: context.typography.headlineSmall.copyWith(
-                    color: Colors.black87,
+                    color: context.colors.textPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -319,7 +319,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                         child: Text(
                           isPlayer ? 'No se encontraron datos de cuotas.' : 'No tienes hijos vinculados.',
                           style: context.typography.bodyMedium.copyWith(
-                            color: Colors.black87,
+                            color: context.colors.textPrimary,
                           ),
                         ),
                       );
@@ -374,14 +374,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                                       Text(
                                         '${p['name']} ${p['lastName']}',
                                         style: context.typography.titleMedium.copyWith(
-                                          color: Colors.black87,
+                                          color: context.colors.textPrimary,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       Text(
                                         'Categoría: ${p['category'] ?? "Sin categoría"}',
                                         style: context.typography.bodySmall.copyWith(
-                                          color: Colors.black54,
+                                          color: context.colors.textSecondary,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -449,7 +449,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                     child: Text(
                       isPlayer ? 'No se encontraron datos de cuotas.' : 'No tienes hijos vinculados.',
                       style: context.typography.bodyMedium.copyWith(
-                        color: Colors.black87,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                   ),

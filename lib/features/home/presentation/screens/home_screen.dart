@@ -182,23 +182,109 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         item['playerName'] ?? conv['name'] ?? item['name'] ?? 'Jugador';
     final category =
         item['category'] as String? ?? conv['category'] as String? ?? '';
-    final rival =
-        item['awayTeam'] ??
-        match['awayTeam'] ??
-        item['homeTeam'] ??
-        match['homeTeam'] ??
-        'Partido';
-    final venue = item['venue'] ?? match['venue'] ?? 'Cancha Principal';
-    final rawDate = item['date'] ?? match['date'];
+
+    // Match candidate lookup for this category as fallback for rival/date/venue
+    final nextMatch = category.isNotEmpty ? ref.watch(nextMatchProvider(category)) : null;
+
+    // 1. Resolve Rival Name
+    String resolvedRival = '';
+    final itemRival = item['awayTeam'] ?? item['displayRival'] ?? item['rival'] ?? item['opponentName'] ?? match['awayTeam'];
+    if (itemRival != null &&
+        itemRival.toString().trim().isNotEmpty &&
+        itemRival.toString().toLowerCase() != 'rival' &&
+        itemRival.toString().toLowerCase() != 'partido') {
+      resolvedRival = itemRival.toString().trim();
+    } else if (item['homeTeam'] != null &&
+        !item['homeTeam'].toString().toLowerCase().contains('newbery') &&
+        item['homeTeam'].toString().toLowerCase() != 'partido') {
+      resolvedRival = item['homeTeam'].toString().trim();
+    } else if (nextMatch != null) {
+      final nmAway = nextMatch['awayTeam']?.toString() ?? '';
+      final nmHome = nextMatch['homeTeam']?.toString() ?? '';
+      if (nmAway.isNotEmpty && !nmAway.toLowerCase().contains('newbery') && nmAway.toLowerCase() != 'rival') {
+        resolvedRival = nmAway;
+      } else if (nmHome.isNotEmpty && !nmHome.toLowerCase().contains('newbery') && nmHome.toLowerCase() != 'rival') {
+        resolvedRival = nmHome;
+      }
+    }
+    if (resolvedRival.isEmpty || resolvedRival.toLowerCase() == 'rival') {
+      resolvedRival = 'Rival a confirmar';
+    }
+
+    // 2. Resolve Local vs Visitante Condition & Venue
+    final bool isHomeGame = item['isHome'] == true ||
+        (item['homeTeam'] != null && item['homeTeam'].toString().toLowerCase().contains('newbery')) ||
+        (nextMatch != null && nextMatch['homeTeam']?.toString().toLowerCase().contains('newbery') == true);
+
+    final String conditionLabel = isHomeGame ? 'Cancha Local' : 'Cancha Visitante';
+    String resolvedVenue = item['venue']?.toString() ?? match['venue']?.toString() ?? nextMatch?['venue']?.toString() ?? '';
+    if (resolvedVenue.isEmpty || resolvedVenue.toLowerCase() == 'cancha principal' || resolvedVenue.toLowerCase() == 'cancha principal jn') {
+      resolvedVenue = isHomeGame ? 'Cancha Local (Jorge Newbery)' : 'Cancha Visitante';
+    } else {
+      if (!resolvedVenue.toLowerCase().contains('local') && !resolvedVenue.toLowerCase().contains('visitante')) {
+        resolvedVenue = '$conditionLabel · $resolvedVenue';
+      }
+    }
+
+    // 3. Resolve Date & Time
     String dateStr = '';
+    final rawDate = item['date'] ??
+        item['matchDate'] ??
+        item['eventDate'] ??
+        item['dateYMD'] ??
+        match['date'] ??
+        match['matchDate'] ??
+        match['eventDate'] ??
+        match['dateYMD'] ??
+        nextMatch?['date'] ??
+        nextMatch?['matchDate'] ??
+        nextMatch?['eventDate'];
+
     if (rawDate is Timestamp) {
       final d = rawDate.toDate();
       dateStr =
           '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-    } else if (rawDate != null) {
-      dateStr = rawDate.toString();
+    } else if (rawDate != null && rawDate.toString().trim().isNotEmpty) {
+      final s = rawDate.toString().trim();
+      if (s.contains('T')) {
+        final datePart = s.split('T')[0];
+        final parts = datePart.split('-');
+        if (parts.length == 3) {
+          dateStr = '${parts[2]}/${parts[1]}/${parts[0]}';
+        } else {
+          dateStr = datePart;
+        }
+      } else if (s.contains('-')) {
+        final parts = s.split('-');
+        if (parts.length == 3) {
+          if (parts[0].length == 4) {
+            dateStr = '${parts[2]}/${parts[1]}/${parts[0]}';
+          } else {
+            dateStr = '${parts[0]}/${parts[1]}/${parts[2]}';
+          }
+        } else {
+          dateStr = s;
+        }
+      } else {
+        dateStr = s;
+      }
     }
-    final timeStr = item['time']?.toString() ?? match['time']?.toString() ?? '';
+
+    final rawTime = item['time'] ??
+        item['eventTime'] ??
+        item['matchTime'] ??
+        match['time'] ??
+        match['eventTime'] ??
+        match['matchTime'] ??
+        nextMatch?['time'] ??
+        nextMatch?['eventTime'];
+
+    final cleanTime = rawTime?.toString().trim() ?? '';
+    final timeStr = (cleanTime.isNotEmpty &&
+            cleanTime.toLowerCase() != 'null' &&
+            cleanTime.toLowerCase() != 'a confirmar')
+        ? cleanTime
+        : '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -280,50 +366,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(
               children: [
                 const Icon(
                   Icons.shield_outlined,
-                  size: 15,
-                  color: Colors.white70,
+                  size: 16,
+                  color: Color(0xFF34D399),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'vs $rival',
+                    'vs $resolvedRival',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(
               children: [
                 const Icon(
-                  Icons.calendar_today,
+                  Icons.calendar_today_outlined,
                   size: 13,
                   color: Colors.white60,
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '$dateStr${timeStr.isNotEmpty ? " · $timeStr hs" : ""}',
+                  dateStr.isNotEmpty
+                      ? '$dateStr${timeStr.isNotEmpty ? " · $timeStr hs" : ""}'
+                      : (timeStr.isNotEmpty ? '$timeStr hs' : 'Fecha a confirmar'),
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
-                const SizedBox(width: 14),
-                const Icon(
-                  Icons.location_on_outlined,
+                const SizedBox(width: 12),
+                Icon(
+                  isHomeGame ? Icons.home_outlined : Icons.directions_bus_outlined,
                   size: 14,
                   color: Colors.white60,
                 ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    venue,
+                    resolvedVenue,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
@@ -1248,7 +1336,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final String categoriesStr = relevantCategories.toSet().join(',');
 
-    final tutorConvocatoriasAsync = sessionUser.role == 'tutor'
+    final isTutorOrPlayer = sessionUser.role == 'tutor' ||
+        sessionUser.role.toLowerCase() == 'padre' ||
+        sessionUser.role == 'jugador';
+
+    final tutorConvocatoriasAsync = isTutorOrPlayer
         ? ref.watch(tutorConvocatoriasProvider(sessionUser.id))
         : null;
     final List<Map<String, dynamic>> pendingConvocatorias =
@@ -1477,30 +1569,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       },
                     ),
                     const SizedBox(width: 8),
-                    if (sessionUser.isAdmin)
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('notifications')
-                            .where('read', isEqualTo: false)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          final unreadCount = snapshot.data?.docs.length ?? 0;
-                          return Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.notifications_outlined,
-                                  color: context.colors.textPrimary,
-                                  size: 26,
-                                ),
-                                onPressed: () =>
-                                    showAdminNotificationsDialog(context),
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('notifications')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        int unreadCount = 0;
+                        if (snapshot.hasData) {
+                          bool isDocRead(Map<String, dynamic> data) {
+                            if (data['read'] == true) return true;
+                            if (data['readBy'] is List &&
+                                (data['readBy'] as List)
+                                    .contains(sessionUser.id)) {
+                              return true;
+                            }
+                            return false;
+                          }
+
+                          if (sessionUser.isAdmin) {
+                            unreadCount = snapshot.data!.docs.where((d) {
+                              final data = d.data() as Map<String, dynamic>;
+                              return !isDocRead(data);
+                            }).length;
+                          } else {
+                            unreadCount = snapshot.data!.docs.where((d) {
+                              final data = d.data() as Map<String, dynamic>;
+                              if (isDocRead(data)) return false;
+                              final targetUserId =
+                                  data['targetUserId']?.toString();
+                              final targetUserIds =
+                                  data['targetUserIds'] as List<dynamic>?;
+                              final targetCat =
+                                  data['targetCategory']?.toString();
+                              final targetRole =
+                                  data['targetRole']?.toString();
+                              if (targetUserIds != null &&
+                                  targetUserIds
+                                      .map((e) => e.toString())
+                                      .contains(sessionUser.id)) {
+                                return true;
+                              }
+                              if (targetUserId == sessionUser.id) return true;
+                              if (targetCat == 'all' || targetCat == 'todos') {
+                                return true;
+                              }
+                              if (targetRole == sessionUser.role) return true;
+                              if (targetCat != null &&
+                                  sessionUser.category != null &&
+                                  targetCat.toLowerCase() ==
+                                      sessionUser.category!.toLowerCase()) {
+                                return true;
+                              }
+                              return false;
+                            }).length;
+                          }
+                        }
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.notifications_outlined,
+                                color: context.colors.textPrimary,
+                                size: 26,
                               ),
-                              if (unreadCount > 0)
-                                Positioned(
-                                  right: 8,
-                                  top: 8,
+                              onPressed: () =>
+                                  showAdminNotificationsDialog(context, sessionUser: sessionUser),
+                            ),
+                            if (unreadCount > 0)
+                              Positioned(
+                                right: 8,
+                                top: 8,
+                                child: IgnorePointer(
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
@@ -1517,10 +1657,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ),
                                   ),
                                 ),
-                            ],
-                          );
-                        },
-                      ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () =>

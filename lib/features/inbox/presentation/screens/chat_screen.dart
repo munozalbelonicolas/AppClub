@@ -8,6 +8,100 @@ import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 
+class EmojiRichTextEditingController extends TextEditingController {
+  EmojiRichTextEditingController({super.text});
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final text = value.text;
+    if (text.isEmpty) {
+      return TextSpan(style: style, text: '');
+    }
+
+    final baseStyle = style ?? const TextStyle();
+    final regex = RegExp(r'(❤️|❤|🖤|🤍|💚|💛|🧡|💙|💜|💔|💖|💗)');
+    final spans = <InlineSpan>[];
+
+    int lastMatchEnd = 0;
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastMatchEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastMatchEnd, match.start),
+          style: baseStyle,
+        ));
+      }
+
+      final matchedEmoji = match.group(0)!;
+      switch (matchedEmoji) {
+        case '❤️':
+        case '❤':
+        case '💖':
+        case '💗':
+          spans.add(
+            TextSpan(
+              text: matchedEmoji,
+              style: baseStyle.copyWith(
+                color: const Color(0xFFE53935),
+                fontFamily: null,
+                fontFamilyFallback: const [
+                  'Noto Color Emoji',
+                  'Apple Color Emoji',
+                  'Segoe UI Emoji',
+                ],
+              ),
+            ),
+          );
+          break;
+        case '🖤':
+          spans.add(
+            TextSpan(
+              text: matchedEmoji,
+              style: baseStyle.copyWith(
+                color: const Color(0xFF1E1E1E),
+                fontFamily: null,
+                fontFamilyFallback: const [
+                  'Noto Color Emoji',
+                  'Apple Color Emoji',
+                  'Segoe UI Emoji',
+                ],
+              ),
+            ),
+          );
+          break;
+        default:
+          spans.add(
+            TextSpan(
+              text: matchedEmoji,
+              style: baseStyle.copyWith(
+                fontFamily: null,
+                fontFamilyFallback: const [
+                  'Noto Color Emoji',
+                  'Apple Color Emoji',
+                  'Segoe UI Emoji',
+                ],
+              ),
+            ),
+          );
+      }
+
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastMatchEnd),
+        style: baseStyle,
+      ));
+    }
+
+    return TextSpan(children: spans, style: baseStyle);
+  }
+}
+
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
   final String? otherUserId;
@@ -37,7 +131,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  final _messageController = TextEditingController();
+  final _messageController = EmojiRichTextEditingController();
   final _scrollController = ScrollController();
 
   @override
@@ -134,6 +228,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             authorId: currentUser.id,
             targetUserId: otherUserId,
             targetCategory: 'private',
+            data: {
+              'type': 'chat',
+              'threadId': widget.threadId,
+              'otherUserId': currentUser.id,
+              'otherUserName': '${currentUser.name} ${currentUser.lastName}'.trim(),
+              'otherUserRole': currentUser.role ?? 'tutor',
+            },
           );
         } catch (_) {
           // Notification failure must NOT block message delivery
@@ -402,12 +503,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ],
           ),
-          child: Text(
-            text,
-            style: context.typography.bodyMedium.copyWith(
-              color: isMe ? Colors.white : context.colors.textPrimary,
-            ),
-          ),
+          child: _buildRichMessageText(text, isMe, context),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -418,6 +514,190 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         const SizedBox(height: 6),
       ],
+    );
+  }
+
+  Widget _buildRichMessageText(String text, bool isMe, BuildContext context) {
+    final baseStyle = context.typography.bodyMedium.copyWith(
+      color: isMe ? Colors.white : context.colors.textPrimary,
+      height: 1.35,
+    );
+    final fontSize = baseStyle.fontSize ?? 14.0;
+
+    final regex = RegExp(r'(❤️|❤|🖤|🤍|💚|💛|🧡|💙|💜|💔|💖|💗)');
+    final spans = <InlineSpan>[];
+
+    int lastMatchEnd = 0;
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastMatchEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastMatchEnd, match.start),
+          style: baseStyle,
+        ));
+      }
+
+      final matchedEmoji = match.group(0)!;
+      switch (matchedEmoji) {
+        case '❤️':
+        case '❤':
+        case '💖':
+        case '💗':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFFE53935),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '🖤':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.favorite,
+                      color: isMe ? Colors.white70 : context.colors.border,
+                      size: fontSize + 5.5,
+                    ),
+                    Icon(
+                      Icons.favorite,
+                      color: const Color(0xFF141414),
+                      size: fontSize + 3.5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+          break;
+        case '🤍':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Icon(
+                      Icons.favorite,
+                      color: Colors.black45,
+                      size: 19,
+                    ),
+                    const Icon(
+                      Icons.favorite,
+                      color: Colors.white,
+                      size: 17,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+          break;
+        case '💚':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFF43A047),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '💛':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFFFFD600),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '🧡':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFFFF9100),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '💙':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFF2979FF),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '💜':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFFAA00FF),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        default:
+          spans.add(TextSpan(text: matchedEmoji, style: baseStyle));
+      }
+
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastMatchEnd),
+        style: baseStyle,
+      ));
+    }
+
+    return Text.rich(
+      TextSpan(children: spans),
+      style: baseStyle,
     );
   }
 
@@ -463,42 +743,130 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
 
+    void insertEmoji(String emoji) {
+      final text = _messageController.text;
+      final selection = _messageController.selection;
+      if (selection.isValid && selection.start >= 0 && selection.end >= 0) {
+        final newText = text.replaceRange(selection.start, selection.end, emoji);
+        final newSelectionIndex = selection.start + emoji.length;
+        _messageController.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: newSelectionIndex),
+        );
+      } else {
+        final newText = '$text$emoji';
+        _messageController.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: newText.length),
+        );
+      }
+    }
+
     // Normal interactive input for actual participants
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
         decoration: BoxDecoration(
           color: context.colors.surface,
           border: Border(top: BorderSide(color: context.colors.border, width: 0.5)),
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _messageController,
-                style: context.typography.bodyMedium,
-                maxLines: null,
-                decoration: const InputDecoration(
-                  hintText: 'Escribe un mensaje privado...',
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+            // Club quick emoji row
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  _buildEmojiButton(emoji: '❤️🖤', label: 'Club', onTap: () => insertEmoji('❤️🖤'), isHighlight: true),
+                  const SizedBox(width: 6),
+                  _buildEmojiButton(emoji: '⚽', onTap: () => insertEmoji('⚽')),
+                  const SizedBox(width: 6),
+                  _buildEmojiButton(emoji: '💪', onTap: () => insertEmoji('💪')),
+                  const SizedBox(width: 6),
+                  _buildEmojiButton(emoji: '🔥', onTap: () => insertEmoji('🔥')),
+                  const SizedBox(width: 6),
+                  _buildEmojiButton(emoji: '👏', onTap: () => insertEmoji('👏')),
+                  const SizedBox(width: 6),
+                  _buildEmojiButton(emoji: '⭐', onTap: () => insertEmoji('⭐')),
+                ],
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    style: context.typography.bodyMedium.copyWith(
+                      fontFamilyFallback: const [
+                        'Noto Color Emoji',
+                        'Apple Color Emoji',
+                        'Segoe UI Emoji',
+                      ],
+                    ),
+                    maxLines: null,
+                    decoration: const InputDecoration(
+                      hintText: 'Escribe un mensaje privado...',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                    ),
+                    onSubmitted: (_) => _sendMessage(currentUser),
                   ),
                 ),
-                onSubmitted: (_) => _sendMessage(currentUser),
-              ),
-            ),
-            const SizedBox(width: 8),
-            CircleAvatar(
-              backgroundColor: context.colors.primary,
-              radius: 22,
-              child: IconButton(
-                icon: const Icon(Icons.send, color: Colors.white, size: 18),
-                onPressed: () => _sendMessage(currentUser),
-              ),
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: context.colors.primary,
+                  radius: 22,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white, size: 18),
+                    onPressed: () => _sendMessage(currentUser),
+                  ),
+                ),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmojiButton({
+    required String emoji,
+    String? label,
+    required VoidCallback onTap,
+    bool isHighlight = false,
+  }) {
+    return Material(
+      color: isHighlight
+          ? context.colors.primary.withValues(alpha: 0.15)
+          : context.colors.surfaceVariant,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildRichMessageText(emoji, false, context),
+              if (label != null) ...[
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isHighlight ? context.colors.primary : context.colors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

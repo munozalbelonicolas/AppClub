@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -49,6 +50,14 @@ class NotificationService {
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         AppLogger.debug('Notification tapped in foreground: ${response.payload}', tag: 'FCM');
+        if (response.payload != null && response.payload!.isNotEmpty) {
+          try {
+            final dynamic decoded = jsonDecode(response.payload!);
+            if (decoded is Map<String, dynamic>) {
+              OneSignalService().handleNotificationPayload(decoded);
+            }
+          } catch (_) {}
+        }
       },
     );
 
@@ -158,19 +167,35 @@ class NotificationService {
             if (data == null) continue;
 
             final authorId = data['authorId']?.toString() ?? '';
-            if (authorId == currentUserId) continue; // Don't notify self
-
+            if (authorId.isNotEmpty && authorId == currentUserId) continue; // Don't notify self
             final targetUserId = data['targetUserId']?.toString() ?? '';
+            final targetUserIds = data['targetUserIds'] as List<dynamic>?;
             final targetCategory = data['targetCategory']?.toString() ?? '';
             final targetRole = data['targetRole']?.toString() ?? '';
 
             bool isForMe = false;
-            if (targetUserId.isNotEmpty && targetUserId != 'all') {
-              isForMe = (targetUserId == currentUserId);
-            } else if (targetCategory == 'private') {
+            // 'private' notifications (e.g. chat messages) are delivered exclusively
+            // via OneSignal push.
+            if (targetCategory == 'private') {
               isForMe = false;
-            } else if (targetCategory == 'admin' || targetCategory == 'directivo' || targetRole == 'directivo' || targetRole == 'admin') {
+            } else if (targetUserIds != null &&
+                targetUserIds.isNotEmpty &&
+                targetUserIds.map((e) => e.toString()).contains(currentUserId)) {
+              isForMe = true;
+            } else if (targetUserId.isNotEmpty &&
+                targetUserId != 'all' &&
+                targetUserId != 'todos') {
+              isForMe = (targetUserId == currentUserId);
+            } else if (targetCategory == 'admin' ||
+                targetCategory == 'directivo' ||
+                targetRole == 'directivo' ||
+                targetRole == 'admin') {
               isForMe = isUserAdmin;
+            } else if (targetRole.isNotEmpty &&
+                targetRole != 'all' &&
+                targetRole != 'todos') {
+              isForMe = userRole != null &&
+                  userRole.toLowerCase() == targetRole.toLowerCase();
             } else if (targetCategory.isNotEmpty &&
                 targetCategory != 'all' &&
                 targetCategory != 'todos') {
@@ -255,6 +280,7 @@ class NotificationService {
     required String authorId,
     String targetUserId = 'all',
     String targetCategory = 'all',
+    Map<String, dynamic>? data,
   }) async {
     try {
       // 1. Guardar documento en Firestore (para notificaciones en tiempo real in-app)
@@ -264,6 +290,8 @@ class NotificationService {
         'authorId': authorId,
         'targetUserId': targetUserId,
         'targetCategory': targetCategory,
+        'read': false,
+        if (data != null) ...data,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -273,6 +301,7 @@ class NotificationService {
         body: body,
         targetUserId: targetUserId,
         targetCategory: targetCategory,
+        data: data,
       );
     } catch (e) {
       AppLogger.error('Error sending notification doc', error: e, tag: 'FCM');

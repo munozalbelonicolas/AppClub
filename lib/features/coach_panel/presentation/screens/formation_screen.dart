@@ -277,12 +277,14 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                           
                           return ListTile(
                             leading: JNAvatar(
-                              name: '${player['name']} ${player['lastName']}',
+                              name: '${player['name'] ?? ''} ${player['lastName'] ?? ''}'.trim(),
                               size: 40,
                               number: player['number'] != null ? int.tryParse(player['number'].toString()) : null,
                             ),
-                            title: Text('${player['name']} ${player['lastName']}'),
-                            subtitle: Text('${player['position']}'),
+                            title: Text('${player['name'] ?? ''} ${player['lastName'] ?? ''}'.trim()),
+                            subtitle: player['position'] != null && player['position'].toString().trim().isNotEmpty && player['position'].toString() != 'null'
+                                ? Text('${player['position']}')
+                                : null,
                             trailing: isCurrent ? Icon(Icons.check, color: context.colors.primary) : null,
                             onTap: () {
                               setState(() => _assignments[slotId] = player['id']);
@@ -514,10 +516,12 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
         return CheckboxListTile(
           value: isSelected,
           activeColor: context.colors.primary,
-          title: Text('${player['name']} ${player['lastName']}'),
-          subtitle: Text('${player['position']}'),
+          title: Text('${player['name'] ?? ''} ${player['lastName'] ?? ''}'.trim()),
+          subtitle: player['position'] != null && player['position'].toString().trim().isNotEmpty && player['position'].toString() != 'null'
+              ? Text('${player['position']}')
+              : null,
           secondary: JNAvatar(
-            name: '${player['name']} ${player['lastName']}',
+            name: '${player['name'] ?? ''} ${player['lastName'] ?? ''}'.trim(),
             size: 40,
             number: player['number'] != null ? int.tryParse(player['number'].toString()) : null,
           ),

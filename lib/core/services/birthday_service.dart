@@ -20,7 +20,7 @@ class BirthdayService {
       final enableNotifications = config['enableNotifications'] ?? true;
       final daysPriorToNotify = config['daysPriorToNotify'] ?? 1;
       final textTemplate = config['textTemplate'] ??
-          'En nombre de toda la directiva del Club Jorge Newbery, te mandamos un fuerte abrazo en tu día. Es un orgullo tenerte en el equipo y ver cómo creces día a día como jugador. Que pases un gran día con tu familia y amigos. ¡A seguir rompiéndola!';
+          'En este día tan especial el CLUB JORGE NEWBERY te desea lo mejor junto a tu familia y amigos!! FELIZ CUMPLEAÑOS!! 🎁🎂🥳🎈❤️🖤😘';
 
       if (!enablePosts && !enableNotifications) return;
 
@@ -59,9 +59,10 @@ class BirthdayService {
         final isBirthdayToday = birthDate.day == today.day && birthDate.month == today.month;
         final isNotificationDay = birthDate.day == targetNotificationDate.day && birthDate.month == targetNotificationDate.month;
 
-        final playerName = player['name'] ?? '';
-        final playerLastName = player['lastName'] ?? '';
-        final playerCategory = player['category'];
+        final fullName = '${player['name'] ?? ''} ${player['lastName'] ?? ''}'.trim();
+        final playerCategory = player['category']?.toString() ?? '';
+        final categorySuffix = playerCategory.isNotEmpty ? 'Cat. $playerCategory' : '';
+        final postTitle = categorySuffix.isNotEmpty ? '$fullName $categorySuffix' : fullName;
 
         // Posts
         if (isBirthdayToday && enablePosts) {
@@ -71,15 +72,17 @@ class BirthdayService {
 
           if (!logDoc.exists) {
             final postRef = _db.collection('novedades').doc();
-            final postText = textTemplate.replaceAll('{nombre}', '$playerName $playerLastName');
+            final postText = textTemplate.replaceAll('{nombre}', fullName);
 
             batch.set(postRef, {
-              'title': '¡Feliz Cumpleaños $playerName!',
+              'title': postTitle,
               'body': postText,
               'type': 'birthday',
               'category': 'all',
+              'playerCategory': playerCategory,
+              'playerName': fullName,
               'authorId': 'system',
-              'authorName': 'AppClub',
+              'authorName': 'Club Jorge Newbery',
               'authorRole': 'admin',
               'createdAt': FieldValue.serverTimestamp(),
             });
@@ -98,9 +101,9 @@ class BirthdayService {
         if (enableNotifications) {
           String message = '';
           if (isNotificationDay && daysPriorToNotify > 0) {
-            message = '🎂 Faltan $daysPriorToNotify días para el cumpleaños de $playerName $playerLastName (Cat: ${playerCategory ?? 'N/A'}). No olvides saludarlo.';
+            message = '🎂 Faltan $daysPriorToNotify días para el cumpleaños de $fullName (Cat: ${playerCategory.isNotEmpty ? playerCategory : 'N/A'}). No olvides saludarlo.';
           } else if (isBirthdayToday) {
-            message = '🎉 Hoy es el cumpleaños de $playerName $playerLastName. ¡No olvides felicitarlo!';
+            message = '🎉 Hoy es el cumpleaños de $fullName. ¡No olvides felicitarlo!';
           }
 
           if (message.isNotEmpty) {
@@ -108,7 +111,7 @@ class BirthdayService {
               title: '🎂 Aviso de Cumpleaños',
               body: message,
               authorId: 'system',
-              targetCategory: playerCategory ?? 'all',
+              targetCategory: playerCategory.isNotEmpty ? playerCategory : 'all',
             );
           }
         }

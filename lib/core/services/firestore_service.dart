@@ -331,6 +331,35 @@ final allTrainingSchedulesStreamProvider = StreamProvider<List<Map<String, dynam
   return ref.watch(firestoreServiceProvider).getAllTrainingSchedules();
 });
 
+String _normalizeToYMD(dynamic rawDate) {
+  if (rawDate == null) return '';
+  if (rawDate is Timestamp) {
+    final d = rawDate.toDate();
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+  if (rawDate is DateTime) {
+    return '${rawDate.year}-${rawDate.month.toString().padLeft(2, '0')}-${rawDate.day.toString().padLeft(2, '0')}';
+  }
+  final s = rawDate.toString().trim();
+  if (s.isEmpty) return '';
+  if (s.contains('T')) return s.split('T')[0];
+  if (s.contains('-')) {
+    final parts = s.split('-');
+    if (parts.length == 3) {
+      if (parts[0].length == 4) return s;
+      return '${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}';
+    }
+  }
+  if (s.contains('/')) {
+    final parts = s.split('/');
+    if (parts.length == 3) {
+      if (parts[0].length == 4) return '${parts[0]}-${parts[1].padLeft(2, '0')}-${parts[2].padLeft(2, '0')}';
+      return '${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}';
+    }
+  }
+  return s;
+}
+
 final allUpcomingMatchesProvider = Provider.family<List<Map<String, dynamic>>, String>((ref, category) {
   final matches = ref.watch(matchesStreamProvider).valueOrNull ?? [];
   final fixtures = ref.watch(fixturesStreamProvider(category)).valueOrNull ?? [];
@@ -482,8 +511,20 @@ final allUpcomingMatchesProvider = Provider.family<List<Map<String, dynamic>>, S
       'awayScore': awayScore,
       'category': cat ?? category,
       'venue': raw['venue'] ?? raw['location'] ?? 'Cancha Principal JN',
-      'date': raw['eventDate'] ?? raw['date'] ?? '',
-      'time': raw['eventTime'] ?? raw['time'] ?? 'A confirmar',
+      'date': raw['eventDate'] ??
+          raw['date'] ??
+          raw['matchDate'] ??
+          raw['dateYMD'] ??
+          raw['match_date'] ??
+          raw['fecha'] ??
+          raw['startDate'] ??
+          '',
+      'time': raw['eventTime'] ??
+          raw['time'] ??
+          raw['matchTime'] ??
+          raw['hora'] ??
+          raw['startTime'] ??
+          '',
       'status': raw['status'] ?? 'upcoming',
       'source': source,
       'title': raw['title'] ?? 'Partido',
@@ -516,7 +557,28 @@ final allUpcomingMatchesProvider = Provider.family<List<Map<String, dynamic>>, S
       for (final m in matchesList) {
         candidates.add(buildCandidate(
           id: '${f['id']}_${m['homeClubId']}_${m['awayClubId']}',
-          raw: m,
+          raw: {
+            ...f,
+            ...m,
+            'date': m['date'] ??
+                m['matchDate'] ??
+                m['eventDate'] ??
+                m['dateYMD'] ??
+                f['date'] ??
+                f['eventDate'] ??
+                f['matchDate'] ??
+                f['dateYMD'] ??
+                f['fecha'],
+            'time': m['time'] ??
+                m['eventTime'] ??
+                m['matchTime'] ??
+                m['hora'] ??
+                f['time'] ??
+                f['eventTime'] ??
+                f['matchTime'] ??
+                f['hora'],
+            'venue': m['venue'] ?? m['location'] ?? f['venue'] ?? f['location'],
+          },
           source: 'fixture',
           cat: cat,
           homeScore: m['homeScore'] as int?,
@@ -554,37 +616,31 @@ final allUpcomingMatchesProvider = Provider.family<List<Map<String, dynamic>>, S
 
   // Sort candidates by date. Non-empty valid dates come first.
   uniqueCandidates.sort((a, b) {
-    final dateA = a['date']?.toString() ?? '';
-    final dateB = b['date']?.toString() ?? '';
+    final dateA = _normalizeToYMD(a['date']);
+    final dateB = _normalizeToYMD(b['date']);
     if (dateA.isEmpty && dateB.isEmpty) return 0;
     if (dateA.isEmpty) return 1;
     if (dateB.isEmpty) return -1;
     return dateA.compareTo(dateB);
   });
 
-  return uniqueCandidates;
+  final now = DateTime.now();
+  final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+  // Strictly filter out past matches (date before today). Only keep matches >= todayStr or unscheduled.
+  final upcomingOnly = uniqueCandidates.where((c) {
+    final ymd = _normalizeToYMD(c['date']);
+    if (ymd.isNotEmpty) {
+      return ymd.compareTo(todayStr) >= 0;
+    }
+    return true; // Keep unscheduled/pending matches without date
+  }).toList();
+
+  return upcomingOnly;
 });
 
 final nextMatchProvider = Provider.family<Map<String, dynamic>?, String>((ref, category) {
   final candidates = ref.watch(allUpcomingMatchesProvider(category));
   if (candidates.isEmpty) return null;
-
-  final now = DateTime.now();
-  final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-
-  // Upcoming matches on or after today with valid date
-  final upcomingWithDate = candidates.where((c) {
-    final dateStr = c['date']?.toString() ?? '';
-    return dateStr.isNotEmpty && dateStr.compareTo(todayStr) >= 0;
-  }).toList();
-
-  if (upcomingWithDate.isNotEmpty) {
-    return upcomingWithDate.first;
-  }
-
-  // Fallback: any candidate with a date, or first candidate
-  return candidates.firstWhere(
-    (c) => (c['date']?.toString() ?? '').isNotEmpty,
-    orElse: () => candidates.first,
-  );
+  return candidates.first;
 });
