@@ -99,7 +99,11 @@ service cloud.firestore {
     }
     match /announcements/{announcementId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin() || isCoach();
+      allow update: if isAdmin() || isCoach() || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'comments', 'seenBy', 'read', 'seen', 'commentsEnabled', 'updatedAt'])
+      );
     }
 
     // ─── Payments ───

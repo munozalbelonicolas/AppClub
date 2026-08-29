@@ -119,24 +119,32 @@ class AnnouncementRepository {
     String announcementId,
     dynamic sessionUser,
   ) async {
-    final docRef = _db.collection('announcements').doc(announcementId);
-    final docSnap = await docRef.get();
-    if (!docSnap.exists) return;
+    try {
+      if (sessionUser == null || (sessionUser.id ?? '').toString().isEmpty) return;
+      final docRef = _db.collection('announcements').doc(announcementId);
+      final docSnap = await docRef.get();
+      if (!docSnap.exists) return;
 
-    final seenBy = List<Map<String, dynamic>>.from(
-      (docSnap.data()?['seenBy'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
-    );
-    if (seenBy.any((e) => e['userId'] == sessionUser.id)) return;
+      final rawList = docSnap.data()?['seenBy'] as List? ?? [];
+      final bool alreadySeen = rawList.any((e) {
+        if (e is Map) return e['userId'] == sessionUser.id;
+        if (e is String) return e == sessionUser.id;
+        return false;
+      });
+      if (alreadySeen) return;
 
-    final viewData = {
-      'userId': sessionUser.id,
-      'userName': '${sessionUser.name} ${sessionUser.lastName}',
-      'userRole': sessionUser.role,
-      'timestamp': Timestamp.now(),
-    };
-    await docRef.update({
-      'seenBy': FieldValue.arrayUnion([viewData]),
-    });
+      final viewData = {
+        'userId': sessionUser.id,
+        'userName': '${sessionUser.name} ${sessionUser.lastName}'.trim(),
+        'userRole': sessionUser.role ?? '',
+        'timestamp': Timestamp.now(),
+      };
+      await docRef.update({
+        'seenBy': FieldValue.arrayUnion([viewData]),
+      });
+    } catch (e) {
+      debugPrint('Error marking announcement as seen: $e');
+    }
   }
 }
 

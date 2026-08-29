@@ -636,15 +636,28 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
         final annId = ann['id'] as String;
         final isExpanded = _expandedAnnIds.contains(annId);
         
-        final seenByList = List<Map<String, dynamic>>.from(
-          (ann['seenBy'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
-        );
-        final hasSeen = seenByList.any((e) => e['userId'] == sessionUser.id);
+        final rawSeenBy = ann['seenBy'] as List? ?? [];
+        final hasSeen = rawSeenBy.any((e) {
+          if (e is Map) return e['userId'] == sessionUser.id;
+          if (e is String) return e == sessionUser.id;
+          return false;
+        });
 
-        if (!hasSeen && !_markedSeenIds.contains(annId)) {
+        final seenByList = rawSeenBy
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+
+        if (!hasSeen && !_markedSeenIds.contains(annId) && (sessionUser.id ?? '').isNotEmpty) {
           _markedSeenIds.add(annId);
-          Future.microtask(() {
-            ref.read(announcementRepositoryProvider).markAnnouncementAsSeen(annId, sessionUser);
+          Future.microtask(() async {
+            try {
+              await ref
+                  .read(announcementRepositoryProvider)
+                  .markAnnouncementAsSeen(annId, sessionUser);
+            } catch (_) {
+              _markedSeenIds.remove(annId);
+            }
           });
         }
 

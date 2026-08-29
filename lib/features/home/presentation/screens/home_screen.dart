@@ -1577,52 +1577,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         int unreadCount = 0;
                         if (snapshot.hasData) {
                           bool isDocRead(Map<String, dynamic> data) {
-                            if (data['read'] == true) return true;
-                            if (data['readBy'] is List &&
-                                (data['readBy'] as List)
-                                    .contains(sessionUser.id)) {
-                              return true;
-                            }
-                            return false;
-                          }
-
-                          if (sessionUser.isAdmin) {
-                            unreadCount = snapshot.data!.docs.where((d) {
-                              final data = d.data() as Map<String, dynamic>;
-                              return !isDocRead(data);
-                            }).length;
-                          } else {
-                            unreadCount = snapshot.data!.docs.where((d) {
-                              final data = d.data() as Map<String, dynamic>;
-                              if (isDocRead(data)) return false;
-                              final targetUserId =
-                                  data['targetUserId']?.toString();
-                              final targetUserIds =
-                                  data['targetUserIds'] as List<dynamic>?;
-                              final targetCat =
-                                  data['targetCategory']?.toString();
-                              final targetRole =
-                                  data['targetRole']?.toString();
-                              if (targetUserIds != null &&
-                                  targetUserIds
-                                      .map((e) => e.toString())
-                                      .contains(sessionUser.id)) {
+                            if (sessionUser.id.isNotEmpty) {
+                              if (data['readBy'] is List &&
+                                  (data['readBy'] as List).contains(sessionUser.id)) {
                                 return true;
                               }
-                              if (targetUserId == sessionUser.id) return true;
-                              if (targetCat == 'all' || targetCat == 'todos') {
-                                return true;
-                              }
-                              if (targetRole == sessionUser.role) return true;
-                              if (targetCat != null &&
-                                  sessionUser.category != null &&
-                                  targetCat.toLowerCase() ==
-                                      sessionUser.category!.toLowerCase()) {
+                              if (data['targetUserId'] == sessionUser.id && data['read'] == true) {
                                 return true;
                               }
                               return false;
-                            }).length;
+                            }
+                            return data['read'] == true;
                           }
+
+                          unreadCount = snapshot.data!.docs.where((d) {
+                            final data = d.data() as Map<String, dynamic>;
+                            if (isDocRead(data)) return false;
+                            if (sessionUser.isAdmin) return true;
+
+                            final targetUserId = data['targetUserId']?.toString();
+                            final targetUserIds = data['targetUserIds'] as List<dynamic>?;
+                            final targetCat = data['targetCategory']?.toString();
+                            final targetRole = data['targetRole']?.toString();
+
+                            if (targetUserIds != null && targetUserIds.isNotEmpty) {
+                              return targetUserIds.map((e) => e.toString()).contains(sessionUser.id);
+                            }
+                            if (targetUserId != null && targetUserId.isNotEmpty && targetUserId != 'all') {
+                              return targetUserId == sessionUser.id;
+                            }
+                            if (targetRole != null && targetRole.isNotEmpty && targetRole != 'all') {
+                              return targetRole == sessionUser.role;
+                            }
+                            if (targetCat != null && targetCat.isNotEmpty && targetCat != 'all' && targetCat != 'todos') {
+                              if (sessionUser.category != null &&
+                                  targetCat.toLowerCase().trim() == sessionUser.category!.toLowerCase().trim()) {
+                                return true;
+                              }
+                              if (sessionUser.assignedCategories != null) {
+                                return (sessionUser.assignedCategories as List)
+                                    .any((c) => c.toString().toLowerCase().trim() == targetCat.toLowerCase().trim());
+                              }
+                              return false;
+                            }
+                            return targetCat == 'all' || targetCat == 'todos' || targetUserId == 'all';
+                          }).length;
                         }
                         return Stack(
                           alignment: Alignment.center,
@@ -1887,22 +1886,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     );
                     final hasLiked = likes.contains(sessionUser.id);
 
-                    final seenByList = List<Map<String, dynamic>>.from(
-                      (post['seenBy'] as List? ?? []).map(
-                        (e) => Map<String, dynamic>.from(e as Map),
-                      ),
+                    final rawSeenBy = post['seenBy'] as List? ?? [];
+                    final hasSeen = rawSeenBy.any(
+                      (e) {
+                        if (e is Map) return e['userId'] == sessionUser.id;
+                        if (e is String) return e == sessionUser.id;
+                        return false;
+                      },
                     );
-                    final hasSeen = seenByList.any(
-                      (e) => e['userId'] == sessionUser.id,
-                    );
+                    final seenByList = rawSeenBy
+                        .whereType<Map>()
+                        .map((e) => Map<String, dynamic>.from(e))
+                        .toList();
 
-                    if (!hasSeen && !_markedSeenPostIds.contains(postId)) {
+                    if (!hasSeen && !_markedSeenPostIds.contains(postId) && sessionUser.id.isNotEmpty) {
                       _markedSeenPostIds.add(postId);
-                      Future.microtask(() {
-                        ref
-                            .read(firestoreServiceProvider)
-                            .novedades
-                            .markNovedadAsSeen(postId, sessionUser);
+                      Future.microtask(() async {
+                        try {
+                          await ref
+                              .read(firestoreServiceProvider)
+                              .novedades
+                              .markNovedadAsSeen(postId, sessionUser);
+                        } catch (_) {
+                          _markedSeenPostIds.remove(postId);
+                        }
                       });
                     }
 

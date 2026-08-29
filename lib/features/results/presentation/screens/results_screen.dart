@@ -26,10 +26,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
   String _sheetTournamentFilter = 'apertura'; // 'apertura' | 'clausura'
   String? _selectedJornadaId;
 
-  // Estado de Tabla de Posiciones
-  String _standingsTournament = 'apertura'; // 'apertura' | 'clausura' (sin anual)
-  String _standingsCategory = 'all';
-
   // Estado de Fixture y Goleadores
   String _selectedCategory = 'all';
   String? _lastChildId;
@@ -3160,7 +3156,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       );
                       final innerRowBorder = BorderSide(
                         color: Colors.white.withValues(alpha: 0.06),
-                        width: 1.0,
                       );
 
                       return Column(
@@ -3319,7 +3314,6 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         );
                         final innerRowBorder = BorderSide(
                           color: Colors.white.withValues(alpha: 0.06),
-                          width: 1.0,
                         );
 
                         return Column(

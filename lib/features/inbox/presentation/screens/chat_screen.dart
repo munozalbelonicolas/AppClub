@@ -46,7 +46,6 @@ class EmojiRichTextEditingController extends TextEditingController {
               text: matchedEmoji,
               style: baseStyle.copyWith(
                 color: const Color(0xFFE53935),
-                fontFamily: null,
                 fontFamilyFallback: const [
                   'Noto Color Emoji',
                   'Apple Color Emoji',
@@ -62,7 +61,6 @@ class EmojiRichTextEditingController extends TextEditingController {
               text: matchedEmoji,
               style: baseStyle.copyWith(
                 color: const Color(0xFF1E1E1E),
-                fontFamily: null,
                 fontFamilyFallback: const [
                   'Noto Color Emoji',
                   'Apple Color Emoji',
@@ -77,7 +75,6 @@ class EmojiRichTextEditingController extends TextEditingController {
             TextSpan(
               text: matchedEmoji,
               style: baseStyle.copyWith(
-                fontFamily: null,
                 fontFamilyFallback: const [
                   'Noto Color Emoji',
                   'Apple Color Emoji',
@@ -583,19 +580,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           break;
         case '🤍':
           spans.add(
-            WidgetSpan(
+            const WidgetSpan(
               alignment: PlaceholderAlignment.middle,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                padding: EdgeInsets.symmetric(horizontal: 1.5),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.favorite,
                       color: Colors.black45,
                       size: 19,
                     ),
-                    const Icon(
+                    Icon(
                       Icons.favorite,
                       color: Colors.white,
                       size: 17,

@@ -194,30 +194,32 @@ class NovedadesService {
 
   Future<void> markNovedadAsSeen(String novedadId, dynamic user) async {
     try {
+      if (user == null || (user.id ?? '').toString().isEmpty) return;
       final docRef = _db.collection('novedades').doc(novedadId);
       final docSnap = await docRef.get();
       if (!docSnap.exists) return;
 
       final data = docSnap.data()!;
-      final seenByList = List<Map<String, dynamic>>.from(
-        (data['seenBy'] as List? ?? []).map(
-          (e) => Map<String, dynamic>.from(e as Map),
-        ),
-      );
-
-      final bool alreadySeen = seenByList.any((e) => e['userId'] == user.id);
+      final rawSeenBy = data['seenBy'] as List? ?? [];
+      final bool alreadySeen = rawSeenBy.any((e) {
+        if (e is Map) return e['userId'] == user.id;
+        if (e is String) return e == user.id;
+        return false;
+      });
       if (alreadySeen) return;
 
       final viewData = {
         'userId': user.id,
         'userName': '${user.name} ${user.lastName}'.trim(),
-        'role': user.role,
+        'role': user.role ?? '',
         'seenAt': Timestamp.now(),
       };
 
       await docRef.update({
         'seenBy': FieldValue.arrayUnion([viewData]),
       });
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.error('Error al marcar novedad como vista', error: e, tag: 'Novedades');
+    }
   }
 }

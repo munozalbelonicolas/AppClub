@@ -278,20 +278,26 @@ class NotificationService {
     required String title,
     required String body,
     required String authorId,
-    String targetUserId = 'all',
-    String targetCategory = 'all',
+    String? targetUserId,
+    String? targetCategory,
     Map<String, dynamic>? data,
   }) async {
     try {
+      final effectiveTargetUser = targetUserId ?? 'all';
+      final effectiveTargetCat = (targetUserId != null && targetUserId != 'all' && targetCategory == null)
+          ? null
+          : (targetCategory ?? 'all');
+
       // 1. Guardar documento en Firestore (para notificaciones en tiempo real in-app)
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': title,
         'body': body,
         'authorId': authorId,
-        'targetUserId': targetUserId,
-        'targetCategory': targetCategory,
+        'targetUserId': effectiveTargetUser,
+        if (effectiveTargetCat != null) ...{'targetCategory': effectiveTargetCat},
         'read': false,
-        if (data != null) ...data,
+        'readBy': [],
+        ...?data,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -299,8 +305,8 @@ class NotificationService {
       await OneSignalService().sendPushNotification(
         title: title,
         body: body,
-        targetUserId: targetUserId,
-        targetCategory: targetCategory,
+        targetUserId: effectiveTargetUser,
+        targetCategory: effectiveTargetCat ?? 'all',
         data: data,
       );
     } catch (e) {
@@ -326,6 +332,7 @@ class NotificationService {
         'targetCategory': 'admin',
         'targetRole': 'directivo',
         'read': false,
+        'readBy': [],
         'createdAt': FieldValue.serverTimestamp(),
         ...?extraData,
       });
