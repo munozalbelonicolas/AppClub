@@ -165,6 +165,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
             batch.set(tDoc, {
               'tutorId': tId,
+              'tutorIds': tutorIds.toList(),
               'playerId': playerId,
               'playerName': '${p['name']} ${p['lastName']}',
               'number': p['number'] ?? p['jerseyNumber'] ?? '',
