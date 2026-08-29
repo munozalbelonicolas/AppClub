@@ -16,6 +16,10 @@ class OneSignalService {
   OneSignalService._internal();
 
   bool _initialized = false;
+  String? _currentUserId;
+
+  /// Retorna el ID del usuario actualmente autenticado en OneSignal
+  String? get currentUserId => _currentUserId;
 
   /// Inicializa el SDK de OneSignal si el App ID está configurado.
   Future<void> initialize() async {
@@ -52,6 +56,23 @@ class OneSignalService {
 
       // Listener para cuando se recibe una notificación en primer plano
       OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+        final data = event.notification.additionalData;
+        final authorId = data?['authorId']?.toString();
+
+        // 1. Si la notificación fue generada por el usuario actual, prevenir banner duplicado
+        if (authorId != null &&
+            authorId.isNotEmpty &&
+            _currentUserId != null &&
+            authorId == _currentUserId) {
+          AppLogger.debug(
+            '🛑 Notificación push prevenida para el propio autor: ${event.notification.title}',
+            tag: 'OneSignal',
+          );
+          event.preventDefault();
+          return;
+        }
+
+        // 2. Prevenir duplicados entre Firestore stream / FCM / OneSignal
         final title = event.notification.title ?? '';
         final body = event.notification.body ?? '';
         if (NotificationService.isDuplicateAndRecord(title, body)) {
@@ -78,6 +99,7 @@ class OneSignalService {
 
   /// Asocia el ID de usuario de la app (Firebase Auth UID) con OneSignal.
   Future<void> loginUser(String userId) async {
+    _currentUserId = userId;
     if (!_initialized) return;
     try {
       await OneSignal.login(userId);
@@ -89,6 +111,7 @@ class OneSignalService {
 
   /// Desvincula al usuario al cerrar sesión en la app.
   Future<void> logoutUser() async {
+    _currentUserId = null;
     if (!_initialized) return;
     try {
       await OneSignal.logout();
@@ -196,7 +219,7 @@ class OneSignalService {
           }
         ];
       } else {
-        payload['included_segments'] = ['Subscribed Users', 'All'];
+        payload['included_segments'] = ['Subscribed Users'];
       }
 
       final Map<String, String> headers = {
