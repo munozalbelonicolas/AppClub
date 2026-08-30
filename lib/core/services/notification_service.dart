@@ -152,84 +152,100 @@ class NotificationService {
     }
   }
 
-  StreamSubscription<QuerySnapshot>? _notificationSubscription;
-  DateTime _sessionStartTime = DateTime.now();
+  Timer? _notificationPollingTimer;
+  DateTime _lastNotificationCheckTime = DateTime.now().subtract(const Duration(minutes: 5));
 
-  /// Listens to real-time notifications in Firestore and displays local notifications
+  /// Polls notifications every 10 minutes instead of holding an expensive real-time listener.
+  /// Immediate push delivery is handled by OneSignal.
   void startNotificationStream(String currentUserId, {String? userCategory, String? userRole, bool? isAdmin}) {
-    _notificationSubscription?.cancel();
-    _sessionStartTime = DateTime.now().subtract(const Duration(seconds: 5));
+    _notificationPollingTimer?.cancel();
+    _lastNotificationCheckTime = DateTime.now().subtract(const Duration(minutes: 5));
 
     final bool isUserAdmin = isAdmin == true || userRole == 'directivo' || userRole == 'secretario' || userRole == 'admin';
 
-    _notificationSubscription = FirebaseFirestore.instance
-        .collection('notifications')
-        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(_sessionStartTime))
-        .snapshots()
-        .listen(
-      (snapshot) {
-        for (final change in snapshot.docChanges) {
-          if (change.type == DocumentChangeType.added) {
-            final data = change.doc.data();
-            if (data == null) continue;
+    Future<void> checkNotifications() async {
+      try {
+        final queryTime = _lastNotificationCheckTime;
+        _lastNotificationCheckTime = DateTime.now();
 
-            final authorId = data['authorId']?.toString() ?? '';
-            if (authorId.isNotEmpty && authorId == currentUserId) continue; // Don't notify self
-            final targetUserId = data['targetUserId']?.toString() ?? '';
-            final targetUserIds = data['targetUserIds'] as List<dynamic>?;
-            final targetCategory = data['targetCategory']?.toString() ?? '';
-            final targetRole = data['targetRole']?.toString() ?? '';
+        final snapshot = await FirebaseFirestore.instance
+            .collection('notifications')
+            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(queryTime))
+            .orderBy('createdAt', descending: true)
+            .limit(20)
+            .get();
 
-            bool isForMe = false;
-            // 'private' notifications (e.g. chat messages) are delivered exclusively
-            // via OneSignal push.
-            if (targetCategory == 'private') {
-              isForMe = false;
-            } else if (targetUserIds != null &&
-                targetUserIds.isNotEmpty &&
-                targetUserIds.map((e) => e.toString()).contains(currentUserId)) {
-              isForMe = true;
-            } else if (targetUserId.isNotEmpty &&
-                targetUserId != 'all' &&
-                targetUserId != 'todos') {
-              isForMe = (targetUserId == currentUserId);
-            } else if (targetCategory == 'admin' ||
-                targetCategory == 'directivo' ||
-                targetRole == 'directivo' ||
-                targetRole == 'admin') {
-              isForMe = isUserAdmin;
-            } else if (targetRole.isNotEmpty &&
-                targetRole != 'all' &&
-                targetRole != 'todos') {
-              isForMe = userRole != null &&
-                  userRole.toLowerCase() == targetRole.toLowerCase();
-            } else if (targetCategory.isNotEmpty &&
-                targetCategory != 'all' &&
-                targetCategory != 'todos') {
-              isForMe = userCategory != null &&
-                  userCategory.isNotEmpty &&
-                  userCategory.toLowerCase() == targetCategory.toLowerCase();
-            } else {
-              isForMe = true;
-            }
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final authorId = data['authorId']?.toString() ?? '';
+          if (authorId.isNotEmpty && authorId == currentUserId) continue; // Don't notify self
+          final targetUserId = data['targetUserId']?.toString() ?? '';
+          final targetUserIds = data['targetUserIds'] as List<dynamic>?;
+          final targetCategory = data['targetCategory']?.toString() ?? '';
+          final targetRole = data['targetRole']?.toString() ?? '';
 
-            if (isForMe) {
-              final title = data['title']?.toString() ?? 'Nueva Notificación';
-              final body = data['body']?.toString() ?? '';
-              showLocalNotification(
-                id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-                title: title,
-                body: body,
-              );
-            }
+          bool isForMe = false;
+          // 'private' notifications (e.g. chat messages) are delivered exclusively
+          // via OneSignal push.
+          if (targetCategory == 'private') {
+            isForMe = false;
+          } else if (targetUserIds != null &&
+              targetUserIds.isNotEmpty &&
+              targetUserIds.map((e) => e.toString()).contains(currentUserId)) {
+            isForMe = true;
+          } else if (targetUserId.isNotEmpty &&
+              targetUserId != 'all' &&
+              targetUserId != 'todos') {
+            isForMe = (targetUserId == currentUserId);
+          } else if (targetCategory == 'admin' ||
+              targetCategory == 'directivo' ||
+              targetRole == 'directivo' ||
+              targetRole == 'admin') {
+            isForMe = isUserAdmin;
+          } else if (targetRole.isNotEmpty &&
+              targetRole != 'all' &&
+              targetRole != 'todos') {
+            isForMe = userRole != null &&
+                userRole.toLowerCase() == targetRole.toLowerCase();
+          } else if (targetCategory.isNotEmpty &&
+              targetCategory != 'all' &&
+              targetCategory != 'todos') {
+            isForMe = userCategory != null &&
+                userCategory.isNotEmpty &&
+                userCategory.toLowerCase() == targetCategory.toLowerCase();
+          } else {
+            isForMe = true;
+          }
+
+          if (isForMe) {
+            final title = data['title']?.toString() ?? 'Nueva Notificación';
+            final body = data['body']?.toString() ?? '';
+            showLocalNotification(
+              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              title: title,
+              body: body,
+            );
           }
         }
-      },
-      onError: (error) {
-        AppLogger.error('Notification stream error (non-fatal)', error: error, tag: 'FCM');
-        // Do NOT rethrow - errors here must not affect other Firestore streams
-      },
-    );
+      } catch (error) {
+        AppLogger.error('Notification polling error (non-fatal)', error: error, tag: 'FCM');
+      }
+    }
+
+    // Delayed initial check after login
+    Future.delayed(const Duration(seconds: 10), () {
+      checkNotifications();
+    });
+
+    // Schedule 10-minute polling
+    _notificationPollingTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+      checkNotifications();
+    });
+  }
+
+  void stopNotificationStream() {
+    _notificationPollingTimer?.cancel();
+    _notificationPollingTimer = null;
   }
 
   static final Map<String, DateTime> _recentlyHandledNotifications = {};

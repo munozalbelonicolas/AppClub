@@ -1,14 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
+import '../providers/cached_provider_helpers.dart';
+import 'cache_service.dart';
 import 'category_service.dart';
 import 'match_service.dart';
 import 'novedades_service.dart';
 
 /// Facade service that delegates to domain-specific services.
 /// Preserves backward compatibility so existing code continues to work
-/// while the internal logic is properly separated by domain (SRP).
+/// while applying in-memory caching and limits to reduce Firestore consumption.
 class FirestoreService {
   final NovedadesService _novedades = NovedadesService();
   final MatchService _match = MatchService();
@@ -33,16 +34,20 @@ class FirestoreService {
 
   // ─── Calendar Events ──────────────────────────────
   Stream<List<Map<String, dynamic>>> getCalendarEvents() {
-    return _db
-        .collection('events')
-        .orderBy('date', descending: false)
-        .limit(30)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => {'id': doc.id, ...doc.data()})
-              .toList(),
-        );
+    return createCachedStream<List<Map<String, dynamic>>>(
+      cacheKey: 'calendar_events_all',
+      ttl: const Duration(minutes: 15),
+      fetchFn: () async {
+        final snapshot = await _db
+            .collection('events')
+            .orderBy('date', descending: false)
+            .limit(30)
+            .get();
+        return snapshot.docs
+            .map((doc) => {'id': doc.id, ...doc.data()})
+            .toList();
+      },
+    );
   }
 
   // ─── Matches (delegated) ──────────────────────────
@@ -54,33 +59,54 @@ class FirestoreService {
 
   // ─── Players ──────────────────────────────────────
   Stream<List<Map<String, dynamic>>> getPlayers() {
-    return _db.collection('users').where('role', isEqualTo: 'jugador').snapshots().map(
-          (snapshot) => snapshot.docs
-              .map((doc) => {'id': doc.id, ...doc.data()})
-              .where((p) => p['role'] == 'jugador')
-              .toList(),
-        );
+    return createCachedStream<List<Map<String, dynamic>>>(
+      cacheKey: 'players_all',
+      ttl: const Duration(minutes: 10),
+      fetchFn: () async {
+        final snapshot = await _db
+            .collection('users')
+            .where('role', isEqualTo: 'jugador')
+            .limit(200)
+            .get();
+        return snapshot.docs
+            .map((doc) => {'id': doc.id, ...doc.data()})
+            .where((p) => p['role'] == 'jugador')
+            .toList();
+      },
+    );
   }
 
   // ─── Attendance ───────────────────────────────────
   Stream<Map<String, dynamic>?> getAttendance(String dateStr, String category) {
-    return _db
-        .collection('attendance')
-        .doc('$dateStr-$category')
-        .snapshots()
-        .map((doc) => doc.exists ? {'id': doc.id, ...doc.data()!} : null);
+    final key = '$dateStr-$category';
+    return createCachedStream<Map<String, dynamic>?>(
+      cacheKey: 'attendance_$key',
+      ttl: const Duration(minutes: 10),
+      fetchFn: () async {
+        final doc = await _db.collection('attendance').doc(key).get();
+        return doc.exists ? {'id': doc.id, ...doc.data()!} : null;
+      },
+    );
   }
 
   Stream<List<Map<String, dynamic>>> getAttendanceHistory(String category) {
-    return _db
-        .collection('attendance')
-        .where('category', isEqualTo: category)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+    return createCachedStream<List<Map<String, dynamic>>>(
+      cacheKey: 'attendance_history_$category',
+      ttl: const Duration(minutes: 10),
+      fetchFn: () async {
+        final snapshot = await _db
+            .collection('attendance')
+            .where('category', isEqualTo: category)
+            .limit(60)
+            .get();
+        return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+      },
+    );
   }
 
   Future<void> saveAttendance(String dateStr, String category, String dtId, List<String> present, List<String> absent) async {
-    await _db.collection('attendance').doc('$dateStr-$category').set({
+    final key = '$dateStr-$category';
+    await _db.collection('attendance').doc(key).set({
       'dateStr': dateStr,
       'date': dateStr,
       'category': category,
@@ -93,6 +119,8 @@ class FirestoreService {
       },
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    CacheService().invalidate('attendance_$key');
+    CacheService().invalidate('attendance_history_$category');
   }
 
   Future<void> saveAttendanceDetailed({
@@ -102,10 +130,11 @@ class FirestoreService {
     required String dtId,
     required Map<String, String> records,
   }) async {
+    final key = '$dateStr-$category';
     final present = records.entries.where((e) => e.value == 'present').map((e) => e.key).toList();
     final absent = records.entries.where((e) => e.value == 'absent').map((e) => e.key).toList();
 
-    await _db.collection('attendance').doc('$dateStr-$category').set({
+    await _db.collection('attendance').doc(key).set({
       'dateStr': dateStr,
       'date': dateStr,
       'formattedDate': formattedDate,
@@ -116,19 +145,31 @@ class FirestoreService {
       'records': records,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    CacheService().invalidate('attendance_$key');
+    CacheService().invalidate('attendance_history_$category');
   }
 
   // ─── Training Schedule ────────────────────────────
   Stream<Map<String, dynamic>?> getTrainingSchedule(String category) {
-    return _db.collection('training_schedules').doc(category).snapshots().map(
-          (doc) => doc.exists ? {'id': doc.id, ...doc.data()!} : null,
-        );
+    return createCachedStream<Map<String, dynamic>?>(
+      cacheKey: 'training_schedule_$category',
+      ttl: const Duration(minutes: 30),
+      fetchFn: () async {
+        final doc = await _db.collection('training_schedules').doc(category).get();
+        return doc.exists ? {'id': doc.id, ...doc.data()!} : null;
+      },
+    );
   }
 
   Stream<List<Map<String, dynamic>>> getAllTrainingSchedules() {
-    return _db.collection('training_schedules').snapshots().map(
-          (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
-        );
+    return createCachedStream<List<Map<String, dynamic>>>(
+      cacheKey: 'training_schedules_all',
+      ttl: const Duration(minutes: 30),
+      fetchFn: () async {
+        final snapshot = await _db.collection('training_schedules').get();
+        return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+      },
+    );
   }
 
   Future<void> saveTrainingSchedule(String category, List<String> days, String time, String location) async {
@@ -139,12 +180,19 @@ class FirestoreService {
       'location': location,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    CacheService().invalidate('training_schedule_$category');
+    CacheService().invalidate('training_schedules_all');
   }
 
   Stream<Map<String, dynamic>?> getPlayerProfile(String playerId) {
-    return _db.collection('users').doc(playerId).snapshots().map(
-          (doc) => doc.exists ? {'id': doc.id, ...doc.data()!} : null,
-        );
+    return createCachedStream<Map<String, dynamic>?>(
+      cacheKey: 'player_profile_$playerId',
+      ttl: const Duration(minutes: 10),
+      fetchFn: () async {
+        final doc = await _db.collection('users').doc(playerId).get();
+        return doc.exists ? {'id': doc.id, ...doc.data()!} : null;
+      },
+    );
   }
 
   Future<void> updatePlayerQuotaStatus(String playerId, String status) async {
@@ -152,19 +200,25 @@ class FirestoreService {
       'quotaStatus': status,
       if (status == 'al_dia') 'lastQuotaPaymentDate': FieldValue.serverTimestamp(),
     });
+    CacheService().invalidate('player_profile_$playerId');
+    CacheService().invalidate('players_all');
   }
 
   // ─── Payments ─────────────────────────────────────
   Stream<List<Map<String, dynamic>>> getPayments(String userId) {
-    return _db
-        .collection('payments')
-        .where('userId', isEqualTo: userId)
-        .orderBy('dueDate', descending: true)
-        .limit(20)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
-        );
+    return createCachedStream<List<Map<String, dynamic>>>(
+      cacheKey: 'payments_$userId',
+      ttl: const Duration(minutes: 10),
+      fetchFn: () async {
+        final snapshot = await _db
+            .collection('payments')
+            .where('userId', isEqualTo: userId)
+            .orderBy('dueDate', descending: true)
+            .limit(20)
+            .get();
+        return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+      },
+    );
   }
 
   // ─── Clubs (delegated) ────────────────────────────
@@ -206,6 +260,7 @@ final firestoreServiceProvider = Provider<FirestoreService>((ref) {
 });
 
 final allNovedadesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  ref.keepAlive();
   return ref.watch(firestoreServiceProvider).getAllNovedades();
 });
 
@@ -216,14 +271,17 @@ final userNovedadesStreamProvider =
     });
 
 final calendarEventsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  ref.keepAlive();
   return ref.watch(firestoreServiceProvider).getCalendarEvents();
 });
 
 final matchesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  ref.keepAlive();
   return ref.watch(firestoreServiceProvider).getMatches();
 });
 
 final playersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  ref.keepAlive();
   return ref.watch(firestoreServiceProvider).getPlayers();
 });
 
@@ -251,34 +309,54 @@ final convocatoriaStreamProvider = StreamProvider.family<List<Map<String, dynami
 });
 
 final tutorPlayersStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, tutorId) {
-  return FirebaseFirestore.instance
-      .collection('player_tutor_links')
-      .where('tutorId', isEqualTo: tutorId)
-      .snapshots()
-      .asyncMap((snapshot) async {
-    final List<Map<String, dynamic>> children = [];
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final playerId = data['playerId'] as String?;
-      if (playerId != null && playerId.isNotEmpty) {
-        try {
-          final playerDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(playerId)
-              .get();
-          if (playerDoc.exists && playerDoc.data() != null) {
-            children.add({
-              'id': playerDoc.id,
-              ...playerDoc.data()!,
-            });
+  if (tutorId.isEmpty) return Stream.value([]);
+  
+  return createCachedStream<List<Map<String, dynamic>>>(
+    cacheKey: 'tutor_players_$tutorId',
+    ttl: const Duration(minutes: 10),
+    fetchFn: () async {
+      final linksSnap = await FirebaseFirestore.instance
+          .collection('player_tutor_links')
+          .where('tutorId', isEqualTo: tutorId)
+          .get();
+
+      final List<Map<String, dynamic>> children = [];
+      final List<String> pidsToFetch = [];
+
+      for (var doc in linksSnap.docs) {
+        final data = doc.data();
+        final playerId = data['playerId'] as String?;
+        if (playerId != null && playerId.isNotEmpty) {
+          final cachedUser = CacheService().get<Map<String, dynamic>>('user_doc_$playerId');
+          if (cachedUser != null) {
+            children.add(cachedUser);
+          } else {
+            pidsToFetch.add(playerId);
           }
-        } catch (e) {
-          // Ignore individual doc read error
         }
       }
-    }
-    return children;
-  });
+
+      if (pidsToFetch.isNotEmpty) {
+        for (final pid in pidsToFetch) {
+          try {
+            final playerDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(pid)
+                .get();
+            if (playerDoc.exists && playerDoc.data() != null) {
+              final childMap = {
+                'id': playerDoc.id,
+                ...playerDoc.data()!,
+              };
+              CacheService().set('user_doc_$pid', childMap, const Duration(minutes: 15));
+              children.add(childMap);
+            }
+          } catch (_) {}
+        }
+      }
+      return children;
+    },
+  );
 });
 
 final lineupStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, matchId) {
@@ -290,6 +368,7 @@ final userPaymentsStreamProvider = StreamProvider.family<List<Map<String, dynami
 });
 
 final clubsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  ref.keepAlive();
   return ref.watch(firestoreServiceProvider).getClubs();
 });
 
@@ -633,7 +712,7 @@ final allUpcomingMatchesProvider = Provider.family<List<Map<String, dynamic>>, S
     if (ymd.isNotEmpty) {
       return ymd.compareTo(todayStr) >= 0;
     }
-    return true; // Keep unscheduled/pending matches without date
+    return true;
   }).toList();
 
   return upcomingOnly;

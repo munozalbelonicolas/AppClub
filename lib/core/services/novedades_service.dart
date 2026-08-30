@@ -1,52 +1,82 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../providers/cached_provider_helpers.dart';
 import 'app_logger.dart';
+import 'cache_service.dart';
 import 'notification_service.dart';
 
 /// Service for feed/novedades operations (SRP: handles only news feed domain)
+/// Optimized with 20-minute caching and query limits to minimize Firestore reads.
 class NovedadesService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  Future<List<Map<String, dynamic>>> _fetchRawNovedades() async {
+    QuerySnapshot snapshot;
+    try {
+      snapshot = await _db
+          .collection('novedades')
+          .orderBy('createdAt', descending: true)
+          .limit(35)
+          .get();
+    } catch (_) {
+      snapshot = await _db.collection('novedades').limit(35).get();
+    }
+    final list = snapshot.docs
+        .map((doc) => {'id': doc.id, ...(doc.data() as Map<String, dynamic>)})
+        .toList();
+    _sortNovedades(list);
+    return list;
+  }
+
   Stream<List<Map<String, dynamic>>> getAllNovedades() {
-    return _db.collection('novedades').snapshots().map((snapshot) {
-      final list = snapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data()})
-          .toList();
-      _sortNovedades(list);
-      return list;
-    });
+    return createCachedStream<List<Map<String, dynamic>>>(
+      cacheKey: 'novedades_all',
+      ttl: const Duration(minutes: 20),
+      fetchFn: _fetchRawNovedades,
+    );
   }
 
   Stream<List<Map<String, dynamic>>> getNovedadesForUser(
     List<String>? userCategories,
   ) {
-    return _db.collection('novedades').snapshots().map((snapshot) {
-      final userCats = (userCategories ?? [])
-          .map((c) => c.toString().trim().toLowerCase())
-          .where((c) => c.isNotEmpty)
-          .toSet();
+    final sortedCats = (userCategories ?? [])
+        .map((c) => c.toString().trim().toLowerCase())
+        .where((c) => c.isNotEmpty)
+        .toList()
+      ..sort();
+    final cacheKey = 'novedades_user_${sortedCats.join('_')}';
 
-      final list = snapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data()})
-          .where((doc) {
-        final rawCat =
-            (doc['category'] ?? 'all').toString().trim().toLowerCase();
+    return createCachedStream<List<Map<String, dynamic>>>(
+      cacheKey: cacheKey,
+      ttl: const Duration(minutes: 20),
+      fetchFn: () async {
+        final all = await CacheService().getOrFetch<List<Map<String, dynamic>>>(
+          'novedades_all',
+          const Duration(minutes: 20),
+          _fetchRawNovedades,
+        );
 
-        final bool isGlobal = rawCat.isEmpty ||
-            rawCat == 'all' ||
-            rawCat == 'todos' ||
-            rawCat == 'general' ||
-            rawCat == 'club' ||
-            rawCat == 'sin categoría' ||
-            rawCat == 'sin categoria';
+        final userCats = sortedCats.toSet();
 
-        if (isGlobal) return true;
-        if (userCats.isEmpty) return true;
-        return userCats.contains(rawCat);
-      }).toList();
+        final list = all.where((doc) {
+          final rawCat =
+              (doc['category'] ?? 'all').toString().trim().toLowerCase();
 
-      _sortNovedades(list);
-      return list;
-    });
+          final bool isGlobal = rawCat.isEmpty ||
+              rawCat == 'all' ||
+              rawCat == 'todos' ||
+              rawCat == 'general' ||
+              rawCat == 'club' ||
+              rawCat == 'sin categoría' ||
+              rawCat == 'sin categoria';
+
+          if (isGlobal) return true;
+          if (userCats.isEmpty) return true;
+          return userCats.contains(rawCat);
+        }).toList();
+
+        return list;
+      },
+    );
   }
 
   void _sortNovedades(List<Map<String, dynamic>> list) {
@@ -86,6 +116,8 @@ class NovedadesService {
       'createdAt': FieldValue.serverTimestamp(),
       'comments': [],
     });
+
+    CacheService().invalidatePrefix('novedades');
 
     // Enviar notificación Push (FCM / OneSignal / In-app)
     try {
@@ -150,10 +182,12 @@ class NovedadesService {
   Future<void> updateNovedad(String id, Map<String, dynamic> data) async {
     data['updatedAt'] = FieldValue.serverTimestamp();
     await _db.collection('novedades').doc(id).update(data);
+    CacheService().invalidatePrefix('novedades');
   }
 
   Future<void> deleteNovedad(String id) async {
     await _db.collection('novedades').doc(id).delete();
+    CacheService().invalidatePrefix('novedades');
   }
 
   Future<void> addCommentToNovedad(
@@ -163,6 +197,7 @@ class NovedadesService {
     await _db.collection('novedades').doc(novedadId).update({
       'comments': FieldValue.arrayUnion([commentData]),
     });
+    CacheService().invalidatePrefix('novedades');
   }
 
   Future<void> deleteCommentFromNovedad(
@@ -172,6 +207,7 @@ class NovedadesService {
     await _db.collection('novedades').doc(novedadId).update({
       'comments': FieldValue.arrayRemove([commentData]),
     });
+    CacheService().invalidatePrefix('novedades');
   }
 
   Future<void> toggleLikeNovedad(String novedadId, String userId) async {
@@ -190,23 +226,13 @@ class NovedadesService {
         'likes': FieldValue.arrayUnion([userId]),
       });
     }
+    CacheService().invalidatePrefix('novedades');
   }
 
   Future<void> markNovedadAsSeen(String novedadId, dynamic user) async {
     try {
       if (user == null || (user.id ?? '').toString().isEmpty) return;
       final docRef = _db.collection('novedades').doc(novedadId);
-      final docSnap = await docRef.get();
-      if (!docSnap.exists) return;
-
-      final data = docSnap.data()!;
-      final rawSeenBy = data['seenBy'] as List? ?? [];
-      final bool alreadySeen = rawSeenBy.any((e) {
-        if (e is Map) return e['userId'] == user.id;
-        if (e is String) return e == user.id;
-        return false;
-      });
-      if (alreadySeen) return;
 
       final viewData = {
         'userId': user.id,

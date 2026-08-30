@@ -32,6 +32,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   
+  // Configure Firestore offline persistence & cache
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
+  
   // Register FCM background handler & initialize notification service
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   try {

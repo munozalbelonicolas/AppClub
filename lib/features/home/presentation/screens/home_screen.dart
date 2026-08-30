@@ -510,7 +510,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             }).length,
           );
     } else {
-      return db.collection('inbox_threads').snapshots().map((snap) {
+      return db.collection('inbox_threads').limit(40).snapshots().map((snap) {
         var docs = snap.docs;
         if (sessionUser.role == 'dt') {
           final assignedCats =

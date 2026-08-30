@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/cache_service.dart';
+import 'cached_provider_helpers.dart';
+
 /// Streams all pending convocatorias for a tutor.
-/// Listens in real-time to the 'tutor_convocatorias' collection.
+/// Cached for 1 hour with auto-refresh and immediate invalidation on status change.
 final tutorConvocatoriasProvider =
     StreamProvider.family<List<Map<String, dynamic>>, String>((ref, userId) {
   if (userId.isEmpty) {
@@ -11,132 +14,146 @@ final tutorConvocatoriasProvider =
 
   final db = FirebaseFirestore.instance;
 
-  return db
-      .collection('tutor_convocatorias')
-      .snapshots()
-      .asyncMap((snapshot) async {
-    // 1. Get linked player IDs for this tutor
-    final Set<String> playerIds = {userId};
-    final Map<String, Map<String, dynamic>> playerInfoMap = {};
+  return createCachedStream<List<Map<String, dynamic>>>(
+    cacheKey: 'tutor_convocatorias_$userId',
+    ttl: const Duration(hours: 1),
+    fetchFn: () async {
+      // 1. Get linked player IDs for this tutor (use cached if available)
+      final Set<String> playerIds = {userId};
+      final Map<String, Map<String, dynamic>> playerInfoMap = {};
 
-    try {
-      final linksSnap = await db
-          .collection('player_tutor_links')
-          .where('tutorId', isEqualTo: userId)
-          .get();
-      for (final doc in linksSnap.docs) {
-        final pid = doc.data()['playerId']?.toString();
-        if (pid != null && pid.isNotEmpty) {
-          playerIds.add(pid);
-        }
-      }
-    } catch (_) {}
-
-    // Fetch user doc for each linked player
-    for (final pid in playerIds) {
       try {
-        final pDoc = await db.collection('users').doc(pid).get();
-        if (pDoc.exists && pDoc.data() != null) {
-          playerInfoMap[pid] = pDoc.data()!;
+        final linksSnap = await db
+            .collection('player_tutor_links')
+            .where('tutorId', isEqualTo: userId)
+            .get();
+        for (final doc in linksSnap.docs) {
+          final pid = doc.data()['playerId']?.toString();
+          if (pid != null && pid.isNotEmpty) {
+            playerIds.add(pid);
+          }
         }
       } catch (_) {}
-    }
 
-    final List<Map<String, dynamic>> result = [];
-    final Set<String> handledPlayerMatchKeys = {};
-
-    // 2. Check existing tutor_convocatorias docs
-    for (final doc in snapshot.docs) {
-      final d = doc.data();
-      final tutorId = d['tutorId']?.toString();
-      final playerId = d['playerId']?.toString();
-      final tutorIds = (d['tutorIds'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-      
-      final isForUser = tutorId == userId ||
-          playerIds.contains(playerId) ||
-          tutorIds.contains(userId);
-      final status = d['status']?.toString();
-      final isPending = status == 'pending' || status == null || status.isEmpty;
-
-      if (isForUser && isPending) {
-        final matchId = d['matchId']?.toString() ?? doc.id;
-        final pId = playerId ?? userId;
-        handledPlayerMatchKeys.add('${matchId}_$pId');
-        result.add({'id': doc.id, ...d});
-      }
-    }
-
-    // 3. Fallback: Check matches and subcollections for any convocated child
-    for (final entry in playerInfoMap.entries) {
-      final childId = entry.key;
-      final childData = entry.value;
-      final childCategory = childData['category']?.toString() ?? '';
-      final childName = '${childData['name'] ?? ''} ${childData['lastName'] ?? ''}'.trim();
-
-      if (childCategory.isNotEmpty) {
+      // Fetch user doc for each linked player (checking cache first)
+      for (final pid in playerIds) {
         try {
-          final matchesSnap = await db
-              .collection('matches')
-              .limit(10)
-              .get();
-
-          for (final mDoc in matchesSnap.docs) {
-            final matchId = mDoc.id;
-            final key = '${matchId}_$childId';
-            if (handledPlayerMatchKeys.contains(key)) continue;
-
-            final mData = mDoc.data();
-            final matchCat = mData['category']?.toString() ?? '';
-            
-            // Check if match category matches child category or if subcollection has player
-            final cDoc = await db
-                .collection('matches')
-                .doc(matchId)
-                .collection('convocatoria')
-                .doc(childId)
-                .get();
-
-            if (cDoc.exists) {
-              final cData = cDoc.data() ?? {};
-              final st = cData['status']?.toString();
-              if (st == 'pending' || st == null || st.isEmpty) {
-                handledPlayerMatchKeys.add(key);
-                result.add({
-                  'id': '${matchId}_$childId',
-                  'matchId': matchId,
-                  'playerId': childId,
-                  'playerName': childName.isNotEmpty ? childName : (cData['name'] ?? 'Jugador'),
-                  'category': matchCat.isNotEmpty ? matchCat : childCategory,
-                  'homeTeam': mData['homeTeam'] ?? 'Jorge Newbery',
-                  'awayTeam': mData['awayTeam'] ?? mData['rival'] ?? 'Rival',
-                  'venue': mData['venue'] ?? mData['location'] ?? 'Cancha Principal JN',
-                  'date': mData['date'] ??
-                      mData['matchDate'] ??
-                      mData['eventDate'] ??
-                      mData['dateYMD'] ??
-                      mData['fecha'] ??
-                      mData['startDate'] ??
-                      '',
-                  'time': mData['time'] ??
-                      mData['eventTime'] ??
-                      mData['matchTime'] ??
-                      mData['hora'] ??
-                      mData['startTime'] ??
-                      '',
-                  'status': 'pending',
-                });
-              }
+          final cachedUser = CacheService().get<Map<String, dynamic>>('user_doc_$pid');
+          if (cachedUser != null) {
+            playerInfoMap[pid] = cachedUser;
+          } else {
+            final pDoc = await db.collection('users').doc(pid).get();
+            if (pDoc.exists && pDoc.data() != null) {
+              playerInfoMap[pid] = pDoc.data()!;
+              CacheService().set('user_doc_$pid', pDoc.data()!, const Duration(minutes: 30));
             }
           }
         } catch (_) {}
       }
-    }
 
-    return result;
-  });
+      final List<Map<String, dynamic>> result = [];
+      final Set<String> handledPlayerMatchKeys = {};
+
+      // 2. Query tutor_convocatorias with limits
+      try {
+        final snapshot = await db
+            .collection('tutor_convocatorias')
+            .limit(50)
+            .get();
+
+        for (final doc in snapshot.docs) {
+          final d = doc.data();
+          final tutorId = d['tutorId']?.toString();
+          final playerId = d['playerId']?.toString();
+          final tutorIds = (d['tutorIds'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+
+          final isForUser = tutorId == userId ||
+              playerIds.contains(playerId) ||
+              tutorIds.contains(userId);
+          final status = d['status']?.toString();
+          final isPending = status == 'pending' || status == null || status.isEmpty;
+
+          if (isForUser && isPending) {
+            final matchId = d['matchId']?.toString() ?? doc.id;
+            final pId = playerId ?? userId;
+            handledPlayerMatchKeys.add('${matchId}_$pId');
+            result.add({'id': doc.id, ...d});
+          }
+        }
+      } catch (_) {}
+
+      // 3. Fallback: Check only upcoming matches (limit 5) for any convocated child
+      for (final entry in playerInfoMap.entries) {
+        final childId = entry.key;
+        final childData = entry.value;
+        final childCategory = childData['category']?.toString() ?? '';
+        final childName = '${childData['name'] ?? ''} ${childData['lastName'] ?? ''}'.trim();
+
+        if (childCategory.isNotEmpty) {
+          try {
+            final matchesSnap = await db
+                .collection('matches')
+                .limit(5)
+                .get();
+
+            for (final mDoc in matchesSnap.docs) {
+              final matchId = mDoc.id;
+              final key = '${matchId}_$childId';
+              if (handledPlayerMatchKeys.contains(key)) continue;
+
+              final mData = mDoc.data();
+              final matchCat = mData['category']?.toString() ?? '';
+
+              final cDoc = await db
+                  .collection('matches')
+                  .doc(matchId)
+                  .collection('convocatoria')
+                  .doc(childId)
+                  .get();
+
+              if (cDoc.exists) {
+                final cData = cDoc.data() ?? {};
+                final st = cData['status']?.toString();
+                if (st == 'pending' || st == null || st.isEmpty) {
+                  handledPlayerMatchKeys.add(key);
+                  result.add({
+                    'id': '${matchId}_$childId',
+                    'matchId': matchId,
+                    'playerId': childId,
+                    'playerName': childName.isNotEmpty ? childName : (cData['name'] ?? 'Jugador'),
+                    'category': matchCat.isNotEmpty ? matchCat : childCategory,
+                    'homeTeam': mData['homeTeam'] ?? 'Jorge Newbery',
+                    'awayTeam': mData['awayTeam'] ?? mData['rival'] ?? 'Rival',
+                    'venue': mData['venue'] ?? mData['location'] ?? 'Cancha Principal JN',
+                    'date': mData['date'] ??
+                        mData['matchDate'] ??
+                        mData['eventDate'] ??
+                        mData['dateYMD'] ??
+                        mData['fecha'] ??
+                        mData['startDate'] ??
+                        '',
+                    'time': mData['time'] ??
+                        mData['eventTime'] ??
+                        mData['matchTime'] ??
+                        mData['hora'] ??
+                        mData['startTime'] ??
+                        '',
+                    'status': 'pending',
+                  });
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      return result;
+    },
+  );
 });
 
-/// Streams all tutor convocatorias for a specific match to show live status to the coach
+/// Streams all tutor convocatorias for a specific match to show live status to the coach.
+/// Cached with auto-refresh and immediate invalidation on status updates.
 final coachConvocatoriaStatusProvider =
     StreamProvider.family<Map<String, String>, String>((ref, matchId) {
   if (matchId.isEmpty) {
@@ -145,25 +162,31 @@ final coachConvocatoriaStatusProvider =
 
   final db = FirebaseFirestore.instance;
 
-  return db
-      .collection('tutor_convocatorias')
-      .where('matchId', isEqualTo: matchId)
-      .snapshots()
-      .map((snapshot) {
-    final Map<String, String> statusMap = {};
-    for (final doc in snapshot.docs) {
-      final pid = doc.data()['playerId'] as String?;
-      final st = doc.data()['status'] as String? ?? 'pending';
-      if (pid != null) {
-        statusMap[pid] = st;
+  return createCachedStream<Map<String, String>>(
+    cacheKey: 'coach_convocatoria_$matchId',
+    ttl: const Duration(minutes: 15),
+    fetchFn: () async {
+      final snapshot = await db
+          .collection('tutor_convocatorias')
+          .where('matchId', isEqualTo: matchId)
+          .get();
+
+      final Map<String, String> statusMap = {};
+      for (final doc in snapshot.docs) {
+        final pid = doc.data()['playerId'] as String?;
+        final st = doc.data()['status'] as String? ?? 'pending';
+        if (pid != null) {
+          statusMap[pid] = st;
+        }
       }
-    }
-    return statusMap;
-  });
+      return statusMap;
+    },
+  );
 });
 
 /// Updates the convocatoria status for a specific player in a match.
-/// Updates both 'tutor_convocatorias' and 'matches/{matchId}/convocatoria/{playerId}'.
+/// Updates both 'tutor_convocatorias' and 'matches/{matchId}/convocatoria/{playerId}',
+/// and invalidates related cache entries so UI updates immediately.
 Future<void> updateConvocatoriaStatus({
   required String matchId,
   required String playerId,
@@ -204,5 +227,9 @@ Future<void> updateConvocatoriaStatus({
       }
     }
   } catch (_) {}
-}
 
+  // 3. Invalidate cache so both tutor and coach see the update immediately
+  CacheService().invalidatePrefix('tutor_convocatorias_');
+  CacheService().invalidate('coach_convocatoria_$matchId');
+  CacheService().invalidate('convocatoria_$matchId');
+}

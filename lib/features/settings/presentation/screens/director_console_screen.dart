@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/cached_provider_helpers.dart';
+import '../../../../core/services/cache_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
@@ -34,7 +36,11 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
   @override
   void initState() {
     super.initState();
-    _usersStream = FirebaseFirestore.instance.collection('users').snapshots();
+    _usersStream = createCachedStream<QuerySnapshot>(
+      cacheKey: 'director_users_list',
+      ttl: const Duration(minutes: 5),
+      fetchFn: () => FirebaseFirestore.instance.collection('users').get(),
+    );
   }
 
   @override
@@ -54,6 +60,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
           .collection('users')
           .doc(userId)
           .update({'status': 'active'});
+      CacheService().invalidate('director_users_list');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -81,6 +88,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
   ) async {
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+      CacheService().invalidate('director_users_list');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -112,6 +120,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
             stream: FirebaseFirestore.instance
                 .collection('notifications')
                 .where('read', isEqualTo: false)
+                .limit(20)
                 .snapshots(),
             builder: (context, snapshot) {
               final unreadCount = snapshot.data?.docs.length ?? 0;

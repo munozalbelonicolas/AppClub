@@ -17,6 +17,8 @@ void showAdminNotificationsDialog(BuildContext context, {dynamic sessionUser}) {
       return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('notifications')
+            .orderBy('createdAt', descending: true)
+            .limit(50)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
