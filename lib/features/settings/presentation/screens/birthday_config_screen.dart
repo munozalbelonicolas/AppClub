@@ -25,7 +25,7 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
   int _daysPriorToNotify = 1;
   final _templateController = TextEditingController(
     text:
-        'En nombre de toda la directiva del Club Jorge Newbery, te mandamos un fuerte abrazo en tu día. Es un orgullo tenerte en el equipo y ver cómo creces día a día como jugador. Que pases un gran día con tu familia y amigos. ¡A seguir rompiéndola!',
+        'En este día tan especial el CLUB JORGE NEWBERY te desea lo mejor junto a tu familia y amigos!! FELIZ CUMPLEAÑOS!! 🎁🎂🥳🎈❤️🖤😘',
   );
 
   @override

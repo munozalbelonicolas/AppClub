@@ -25,8 +25,9 @@ import '../../../communications/presentation/screens/story_export_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../lineup/presentation/screens/lineup_screen.dart';
 import '../../../payments/presentation/screens/payments_screen.dart';
-import '../../../results/presentation/screens/league_report_screen.dart';
+import '../../../results/presentation/screens/results_screen.dart';
 import '../../../settings/presentation/widgets/admin_notifications_dialog.dart';
+import '../widgets/club_social_banner.dart';
 import '../widgets/sponsor_carousel.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -182,23 +183,109 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         item['playerName'] ?? conv['name'] ?? item['name'] ?? 'Jugador';
     final category =
         item['category'] as String? ?? conv['category'] as String? ?? '';
-    final rival =
-        item['awayTeam'] ??
-        match['awayTeam'] ??
-        item['homeTeam'] ??
-        match['homeTeam'] ??
-        'Partido';
-    final venue = item['venue'] ?? match['venue'] ?? 'Cancha Principal';
-    final rawDate = item['date'] ?? match['date'];
+
+    // Match candidate lookup for this category as fallback for rival/date/venue
+    final nextMatch = category.isNotEmpty ? ref.watch(nextMatchProvider(category)) : null;
+
+    // 1. Resolve Rival Name
+    String resolvedRival = '';
+    final itemRival = item['awayTeam'] ?? item['displayRival'] ?? item['rival'] ?? item['opponentName'] ?? match['awayTeam'];
+    if (itemRival != null &&
+        itemRival.toString().trim().isNotEmpty &&
+        itemRival.toString().toLowerCase() != 'rival' &&
+        itemRival.toString().toLowerCase() != 'partido') {
+      resolvedRival = itemRival.toString().trim();
+    } else if (item['homeTeam'] != null &&
+        !item['homeTeam'].toString().toLowerCase().contains('newbery') &&
+        item['homeTeam'].toString().toLowerCase() != 'partido') {
+      resolvedRival = item['homeTeam'].toString().trim();
+    } else if (nextMatch != null) {
+      final nmAway = nextMatch['awayTeam']?.toString() ?? '';
+      final nmHome = nextMatch['homeTeam']?.toString() ?? '';
+      if (nmAway.isNotEmpty && !nmAway.toLowerCase().contains('newbery') && nmAway.toLowerCase() != 'rival') {
+        resolvedRival = nmAway;
+      } else if (nmHome.isNotEmpty && !nmHome.toLowerCase().contains('newbery') && nmHome.toLowerCase() != 'rival') {
+        resolvedRival = nmHome;
+      }
+    }
+    if (resolvedRival.isEmpty || resolvedRival.toLowerCase() == 'rival') {
+      resolvedRival = 'Rival a confirmar';
+    }
+
+    // 2. Resolve Local vs Visitante Condition & Venue
+    final bool isHomeGame = item['isHome'] == true ||
+        (item['homeTeam'] != null && item['homeTeam'].toString().toLowerCase().contains('newbery')) ||
+        (nextMatch != null && nextMatch['homeTeam']?.toString().toLowerCase().contains('newbery') == true);
+
+    final String conditionLabel = isHomeGame ? 'Cancha Local' : 'Cancha Visitante';
+    String resolvedVenue = item['venue']?.toString() ?? match['venue']?.toString() ?? nextMatch?['venue']?.toString() ?? '';
+    if (resolvedVenue.isEmpty || resolvedVenue.toLowerCase() == 'cancha principal' || resolvedVenue.toLowerCase() == 'cancha principal jn') {
+      resolvedVenue = isHomeGame ? 'Cancha Local (Jorge Newbery)' : 'Cancha Visitante';
+    } else {
+      if (!resolvedVenue.toLowerCase().contains('local') && !resolvedVenue.toLowerCase().contains('visitante')) {
+        resolvedVenue = '$conditionLabel · $resolvedVenue';
+      }
+    }
+
+    // 3. Resolve Date & Time
     String dateStr = '';
+    final rawDate = item['date'] ??
+        item['matchDate'] ??
+        item['eventDate'] ??
+        item['dateYMD'] ??
+        match['date'] ??
+        match['matchDate'] ??
+        match['eventDate'] ??
+        match['dateYMD'] ??
+        nextMatch?['date'] ??
+        nextMatch?['matchDate'] ??
+        nextMatch?['eventDate'];
+
     if (rawDate is Timestamp) {
       final d = rawDate.toDate();
       dateStr =
           '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-    } else if (rawDate != null) {
-      dateStr = rawDate.toString();
+    } else if (rawDate != null && rawDate.toString().trim().isNotEmpty) {
+      final s = rawDate.toString().trim();
+      if (s.contains('T')) {
+        final datePart = s.split('T')[0];
+        final parts = datePart.split('-');
+        if (parts.length == 3) {
+          dateStr = '${parts[2]}/${parts[1]}/${parts[0]}';
+        } else {
+          dateStr = datePart;
+        }
+      } else if (s.contains('-')) {
+        final parts = s.split('-');
+        if (parts.length == 3) {
+          if (parts[0].length == 4) {
+            dateStr = '${parts[2]}/${parts[1]}/${parts[0]}';
+          } else {
+            dateStr = '${parts[0]}/${parts[1]}/${parts[2]}';
+          }
+        } else {
+          dateStr = s;
+        }
+      } else {
+        dateStr = s;
+      }
     }
-    final timeStr = item['time']?.toString() ?? match['time']?.toString() ?? '';
+
+    final rawTime = item['time'] ??
+        item['eventTime'] ??
+        item['matchTime'] ??
+        match['time'] ??
+        match['eventTime'] ??
+        match['matchTime'] ??
+        nextMatch?['time'] ??
+        nextMatch?['eventTime'];
+
+    final cleanTime = rawTime?.toString().trim() ?? '';
+    final timeStr = (cleanTime.isNotEmpty &&
+            cleanTime.toLowerCase() != 'null' &&
+            cleanTime.toLowerCase() != 'a confirmar')
+        ? cleanTime
+        : '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -280,50 +367,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(
               children: [
                 const Icon(
                   Icons.shield_outlined,
-                  size: 15,
-                  color: Colors.white70,
+                  size: 16,
+                  color: Color(0xFF34D399),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'vs $rival',
+                    'vs $resolvedRival',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(
               children: [
                 const Icon(
-                  Icons.calendar_today,
+                  Icons.calendar_today_outlined,
                   size: 13,
                   color: Colors.white60,
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '$dateStr${timeStr.isNotEmpty ? " · $timeStr hs" : ""}',
+                  dateStr.isNotEmpty
+                      ? '$dateStr${timeStr.isNotEmpty ? " · $timeStr hs" : ""}'
+                      : (timeStr.isNotEmpty ? '$timeStr hs' : 'Fecha a confirmar'),
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
-                const SizedBox(width: 14),
-                const Icon(
-                  Icons.location_on_outlined,
+                const SizedBox(width: 12),
+                Icon(
+                  isHomeGame ? Icons.home_outlined : Icons.directions_bus_outlined,
                   size: 14,
                   color: Colors.white60,
                 ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    venue,
+                    resolvedVenue,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
@@ -511,6 +600,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     String eventType = isDT ? 'partido' : 'ninguno';
     bool hasTransport = false;
+    bool isHome = true;
     String? selectedOpponentId;
     bool isPublishing = false;
 
@@ -651,7 +741,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           dropdownColor: context.colors.surface,
                           initialValue: selectedCategory,
                           decoration: const InputDecoration(
-                            labelText: 'Visibilidad / Categoría',
+                            labelText: 'Categoría de destino',
                           ),
                           items: categories.map((cat) {
                             return DropdownMenuItem<String>(
@@ -738,6 +828,93 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       if (eventType != 'ninguno' &&
                           eventType != 'comunicado') ...[
+                        if (eventType == 'partido') ...[
+                          const SizedBox(height: 12),
+                          // Condición: Local / Visitante
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    setDialogState(() {
+                                      isHome = true;
+                                      if (venueController.text.isEmpty || venueController.text == 'Cancha Visitante' || venueController.text.startsWith('Cancha de ')) {
+                                        venueController.text = 'Cancha Principal JN';
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isHome ? context.colors.primary : context.colors.border,
+                                        width: isHome ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.home_outlined, size: 18, color: isHome ? context.colors.primary : context.colors.textSecondary),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Local (JN)',
+                                          style: TextStyle(
+                                            fontWeight: isHome ? FontWeight.bold : FontWeight.normal,
+                                            color: isHome ? context.colors.primary : context.colors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    setDialogState(() {
+                                      isHome = false;
+                                      hasTransport = true;
+                                      final oppClub = clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull;
+                                      if (oppClub != null) {
+                                        venueController.text = 'Cancha de ${oppClub['name']}';
+                                      } else {
+                                        venueController.text = 'Cancha Visitante';
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: !isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: !isHome ? context.colors.primary : context.colors.border,
+                                        width: !isHome ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.directions_bus_outlined, size: 18, color: !isHome ? context.colors.primary : context.colors.textSecondary),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Visitante',
+                                          style: TextStyle(
+                                            fontWeight: !isHome ? FontWeight.bold : FontWeight.normal,
+                                            color: !isHome ? context.colors.primary : context.colors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         // Fecha del Partido / Evento
                         InkWell(
@@ -859,6 +1036,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           onChanged: (val) {
                             setDialogState(() {
                               selectedOpponentId = val;
+                              if (!isHome && val != null) {
+                                final oppClub = clubs.where((c) => c['id'] == val).firstOrNull;
+                                if (oppClub != null && (venueController.text.isEmpty || venueController.text == 'Cancha Principal JN' || venueController.text == 'Cancha Visitante')) {
+                                  venueController.text = 'Cancha de ${oppClub['name']}';
+                                }
+                              }
                             });
                           },
                         ),
@@ -900,7 +1083,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               final venueStr =
                                   venueController.text.trim().isNotEmpty
                                   ? venueController.text.trim()
-                                  : 'Cancha Principal JN';
+                                  : (isHome ? 'Cancha Principal JN' : 'Cancha Visitante');
 
                               String? finalImageUrl;
                               if (selectedImagePath != null &&
@@ -923,6 +1106,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ? clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull
                                   : null;
                               final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
+
+                              final String localName = localClub?['name'] ?? 'Jorge Newbery';
+                              final String? localLogo = localClub?['logoUrl'] ?? 'assets/images/app_logo.jpg';
+                              final String opponentName = opponentClub?['name'] ?? 'Rival';
+                              final String? opponentLogo = opponentClub?['logoUrl'];
+
+                              final homeTeam = isHome ? localName : opponentName;
+                              final homeLogoUrl = isHome ? localLogo : opponentLogo;
+                              final awayTeam = isHome ? opponentName : localName;
+                              final awayLogoUrl = isHome ? opponentLogo : localLogo;
 
                               await firestoreService.addNovedad({
                                 'title': titleController.text.trim(),
@@ -947,16 +1140,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     'partido', // Kept for backwards compatibility
                                 'eventType': eventType,
                                 'hasTransport': hasTransport,
+                                'isHome': isHome,
+                                'condition': isHome ? 'local' : 'visitante',
                                 'opponentClubId':
                                     (eventType != 'ninguno' &&
                                         eventType != 'comunicado')
                                     ? selectedOpponentId
                                     : null,
-                                'awayTeam': opponentClub?['name'] ?? 'Rival',
-                                'opponentName': opponentClub?['name'] ?? 'Rival',
-                                'awayLogoUrl': opponentClub?['logoUrl'],
-                                'homeTeam': localClub?['name'] ?? 'Jorge Newbery',
-                                'homeLogoUrl': localClub?['logoUrl'] ?? 'assets/images/app_logo.jpg',
+                                'awayTeam': awayTeam,
+                                'opponentName': opponentName,
+                                'awayLogoUrl': awayLogoUrl,
+                                'homeTeam': homeTeam,
+                                'homeLogoUrl': homeLogoUrl,
                                 'eventDate': dateStr,
                                 'date': dateStr,
                                 'read': false,
@@ -1142,7 +1337,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final String categoriesStr = relevantCategories.toSet().join(',');
 
-    final tutorConvocatoriasAsync = sessionUser.role == 'tutor'
+    final isTutorOrPlayer = sessionUser.role == 'tutor' ||
+        sessionUser.role.toLowerCase() == 'padre' ||
+        sessionUser.role == 'jugador';
+
+    final tutorConvocatoriasAsync = isTutorOrPlayer
         ? ref.watch(tutorConvocatoriasProvider(sessionUser.id))
         : null;
     final List<Map<String, dynamic>> pendingConvocatorias =
@@ -1371,30 +1570,77 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       },
                     ),
                     const SizedBox(width: 8),
-                    if (sessionUser.isAdmin)
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('notifications')
-                            .where('read', isEqualTo: false)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          final unreadCount = snapshot.data?.docs.length ?? 0;
-                          return Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.notifications_outlined,
-                                  color: context.colors.textPrimary,
-                                  size: 26,
-                                ),
-                                onPressed: () =>
-                                    showAdminNotificationsDialog(context),
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('notifications')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        int unreadCount = 0;
+                        if (snapshot.hasData) {
+                          bool isDocRead(Map<String, dynamic> data) {
+                            if (sessionUser.id.isNotEmpty) {
+                              if (data['readBy'] is List &&
+                                  (data['readBy'] as List).contains(sessionUser.id)) {
+                                return true;
+                              }
+                              if (data['targetUserId'] == sessionUser.id && data['read'] == true) {
+                                return true;
+                              }
+                              return false;
+                            }
+                            return data['read'] == true;
+                          }
+
+                          unreadCount = snapshot.data!.docs.where((d) {
+                            final data = d.data() as Map<String, dynamic>;
+                            if (isDocRead(data)) return false;
+                            if (sessionUser.isAdmin) return true;
+
+                            final targetUserId = data['targetUserId']?.toString();
+                            final targetUserIds = data['targetUserIds'] as List<dynamic>?;
+                            final targetCat = data['targetCategory']?.toString();
+                            final targetRole = data['targetRole']?.toString();
+
+                            if (targetUserIds != null && targetUserIds.isNotEmpty) {
+                              return targetUserIds.map((e) => e.toString()).contains(sessionUser.id);
+                            }
+                            if (targetUserId != null && targetUserId.isNotEmpty && targetUserId != 'all') {
+                              return targetUserId == sessionUser.id;
+                            }
+                            if (targetRole != null && targetRole.isNotEmpty && targetRole != 'all') {
+                              return targetRole == sessionUser.role;
+                            }
+                            if (targetCat != null && targetCat.isNotEmpty && targetCat != 'all' && targetCat != 'todos') {
+                              if (sessionUser.category != null &&
+                                  targetCat.toLowerCase().trim() == sessionUser.category!.toLowerCase().trim()) {
+                                return true;
+                              }
+                              if (sessionUser.assignedCategories != null) {
+                                return (sessionUser.assignedCategories as List)
+                                    .any((c) => c.toString().toLowerCase().trim() == targetCat.toLowerCase().trim());
+                              }
+                              return false;
+                            }
+                            return targetCat == 'all' || targetCat == 'todos' || targetUserId == 'all';
+                          }).length;
+                        }
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.notifications_outlined,
+                                color: context.colors.textPrimary,
+                                size: 26,
                               ),
-                              if (unreadCount > 0)
-                                Positioned(
-                                  right: 4,
-                                  top: 4,
+                              onPressed: () =>
+                                  showAdminNotificationsDialog(context, sessionUser: sessionUser),
+                            ),
+                            if (unreadCount > 0)
+                              Positioned(
+                                right: 4,
+                                top: 4,
+                                child: IgnorePointer(
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                     constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
@@ -1413,10 +1659,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ),
                                   ),
                                 ),
-                            ],
-                          );
-                        },
-                      ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () =>
@@ -1434,6 +1681,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             // ─── Sponsor Carousel ────────────────────────
             const SliverToBoxAdapter(child: SponsorCarousel()),
+
+            // ─── Club Social Media Banner ────────────────
+            const SliverToBoxAdapter(child: SizedBox(height: 14)),
+            const SliverToBoxAdapter(child: ClubSocialBanner()),
 
             // ─── Convocatoria Pending Cards (For Tutors) ───
             if (pendingConvocatorias.isNotEmpty) ...[
@@ -1517,14 +1768,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(width: 12),
                     _QuickAction(
-                      icon: Icons.article_outlined,
-                      label: 'Informe Liga',
-                      color: context.colors.accent,
+                      icon: Icons.emoji_events_outlined,
+                      label: 'Resultados',
+                      color: const Color(0xFFE5B842),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const LeagueReportScreen(),
+                            builder: (context) => const ResultsScreen(),
                           ),
                         );
                       },
@@ -1642,22 +1893,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     );
                     final hasLiked = likes.contains(sessionUser.id);
 
-                    final seenByList = List<Map<String, dynamic>>.from(
-                      (post['seenBy'] as List? ?? []).map(
-                        (e) => Map<String, dynamic>.from(e as Map),
-                      ),
+                    final rawSeenBy = post['seenBy'] as List? ?? [];
+                    final hasSeen = rawSeenBy.any(
+                      (e) {
+                        if (e is Map) return e['userId'] == sessionUser.id;
+                        if (e is String) return e == sessionUser.id;
+                        return false;
+                      },
                     );
-                    final hasSeen = seenByList.any(
-                      (e) => e['userId'] == sessionUser.id,
-                    );
+                    final seenByList = rawSeenBy
+                        .whereType<Map>()
+                        .map((e) => Map<String, dynamic>.from(e))
+                        .toList();
 
-                    if (!hasSeen && !_markedSeenPostIds.contains(postId)) {
+                    if (!hasSeen && !_markedSeenPostIds.contains(postId) && sessionUser.id.isNotEmpty) {
                       _markedSeenPostIds.add(postId);
-                      Future.microtask(() {
-                        ref
-                            .read(firestoreServiceProvider)
-                            .novedades
-                            .markNovedadAsSeen(postId, sessionUser);
+                      Future.microtask(() async {
+                        try {
+                          await ref
+                              .read(firestoreServiceProvider)
+                              .novedades
+                              .markNovedadAsSeen(postId, sessionUser);
+                        } catch (_) {
+                          _markedSeenPostIds.remove(postId);
+                        }
                       });
                     }
 
@@ -2807,22 +3066,54 @@ Widget _buildMatchPostCard(
   BuildContext context, [
   UserSession? sessionUser,
 ]) {
-  final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
-  final String homeTeamName = post['homeTeam'] ?? localClub?['name'] ?? 'Jorge Newbery';
-  final String? homeLogoUrl = post['homeLogoUrl'] ?? localClub?['logoUrl'];
+  final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull ??
+      clubs.where((c) => (c['name'] as String?)?.toLowerCase().contains('newbery') == true).firstOrNull;
+  final String defaultLocalName = localClub?['name'] ?? 'Jorge Newbery';
+  final String? defaultLocalLogo = localClub?['logoUrl'] ?? 'assets/images/app_logo.jpg';
+
+  final bool isVisitor = post['isHome'] == false ||
+      post['condition'] == 'visitante' ||
+      post['isVisitor'] == true ||
+      (post['awayTeam'] != null && post['awayTeam'].toString().toLowerCase().contains('newbery'));
 
   final opponentClub = clubs.where((c) =>
-      c['id'] == post['opponentClubId'] ||
-      (post['awayTeam'] != null && c['name']?.toString().toLowerCase() == post['awayTeam'].toString().toLowerCase()) ||
-      (post['opponentName'] != null && c['name']?.toString().toLowerCase() == post['opponentName'].toString().toLowerCase())
+      (post['opponentClubId'] != null && c['id'] == post['opponentClubId']) ||
+      (post['awayClubId'] != null && c['id'] == post['awayClubId'] && c['isLocal'] != true) ||
+      (post['homeClubId'] != null && c['id'] == post['homeClubId'] && c['isLocal'] != true) ||
+      (post['awayTeam'] != null && c['name']?.toString().toLowerCase() == post['awayTeam'].toString().toLowerCase() && c['isLocal'] != true) ||
+      (post['homeTeam'] != null && c['name']?.toString().toLowerCase() == post['homeTeam'].toString().toLowerCase() && c['isLocal'] != true) ||
+      (post['opponentName'] != null && c['name']?.toString().toLowerCase() == post['opponentName'].toString().toLowerCase() && c['isLocal'] != true)
   ).firstOrNull;
 
-  final String awayTeamName = opponentClub?['name'] ?? post['awayTeam'] ?? post['opponentName'] ?? 'Rival';
-  final String? awayLogoUrl = post['awayLogoUrl'] ?? opponentClub?['logoUrl'];
+  final String opponentName = opponentClub?['name'] ?? post['opponentName'] ?? (isVisitor ? post['homeTeam'] : post['awayTeam']) ?? 'Rival';
+  final String? opponentLogo = opponentClub?['logoUrl'] ?? (isVisitor ? post['homeLogoUrl'] : post['awayLogoUrl']);
+
+  final String homeTeamName;
+  final String? homeLogoUrl;
+  final String awayTeamName;
+  final String? awayLogoUrl;
+
+  if (isVisitor) {
+    homeTeamName = (post['homeTeam'] != null && !post['homeTeam'].toString().toLowerCase().contains('newbery'))
+        ? post['homeTeam']
+        : opponentName;
+    homeLogoUrl = post['homeLogoUrl'] ?? (homeTeamName == opponentName ? opponentLogo : null);
+
+    awayTeamName = post['awayTeam'] ?? defaultLocalName;
+    awayLogoUrl = post['awayLogoUrl'] ?? defaultLocalLogo;
+  } else {
+    homeTeamName = post['homeTeam'] ?? defaultLocalName;
+    homeLogoUrl = post['homeLogoUrl'] ?? defaultLocalLogo;
+
+    awayTeamName = (post['awayTeam'] != null && !post['awayTeam'].toString().toLowerCase().contains('newbery'))
+        ? post['awayTeam']
+        : opponentName;
+    awayLogoUrl = post['awayLogoUrl'] ?? (awayTeamName == opponentName ? opponentLogo : null);
+  }
 
   final String dateStr = post['eventDate'] ?? post['date'] ?? '';
   final String timeStr = post['eventTime'] ?? post['time'] ?? 'A confirmar';
-  final String venueStr = post['venue'] ?? post['location'] ?? 'Cancha Principal JN';
+  final String venueStr = post['venue'] ?? post['location'] ?? (isVisitor ? 'Cancha Visitante' : 'Cancha Principal JN');
   final String catStr = post['category'] ?? '';
 
   String formatMatchDate(String rawDate) {

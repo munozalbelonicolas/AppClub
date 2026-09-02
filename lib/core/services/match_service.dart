@@ -306,4 +306,19 @@ class MatchService {
   Future<void> deleteClub(String id) async {
     await _db.collection('clubs').doc(id).delete();
   }
+
+  // ─── League Jornadas (Planillas Oficiales UCIV) ────
+  Stream<List<Map<String, dynamic>>> getLeagueJornadas() {
+    return _db.collection('league_jornadas').snapshots().map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => {'id': doc.id, ...doc.data()})
+          .toList();
+      list.sort((a, b) {
+        final numA = num.tryParse(a['fechaNumber']?.toString() ?? '0') ?? 0;
+        final numB = num.tryParse(b['fechaNumber']?.toString() ?? '0') ?? 0;
+        return numB.compareTo(numA); // Descendente por defecto
+      });
+      return list;
+    });
+  }
 }

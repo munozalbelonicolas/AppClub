@@ -534,8 +534,34 @@ class SettingsScreen extends ConsumerWidget {
           Center(
             child: Column(
               children: [
-                Text('Jorge Newbery App', style: context.typography.bodySmall),
-                Text('v1.6.1', style: context.typography.labelSmall),
+                Text(AppConfig.appName, style: context.typography.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text('v${AppConfig.appVersion}', style: context.typography.labelSmall.copyWith(color: context.colors.textSecondary)),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.asset(
+                        'assets/icons/LogoNilo.png',
+                        width: 16,
+                        height: 16,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'powered by Nilotech',
+                      style: context.typography.labelSmall.copyWith(
+                        color: context.colors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

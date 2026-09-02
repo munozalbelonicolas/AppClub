@@ -7,6 +7,7 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../utils/league_jornada_utils.dart';
 
 class FixtureScreen extends ConsumerStatefulWidget {
   const FixtureScreen({super.key});
@@ -25,6 +26,16 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
 
     final isPlayer = sessionUser.role == 'jugador';
     final playerCategory = sessionUser.category;
+
+    if (fixturesAsync.isLoading || (clubsAsync.isLoading && clubs.isEmpty)) {
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        appBar: AppBar(
+          title: Text(isPlayer && playerCategory != null && playerCategory.isNotEmpty ? 'Fixture (Cat. $playerCategory)' : 'Fixture'),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -319,42 +330,51 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(fixture['name'] ?? 'Fecha', style: context.typography.titleMedium, overflow: TextOverflow.ellipsis),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fixture['name'] ?? 'Fecha',
+                        style: context.typography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (fixture['venue'] != null && fixture['venue'].toString().isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              fixture['isHomeVenue'] == false
+                                  ? Icons.directions_bus_outlined
+                                  : Icons.stadium_outlined,
+                              size: 13,
+                              color: fixture['isHomeVenue'] == false
+                                  ? const Color(0xFF38BDF8)
+                                  : const Color(0xFFE5B842),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                '${fixture['venue']}',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: fixture['isHomeVenue'] == false
+                                      ? const Color(0xFF38BDF8)
+                                      : const Color(0xFFE5B842),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
                 if (isAdmin)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Botón Suspender por lluvia / Reanudar
-                      if (isFixtureSuspended)
-                        TextButton.icon(
-                          style: TextButton.styleFrom(
-                            backgroundColor: Colors.amber.withValues(alpha: 0.15),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              side: BorderSide(color: Colors.amber.withValues(alpha: 0.4)),
-                            ),
-                          ),
-                          icon: const Icon(Icons.wb_sunny_outlined, size: 14, color: Colors.amber),
-                          label: const Text('Reanudar', style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold)),
-                          onPressed: () => _showResumeFixtureDialog(context, fixture),
-                        )
-                      else
-                        TextButton.icon(
-                          style: TextButton.styleFrom(
-                            backgroundColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              side: const BorderSide(color: Color(0xFF38BDF8), width: 0.8),
-                            ),
-                          ),
-                          icon: const Icon(Icons.thunderstorm, size: 14, color: Color(0xFF38BDF8)),
-                          label: const Text('Suspender por lluvia', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold)),
-                          onPressed: () => _showSuspendByRainDialog(context, fixture),
-                        ),
-                      const SizedBox(width: 4),
                       IconButton(
                         icon: Icon(Icons.edit_outlined, color: context.colors.primary, size: 20),
                         tooltip: 'Editar Fecha y Partidos',
@@ -384,6 +404,39 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
                   ),
               ],
             ),
+
+            // ─── Botón Suspender por lluvia / Reanudar (Debajo del label de fecha) ───
+            if (isAdmin) ...[
+              const SizedBox(height: 8),
+              if (isFixtureSuspended)
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.amber.withValues(alpha: 0.15),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.amber.withValues(alpha: 0.4)),
+                    ),
+                  ),
+                  icon: const Icon(Icons.wb_sunny_outlined, size: 14, color: Colors.amber),
+                  label: const Text('Reanudar Fecha', style: TextStyle(color: Colors.amber, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                  onPressed: () => _showResumeFixtureDialog(context, fixture),
+                )
+              else
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFF38BDF8), width: 0.8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.thunderstorm, size: 14, color: Color(0xFF38BDF8)),
+                  label: const Text('Suspender por lluvia', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11.5, fontWeight: FontWeight.bold)),
+                  onPressed: () => _showSuspendByRainDialog(context, fixture),
+                ),
+            ],
 
             // ─── Banner de Jornada Suspendida ───
             if (isFixtureSuspended) ...[
@@ -417,8 +470,8 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
 
             const SizedBox(height: 12),
             ...matches.map((m) {
-              final homeClub = clubs.where((c) => c['id'] == m['homeClubId']).firstOrNull;
-              final awayClub = clubs.where((c) => c['id'] == m['awayClubId']).firstOrNull;
+              final homeClub = findMatchingClub(clubs, m['homeClubId']?.toString() ?? m['homeTeam']?.toString());
+              final awayClub = findMatchingClub(clubs, m['awayClubId']?.toString() ?? m['awayTeam']?.toString());
               final bool isMatchSuspended = m['status'] == 'suspended';
 
               return Padding(
@@ -549,29 +602,76 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
   }
 
   Widget _buildClubLogo(Map<String, dynamic>? club) {
-    if (club == null) {
+    final rawName = club?['name']?.toString() ?? '';
+    final isLocal = club?['isLocal'] == true ||
+        rawName.toLowerCase().contains('newbery') ||
+        rawName.toLowerCase().contains('jn');
+    final isFirestoreId = rawName.length >= 15 && !rawName.contains(' ');
+    final name = isLocal
+        ? 'Jorge Newbery'
+        : (isFirestoreId ? 'Club' : rawName);
+    final logoUrl = club?['logoUrl']?.toString() ??
+        club?['shieldUrl']?.toString() ??
+        club?['imageUrl']?.toString() ??
+        club?['logo']?.toString();
+
+    if (isLocal) {
       return Column(
         children: [
-          CircleAvatar(radius: 20, backgroundColor: context.colors.surfaceLight, child: const Icon(Icons.shield, size: 20)),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFE5B842), width: 1.5),
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/app_logo.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const Icon(Icons.shield, size: 20, color: Color(0xFFE5B842)),
+              ),
+            ),
+          ),
           const SizedBox(height: 4),
-          Text('?', style: context.typography.labelSmall),
+          Text('Jorge Newbery', style: context.typography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
         ],
       );
     }
+
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+
     return Column(
       children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: context.colors.surfaceLight,
-          backgroundImage: club['logoUrl'] != null && club['logoUrl'].toString().isNotEmpty
-              ? NetworkImage(club['logoUrl'])
-              : null,
-          child: (club['logoUrl'] == null || club['logoUrl'].toString().isEmpty)
-              ? const Icon(Icons.shield, size: 20)
-              : null,
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          ),
+          child: ClipOval(
+            child: logoUrl != null && logoUrl.isNotEmpty
+                ? Image.network(
+                    logoUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      color: const Color(0xFF27272A),
+                      child: Center(
+                        child: Text(initial, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFFE5B842))),
+                      ),
+                    ),
+                  )
+                : Container(
+                    color: const Color(0xFF27272A),
+                    child: Center(
+                      child: Text(initial, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFFE5B842))),
+                    ),
+                  ),
+          ),
         ),
         const SizedBox(height: 4),
-        Text(club['name'] ?? '', style: context.typography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
+        Text(name, style: context.typography.labelSmall, overflow: TextOverflow.ellipsis, maxLines: 1),
       ],
     );
   }
@@ -597,6 +697,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
   TimeOfDay? _matchTime;
   String? _homeClubId;
   String? _awayClubId;
+  bool _isHomeVenue = true;
   bool _isSaving = false;
   final Set<String> _promotionalCategories = {};
   final Map<String, TimeOfDay> _categoryTimes = {};
@@ -639,6 +740,12 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
     return list;
   }
 
+  void _setVenueMode(bool isHome) {
+    setState(() {
+      _isHomeVenue = isHome;
+    });
+  }
+
   void _applyOfficialSchedule() {
     setState(() {
       _promotionalCategories.remove('2019');
@@ -666,6 +773,20 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
     _awayClubId = firstMatch?['awayClubId'] ??
         widget.clubs.where((c) => c['id'] != _homeClubId).firstOrNull?['id'] ??
         (widget.clubs.length > 1 ? widget.clubs[1]['id'] : null);
+
+    final existingVenue = f?['venue']?.toString() ??
+        f?['location']?.toString() ??
+        firstMatch?['venue']?.toString() ??
+        firstMatch?['location']?.toString();
+    final isHomeVenueStored = f?['isHomeVenue'] ?? firstMatch?['isHomeVenue'];
+
+    if (isHomeVenueStored != null) {
+      _isHomeVenue = isHomeVenueStored == true;
+    } else if (existingVenue != null && existingVenue.isNotEmpty) {
+      _isHomeVenue = !existingVenue.toLowerCase().contains('visitante');
+    } else {
+      _isHomeVenue = true;
+    }
 
     if (f != null) {
       for (final m in matches) {
@@ -783,6 +904,16 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
       final categories = _sortCategories(rawCategories);
       final List<Map<String, dynamic>> matchesList = [];
       final existingMatches = List<Map<String, dynamic>>.from(widget.fixture?['matches'] ?? []);
+      final venueStr = _isHomeVenue ? 'Cancha Local' : 'Cancha Visitante';
+
+      final homeClubObj = widget.clubs.where((c) => c['id'] == _homeClubId).firstOrNull;
+      final awayClubObj = widget.clubs.where((c) => c['id'] == _awayClubId).firstOrNull;
+      final String homeClubName = (homeClubObj?['isLocal'] == true || (homeClubObj?['name'] as String?)?.toLowerCase().contains('newbery') == true)
+          ? 'Jorge Newbery'
+          : (homeClubObj?['name'] ?? 'Local');
+      final String awayClubName = (awayClubObj?['isLocal'] == true || (awayClubObj?['name'] as String?)?.toLowerCase().contains('newbery') == true)
+          ? 'Jorge Newbery'
+          : (awayClubObj?['name'] ?? 'Visitante');
 
       if (_selectedCategory == 'all' || _selectedCategory.isEmpty) {
         for (final cat in categories) {
@@ -796,15 +927,30 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               'category': cat,
               'homeClubId': _homeClubId,
               'awayClubId': _awayClubId,
+              'homeTeam': homeClubName,
+              'awayTeam': awayClubName,
+              'homeClubName': homeClubName,
+              'awayClubName': awayClubName,
+              'homeLogoUrl': extractClubLogo(homeClubObj),
+              'awayLogoUrl': extractClubLogo(awayClubObj),
               'date': dateIso,
               'time': timeStr,
               'isPromotional': isPromo,
+              'venue': venueStr,
+              'location': venueStr,
+              'isHomeVenue': _isHomeVenue,
             });
           } else {
             matchesList.add({
               'category': cat,
               'homeClubId': _homeClubId,
               'awayClubId': _awayClubId,
+              'homeTeam': homeClubName,
+              'awayTeam': awayClubName,
+              'homeClubName': homeClubName,
+              'awayClubName': awayClubName,
+              'homeLogoUrl': extractClubLogo(homeClubObj),
+              'awayLogoUrl': extractClubLogo(awayClubObj),
               'date': dateIso,
               'time': timeStr,
               'status': 'scheduled',
@@ -812,6 +958,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               'awayScore': null,
               'scorers': [],
               'isPromotional': isPromo,
+              'venue': venueStr,
+              'location': venueStr,
+              'isHomeVenue': _isHomeVenue,
             });
           }
         }
@@ -827,15 +976,30 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
             'category': _selectedCategory,
             'homeClubId': _homeClubId,
             'awayClubId': _awayClubId,
+            'homeTeam': homeClubName,
+            'awayTeam': awayClubName,
+            'homeClubName': homeClubName,
+            'awayClubName': awayClubName,
+            'homeLogoUrl': extractClubLogo(homeClubObj),
+            'awayLogoUrl': extractClubLogo(awayClubObj),
             'date': dateIso,
             'time': timeStr,
             'isPromotional': isPromo,
+            'venue': venueStr,
+            'location': venueStr,
+            'isHomeVenue': _isHomeVenue,
           });
         } else {
           matchesList.add({
             'category': _selectedCategory,
             'homeClubId': _homeClubId,
             'awayClubId': _awayClubId,
+            'homeTeam': homeClubName,
+            'awayTeam': awayClubName,
+            'homeClubName': homeClubName,
+            'awayClubName': awayClubName,
+            'homeLogoUrl': extractClubLogo(homeClubObj),
+            'awayLogoUrl': extractClubLogo(awayClubObj),
             'date': dateIso,
             'time': timeStr,
             'status': 'scheduled',
@@ -843,6 +1007,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
             'awayScore': null,
             'scorers': [],
             'isPromotional': isPromo,
+            'venue': venueStr,
+            'location': venueStr,
+            'isHomeVenue': _isHomeVenue,
           });
         }
       }
@@ -853,6 +1020,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
           'name': name,
           'category': _selectedCategory,
           'date': dateIso,
+          'venue': venueStr,
+          'location': venueStr,
+          'isHomeVenue': _isHomeVenue,
           'matches': matchesList,
         });
       } else {
@@ -860,6 +1030,9 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
           'name': name,
           'category': _selectedCategory,
           'date': dateIso,
+          'venue': venueStr,
+          'location': venueStr,
+          'isHomeVenue': _isHomeVenue,
           'matches': matchesList,
         });
       }
@@ -1088,7 +1261,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Los partidos promocionales (2019 y 2020) no computan puntos en la tabla de posiciones.',
+                      'Los partidos promocionales no computan puntos en la tabla de posiciones.',
                       style: TextStyle(fontSize: 11, color: Colors.white60, height: 1.3),
                     ),
                     const SizedBox(height: 10),
@@ -1154,7 +1327,7 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               ),
               const SizedBox(height: 16),
 
-              // ─── Encuentro / Equipos ───
+              // ─── Encuentro / Equipos y Cancha ───
               const Text(
                 'Encuentro / Partido',
                 style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
@@ -1162,102 +1335,197 @@ class _EditFixtureModalState extends ConsumerState<_EditFixtureModal> {
               const SizedBox(height: 8),
 
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E22),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFF2E2E33)),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Local
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Local', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF28282D),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF3A3A40)),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: effectiveHomeClubId,
-                                dropdownColor: const Color(0xFF28282D),
-                                isExpanded: true,
-                                icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                                items: widget.clubs.map((c) {
-                                  return DropdownMenuItem<String>(
-                                    value: c['id'] as String,
-                                    child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
-                                  );
-                                }).toList(),
-                                onChanged: (val) => setState(() => _homeClubId = val),
+                    // Equipos Local y Visitante
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Local
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Local', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF28282D),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF3A3A40)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: effectiveHomeClubId,
+                                    dropdownColor: const Color(0xFF28282D),
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                    items: widget.clubs.map((c) {
+                                      return DropdownMenuItem<String>(
+                                        value: c['id'] as String,
+                                        child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) => setState(() => _homeClubId = val),
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    // VS
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                      child: Text(
-                        'VS',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFE5B842),
                         ),
-                      ),
-                    ),
-                    // Visitante
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          RichText(
-                            text: const TextSpan(
-                              text: 'Visitante / Rival ',
-                              style: TextStyle(fontSize: 12, color: Colors.white70),
-                              children: [
-                                TextSpan(text: '*', style: TextStyle(color: Colors.redAccent)),
-                              ],
+                        // VS
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+                          child: Text(
+                            'VS',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFE5B842),
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF28282D),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF3A3A40)),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: effectiveAwayClubId,
-                                dropdownColor: const Color(0xFF28282D),
-                                isExpanded: true,
-                                icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                                items: widget.clubs.map((c) {
-                                  return DropdownMenuItem<String>(
-                                    value: c['id'] as String,
-                                    child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
-                                  );
-                                }).toList(),
-                                onChanged: (val) => setState(() => _awayClubId = val),
+                        ),
+                        // Visitante
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RichText(
+                                text: const TextSpan(
+                                  text: 'Visitante / Rival ',
+                                  style: TextStyle(fontSize: 12, color: Colors.white70),
+                                  children: [
+                                    TextSpan(text: '*', style: TextStyle(color: Colors.redAccent)),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF28282D),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF3A3A40)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: effectiveAwayClubId,
+                                    dropdownColor: const Color(0xFF28282D),
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.white70),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                    items: widget.clubs.map((c) {
+                                      return DropdownMenuItem<String>(
+                                        value: c['id'] as String,
+                                        child: Text(c['name'] as String, overflow: TextOverflow.ellipsis),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) => setState(() => _awayClubId = val),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    const Divider(color: Color(0xFF2E2E33), height: 1),
+                    const SizedBox(height: 12),
+
+                    // ─── Cancha Local o Visitante ───
+                    const Text(
+                      'Cancha / Condición',
+                      style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _setVenueMode(true),
+                            borderRadius: BorderRadius.circular(8),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: _isHomeVenue ? const Color(0xFFE5B842).withValues(alpha: 0.2) : const Color(0xFF242427),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _isHomeVenue ? const Color(0xFFE5B842) : const Color(0xFF333338),
+                                  width: _isHomeVenue ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.stadium_outlined,
+                                    size: 16,
+                                    color: _isHomeVenue ? const Color(0xFFE5B842) : Colors.white60,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Cancha Local',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: _isHomeVenue ? FontWeight.bold : FontWeight.normal,
+                                      color: _isHomeVenue ? const Color(0xFFE5B842) : Colors.white70,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _setVenueMode(false),
+                            borderRadius: BorderRadius.circular(8),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: !_isHomeVenue ? const Color(0xFF38BDF8).withValues(alpha: 0.2) : const Color(0xFF242427),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: !_isHomeVenue ? const Color(0xFF38BDF8) : const Color(0xFF333338),
+                                  width: !_isHomeVenue ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.directions_bus_outlined,
+                                    size: 16,
+                                    color: !_isHomeVenue ? const Color(0xFF38BDF8) : Colors.white60,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Cancha Visitante',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: !_isHomeVenue ? FontWeight.bold : FontWeight.normal,
+                                      color: !_isHomeVenue ? const Color(0xFF38BDF8) : Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

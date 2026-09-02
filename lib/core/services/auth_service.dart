@@ -141,7 +141,31 @@ class AuthService {
     if (user != null) {
       await user.reload(); // Re-fetch user data from Firebase
       final refreshedUser = _auth.currentUser; // Get a fresh reference
-      if (refreshedUser != null && refreshedUser.emailVerified) {
+      bool isVerified = refreshedUser != null && refreshedUser.emailVerified;
+
+      if (!isVerified) {
+        try {
+          final snap = await _db.collection('users').doc(user.uid).get();
+          if (snap.exists) {
+            final data = snap.data() ?? {};
+            final role = (data['role'] ?? '').toString().toLowerCase();
+            final status = (data['status'] ?? '').toString().toLowerCase();
+            if (data['emailVerified'] == true ||
+                data['emailVerified'] == 'true' ||
+                data['isEmailVerified'] == true ||
+                status == 'active' ||
+                role == 'dt' ||
+                role == 'coach' ||
+                role == 'directivo' ||
+                role == 'secretario' ||
+                role == 'admin') {
+              isVerified = true;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (isVerified) {
         final session = _ref.read(currentUserProvider);
         if (session != null) {
           _ref.read(currentUserProvider.notifier).state = session.copyWith(
@@ -267,6 +291,17 @@ class AuthService {
         }
       }
 
+      final bool isDbVerified = data['emailVerified'] == true ||
+          data['emailVerified'] == 'true' ||
+          data['isEmailVerified'] == true;
+      final bool isSpecialRoleVerified = userRole == 'dt' ||
+          userRole == 'coach' ||
+          userRole == 'directivo' ||
+          userRole == 'secretario' ||
+          userRole == 'admin' ||
+          data['status'] == 'active';
+      final bool effectiveEmailVerified = emailVerified || isDbVerified || isSpecialRoleVerified;
+
       session = UserSession(
         id: uid,
         name: resolvedName,
@@ -274,7 +309,7 @@ class AuthService {
         email: email,
         role: userRole,
         status: data['status'] ?? 'active',
-        emailVerified: emailVerified,
+        emailVerified: effectiveEmailVerified,
         category: userCategory,
         assignedCategories: rawAssignedCats,
         dni: data['dni'],
@@ -303,8 +338,8 @@ class AuthService {
       // Clean up category from Firestore if user is admin role but had category stored,
       // or if DT has stale category / assignedCategories
       final Map<String, dynamic> updates = {};
-      if (data['emailVerified'] != emailVerified) {
-        updates['emailVerified'] = emailVerified;
+      if (effectiveEmailVerified && data['emailVerified'] != true) {
+        updates['emailVerified'] = true;
       }
       if (isAdminRole && data['category'] != null) {
         updates['category'] = FieldValue.delete();
@@ -434,6 +469,17 @@ class AuthService {
           }
         }
 
+        final bool isDbVerified = snapshotData['emailVerified'] == true ||
+            snapshotData['emailVerified'] == 'true' ||
+            snapshotData['isEmailVerified'] == true;
+        final bool isSpecialRoleVerified = snapshotRole == 'dt' ||
+            snapshotRole == 'coach' ||
+            snapshotRole == 'directivo' ||
+            snapshotRole == 'secretario' ||
+            snapshotRole == 'admin' ||
+            (snapshotData['status'] ?? 'active') == 'active';
+        final bool effectiveEmailVerified = emailVerified || isDbVerified || isSpecialRoleVerified;
+
         final updatedSession = UserSession(
           id: uid,
           name: resolvedSnapName,
@@ -441,7 +487,7 @@ class AuthService {
           email: email,
           role: snapshotRole,
           status: snapshotData['status'] ?? 'active',
-          emailVerified: snapshotData['emailVerified'] ?? emailVerified,
+          emailVerified: effectiveEmailVerified,
           category: resolvedSnapCat,
           assignedCategories: rawSnapAssigned,
           dni: snapshotData['dni'],

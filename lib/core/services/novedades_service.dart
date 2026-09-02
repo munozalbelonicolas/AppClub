@@ -100,7 +100,8 @@ class NovedadesService {
       String notifBody;
 
       if (isMatch) {
-        final awayTeam = (novedadData['awayTeam'] ?? novedadData['opponentName'] ?? 'Rival').toString();
+        final homeTeam = (novedadData['homeTeam'] ?? (novedadData['isHome'] == false ? (novedadData['opponentName'] ?? 'Rival') : 'Jorge Newbery')).toString();
+        final awayTeam = (novedadData['awayTeam'] ?? (novedadData['isHome'] == false ? 'Jorge Newbery' : (novedadData['opponentName'] ?? 'Rival'))).toString();
         final catLabel = (rawCategory.isNotEmpty && rawCategory.toLowerCase() != 'all' && rawCategory.toLowerCase() != 'todos')
             ? ' (Cat. $rawCategory)'
             : '';
@@ -110,7 +111,7 @@ class NovedadesService {
         final venue = (novedadData['venue'] ?? novedadData['location'] ?? '').toString();
 
         final details = [
-          'Jorge Newbery vs $awayTeam',
+          '$homeTeam vs $awayTeam',
           if (date.isNotEmpty) '📅 $date',
           if (time.isNotEmpty) '⏰ $time',
           if (venue.isNotEmpty) '📍 $venue',
@@ -194,30 +195,32 @@ class NovedadesService {
 
   Future<void> markNovedadAsSeen(String novedadId, dynamic user) async {
     try {
+      if (user == null || (user.id ?? '').toString().isEmpty) return;
       final docRef = _db.collection('novedades').doc(novedadId);
       final docSnap = await docRef.get();
       if (!docSnap.exists) return;
 
       final data = docSnap.data()!;
-      final seenByList = List<Map<String, dynamic>>.from(
-        (data['seenBy'] as List? ?? []).map(
-          (e) => Map<String, dynamic>.from(e as Map),
-        ),
-      );
-
-      final bool alreadySeen = seenByList.any((e) => e['userId'] == user.id);
+      final rawSeenBy = data['seenBy'] as List? ?? [];
+      final bool alreadySeen = rawSeenBy.any((e) {
+        if (e is Map) return e['userId'] == user.id;
+        if (e is String) return e == user.id;
+        return false;
+      });
       if (alreadySeen) return;
 
       final viewData = {
         'userId': user.id,
         'userName': '${user.name} ${user.lastName}'.trim(),
-        'role': user.role,
+        'role': user.role ?? '',
         'seenAt': Timestamp.now(),
       };
 
       await docRef.update({
         'seenBy': FieldValue.arrayUnion([viewData]),
       });
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.error('Error al marcar novedad como vista', error: e, tag: 'Novedades');
+    }
   }
 }

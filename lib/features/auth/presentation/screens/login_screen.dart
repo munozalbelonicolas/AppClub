@@ -440,15 +440,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 32),
 
-              // Powered by text
+              // Powered by Nilotech footer
               Center(
-                child: Text(
-                  'powered by Nilotech @2026 https://nilotech.online Todos los derecho reservados',
-                  textAlign: TextAlign.center,
-                  style: context.typography.bodySmall.copyWith(
-                    color: context.colors.textDisabled,
-                    fontSize: 10,
-                  ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: Image.asset(
+                            'assets/icons/LogoNilo.png',
+                            width: 14,
+                            height: 14,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'powered by Nilotech',
+                          style: context.typography.bodySmall.copyWith(
+                            color: context.colors.textDisabled,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '© 2026 https://nilotech.online · Todos los derechos reservados',
+                      textAlign: TextAlign.center,
+                      style: context.typography.bodySmall.copyWith(
+                        color: context.colors.textDisabled,
+                        fontSize: 9.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 

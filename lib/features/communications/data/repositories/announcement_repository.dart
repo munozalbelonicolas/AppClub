@@ -1,5 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/firestore_service.dart';
 
 class AnnouncementRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -17,11 +21,11 @@ class AnnouncementRepository {
         );
   }
 
-  /// Stream of announcements filtered by user category
-  Stream<List<Map<String, dynamic>>> getAnnouncementsForUser(
-    String? category,
-    bool isAdmin,
-  ) {
+  /// Stream of announcements filtered by user categories (supports multiple categories)
+  Stream<List<Map<String, dynamic>>> getAnnouncementsForUser({
+    required List<String> categories,
+    required bool isAdmin,
+  }) {
     return _db.collection('announcements').snapshots().map((snapshot) {
       final list = snapshot.docs
           .map((doc) => {'id': doc.id, ...doc.data()})
@@ -36,17 +40,31 @@ class AnnouncementRepository {
 
       if (isAdmin) return list;
 
+      final lowerCategories = categories.map((c) => c.toLowerCase().trim()).where((c) => c.isNotEmpty).toSet();
+
       return list.where((ann) {
-        final cat = ann['category']?.toString().toLowerCase();
-        if (cat == 'todos' ||
+        final cat = ann['category']?.toString().toLowerCase().trim();
+        final eventCat = ann['eventCategory']?.toString().toLowerCase().trim();
+
+        if (cat == null ||
+            cat.isEmpty ||
+            cat == 'todos' ||
             cat == 'all' ||
             cat == 'general' ||
             cat == 'deportivo' ||
             cat == 'administrativo') {
           return true;
         }
-        if (category == null) return false;
-        return cat == category.toLowerCase();
+
+        if (lowerCategories.contains(cat)) {
+          return true;
+        }
+
+        if (eventCat != null && lowerCategories.contains(eventCat)) {
+          return true;
+        }
+
+        return false;
       }).toList();
     });
   }
@@ -101,24 +119,32 @@ class AnnouncementRepository {
     String announcementId,
     dynamic sessionUser,
   ) async {
-    final docRef = _db.collection('announcements').doc(announcementId);
-    final docSnap = await docRef.get();
-    if (!docSnap.exists) return;
+    try {
+      if (sessionUser == null || (sessionUser.id ?? '').toString().isEmpty) return;
+      final docRef = _db.collection('announcements').doc(announcementId);
+      final docSnap = await docRef.get();
+      if (!docSnap.exists) return;
 
-    final seenBy = List<Map<String, dynamic>>.from(
-      (docSnap.data()?['seenBy'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
-    );
-    if (seenBy.any((e) => e['userId'] == sessionUser.id)) return;
+      final rawList = docSnap.data()?['seenBy'] as List? ?? [];
+      final bool alreadySeen = rawList.any((e) {
+        if (e is Map) return e['userId'] == sessionUser.id;
+        if (e is String) return e == sessionUser.id;
+        return false;
+      });
+      if (alreadySeen) return;
 
-    final viewData = {
-      'userId': sessionUser.id,
-      'userName': '${sessionUser.name} ${sessionUser.lastName}',
-      'userRole': sessionUser.role,
-      'timestamp': Timestamp.now(),
-    };
-    await docRef.update({
-      'seenBy': FieldValue.arrayUnion([viewData]),
-    });
+      final viewData = {
+        'userId': sessionUser.id,
+        'userName': '${sessionUser.name} ${sessionUser.lastName}'.trim(),
+        'userRole': sessionUser.role ?? '',
+        'timestamp': Timestamp.now(),
+      };
+      await docRef.update({
+        'seenBy': FieldValue.arrayUnion([viewData]),
+      });
+    } catch (e) {
+      debugPrint('Error marking announcement as seen: $e');
+    }
   }
 }
 
@@ -127,21 +153,21 @@ final announcementRepositoryProvider = Provider<AnnouncementRepository>((ref) {
 });
 
 class UserAnnouncementQuery {
-  final String? category;
+  final List<String> categories;
   final bool isAdmin;
 
-  UserAnnouncementQuery({required this.category, required this.isAdmin});
+  UserAnnouncementQuery({required this.categories, required this.isAdmin});
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is UserAnnouncementQuery &&
           runtimeType == other.runtimeType &&
-          category == other.category &&
+          listEquals(categories, other.categories) &&
           isAdmin == other.isAdmin;
 
   @override
-  int get hashCode => category.hashCode ^ isAdmin.hashCode;
+  int get hashCode => Object.hash(Object.hashAll(categories), isAdmin);
 }
 
 final announcementsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
@@ -155,5 +181,62 @@ final userAnnouncementsStreamProvider =
     ) {
       return ref
           .watch(announcementRepositoryProvider)
-          .getAnnouncementsForUser(query.category, query.isAdmin);
+          .getAnnouncementsForUser(
+            categories: query.categories,
+            isAdmin: query.isAdmin,
+          );
     });
+
+/// Provider for unread announcements count matching the user's role and categories
+final unreadAnnouncementsCountProvider = StreamProvider<int>((ref) {
+  final sessionUser = ref.watch(currentUserProvider);
+  if (sessionUser == null || sessionUser.id.isEmpty) {
+    return Stream.value(0);
+  }
+
+  final List<String> userCategories = [];
+  if (sessionUser.role == 'dt') {
+    if (sessionUser.assignedCategories != null && sessionUser.assignedCategories!.isNotEmpty) {
+      userCategories.addAll(sessionUser.assignedCategories!);
+    } else if (sessionUser.category != null) {
+      userCategories.add(sessionUser.category!);
+    }
+  } else if (sessionUser.role == 'tutor') {
+    final tutorChildren = ref.watch(tutorPlayersStreamProvider(sessionUser.id)).valueOrNull ?? [];
+    for (final child in tutorChildren) {
+      final cat = child['category']?.toString();
+      if (cat != null && cat.isNotEmpty) {
+        userCategories.add(cat);
+      }
+    }
+    if (sessionUser.category != null) {
+      userCategories.add(sessionUser.category!);
+    }
+  } else {
+    if (sessionUser.category != null && sessionUser.category!.isNotEmpty) {
+      userCategories.add(sessionUser.category!);
+    }
+  }
+
+  return ref
+      .watch(announcementRepositoryProvider)
+      .getAnnouncementsForUser(
+        categories: userCategories,
+        isAdmin: sessionUser.isAdmin,
+      )
+      .map((announcements) {
+        int unreadCount = 0;
+        for (final ann in announcements) {
+          final seenBy = ann['seenBy'] as List? ?? [];
+          final hasSeen = seenBy.any((e) {
+            if (e is Map) return e['userId'] == sessionUser.id;
+            if (e is String) return e == sessionUser.id;
+            return false;
+          });
+          if (!hasSeen) {
+            unreadCount++;
+          }
+        }
+        return unreadCount;
+      });
+});

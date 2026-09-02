@@ -7,7 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../store/presentation/screens/admin_order_detail_screen.dart';
 import '../screens/admin_user_profile_screen.dart';
 
-void showAdminNotificationsDialog(BuildContext context) {
+void showAdminNotificationsDialog(BuildContext context, {dynamic sessionUser}) {
   showDialog(
     context: context,
     builder: (context) => const _AdminNotificationsDialog(),

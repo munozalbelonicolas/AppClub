@@ -833,6 +833,7 @@ void _showCreateMatchDialog(
   DateTime? eventDate;
   TimeOfDay? eventTime;
   bool hasTransport = false;
+  bool isHome = true;
   String? selectedOpponentId;
   String selectedCategory = (defaultCategory != null && defaultCategory != 'Todas' && availableCategories.contains(defaultCategory))
       ? defaultCategory
@@ -904,6 +905,91 @@ void _showCreateMatchDialog(
                       decoration: const InputDecoration(
                         labelText: 'Detalles / Descripción',
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Condición: Local / Visitante
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setDialogState(() {
+                                isHome = true;
+                                if (venueController.text.isEmpty || venueController.text == 'Cancha Visitante' || venueController.text.startsWith('Cancha de ')) {
+                                  venueController.text = 'Cancha Principal JN';
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isHome ? context.colors.primary : context.colors.border,
+                                  width: isHome ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.home_outlined, size: 18, color: isHome ? context.colors.primary : context.colors.textSecondary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Local (JN)',
+                                    style: TextStyle(
+                                      fontWeight: isHome ? FontWeight.bold : FontWeight.normal,
+                                      color: isHome ? context.colors.primary : context.colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setDialogState(() {
+                                isHome = false;
+                                hasTransport = true;
+                                final oppClub = clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull;
+                                if (oppClub != null) {
+                                  venueController.text = 'Cancha de ${oppClub['name']}';
+                                } else {
+                                  venueController.text = 'Cancha Visitante';
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: !isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: !isHome ? context.colors.primary : context.colors.border,
+                                  width: !isHome ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.directions_bus_outlined, size: 18, color: !isHome ? context.colors.primary : context.colors.textSecondary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Visitante',
+                                    style: TextStyle(
+                                      fontWeight: !isHome ? FontWeight.bold : FontWeight.normal,
+                                      color: !isHome ? context.colors.primary : context.colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     // Fecha del Partido
@@ -991,6 +1077,12 @@ void _showCreateMatchDialog(
                       onChanged: (val) {
                         setDialogState(() {
                           selectedOpponentId = val;
+                          if (!isHome && val != null) {
+                            final oppClub = clubs.where((c) => c['id'] == val).firstOrNull;
+                            if (oppClub != null && (venueController.text.isEmpty || venueController.text == 'Cancha Principal JN' || venueController.text == 'Cancha Visitante')) {
+                              venueController.text = 'Cancha de ${oppClub['name']}';
+                            }
+                          }
                         });
                       },
                     ),
@@ -1040,7 +1132,22 @@ void _showCreateMatchDialog(
                         : 'A confirmar';
                     final venueStr = venueController.text.trim().isNotEmpty
                         ? venueController.text.trim()
-                        : 'Cancha Principal JN';
+                        : (isHome ? 'Cancha Principal JN' : 'Cancha Visitante');
+
+                    final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
+                    final opponentClub = selectedOpponentId != null
+                        ? clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull
+                        : null;
+
+                    final String localName = localClub?['name'] ?? 'Jorge Newbery';
+                    final String? localLogo = localClub?['logoUrl'] ?? localClub?['logo'] ?? localClub?['imageUrl'];
+                    final String opponentName = opponentClub?['name'] ?? 'Rival';
+                    final String? opponentLogo = opponentClub?['logoUrl'] ?? opponentClub?['logo'] ?? opponentClub?['imageUrl'];
+
+                    final homeTeam = isHome ? localName : opponentName;
+                    final homeLogoUrl = isHome ? localLogo : opponentLogo;
+                    final awayTeam = isHome ? opponentName : localName;
+                    final awayLogoUrl = isHome ? opponentLogo : localLogo;
 
                     await firestoreService.addNovedad({
                       'title': titleController.text.trim(),
@@ -1052,13 +1159,14 @@ void _showCreateMatchDialog(
                       'isMatch': true,
                       'eventType': 'partido',
                       'hasTransport': hasTransport,
+                      'isHome': isHome,
+                      'condition': isHome ? 'local' : 'visitante',
                       'opponentClubId': selectedOpponentId,
-                      'awayTeam': (selectedOpponentId != null)
-                          ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                          : 'Rival',
-                      'opponentName': (selectedOpponentId != null)
-                          ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                          : null,
+                      'awayTeam': awayTeam,
+                      'homeTeam': homeTeam,
+                      'awayLogoUrl': awayLogoUrl,
+                      'homeLogoUrl': homeLogoUrl,
+                      'opponentName': opponentName,
                       'eventDate': dateStr,
                       'date': dateStr,
                       'eventTime': timeStr,
@@ -1131,6 +1239,7 @@ void _showEditMatchDialog(
   eventTime ??= const TimeOfDay(hour: 15, minute: 0);
 
   bool hasTransport = match['hasTransport'] == true;
+  bool isHome = match['isHome'] != false && match['condition'] != 'visitante' && match['isVisitor'] != true && (match['homeTeam'] == null || match['homeTeam'].toString().toLowerCase().contains('newbery'));
   String? selectedOpponentId = match['opponentClubId'];
   String selectedCategory = (match['category'] != null && match['category'].toString().isNotEmpty)
       ? match['category'].toString()
@@ -1205,6 +1314,91 @@ void _showEditMatchDialog(
                       decoration: const InputDecoration(
                         labelText: 'Detalles / Descripción',
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Condición: Local / Visitante
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setDialogState(() {
+                                isHome = true;
+                                if (venueController.text.isEmpty || venueController.text == 'Cancha Visitante' || venueController.text.startsWith('Cancha de ')) {
+                                  venueController.text = 'Cancha Principal JN';
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isHome ? context.colors.primary : context.colors.border,
+                                  width: isHome ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.home_outlined, size: 18, color: isHome ? context.colors.primary : context.colors.textSecondary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Local (JN)',
+                                    style: TextStyle(
+                                      fontWeight: isHome ? FontWeight.bold : FontWeight.normal,
+                                      color: isHome ? context.colors.primary : context.colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setDialogState(() {
+                                isHome = false;
+                                hasTransport = true;
+                                final oppClub = clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull;
+                                if (oppClub != null) {
+                                  venueController.text = 'Cancha de ${oppClub['name']}';
+                                } else {
+                                  venueController.text = 'Cancha Visitante';
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: !isHome ? context.colors.primary.withValues(alpha: 0.15) : context.colors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: !isHome ? context.colors.primary : context.colors.border,
+                                  width: !isHome ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.directions_bus_outlined, size: 18, color: !isHome ? context.colors.primary : context.colors.textSecondary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Visitante',
+                                    style: TextStyle(
+                                      fontWeight: !isHome ? FontWeight.bold : FontWeight.normal,
+                                      color: !isHome ? context.colors.primary : context.colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     // Fecha del Partido
@@ -1292,6 +1486,12 @@ void _showEditMatchDialog(
                       onChanged: (val) {
                         setDialogState(() {
                           selectedOpponentId = val;
+                          if (!isHome && val != null) {
+                            final oppClub = clubs.where((c) => c['id'] == val).firstOrNull;
+                            if (oppClub != null && (venueController.text.isEmpty || venueController.text == 'Cancha Principal JN' || venueController.text == 'Cancha Visitante')) {
+                              venueController.text = 'Cancha de ${oppClub['name']}';
+                            }
+                          }
                         });
                       },
                     ),
@@ -1341,7 +1541,22 @@ void _showEditMatchDialog(
                         : 'A confirmar';
                     final venueStr = venueController.text.trim().isNotEmpty
                         ? venueController.text.trim()
-                        : 'Cancha Principal JN';
+                        : (isHome ? 'Cancha Principal JN' : 'Cancha Visitante');
+
+                    final localClub = clubs.where((c) => c['isLocal'] == true).firstOrNull;
+                    final opponentClub = selectedOpponentId != null
+                        ? clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull
+                        : null;
+
+                    final String localName = localClub?['name'] ?? 'Jorge Newbery';
+                    final String? localLogo = localClub?['logoUrl'] ?? localClub?['logo'] ?? localClub?['imageUrl'];
+                    final String opponentName = opponentClub?['name'] ?? 'Rival';
+                    final String? opponentLogo = opponentClub?['logoUrl'] ?? opponentClub?['logo'] ?? opponentClub?['imageUrl'];
+
+                    final homeTeam = isHome ? localName : opponentName;
+                    final homeLogoUrl = isHome ? localLogo : opponentLogo;
+                    final awayTeam = isHome ? opponentName : localName;
+                    final awayLogoUrl = isHome ? opponentLogo : localLogo;
 
                     if (match['source'] == 'novedad') {
                       await firestoreService.updateNovedad(match['id'], {
@@ -1349,13 +1564,14 @@ void _showEditMatchDialog(
                         'body': bodyController.text.trim(),
                         'category': selectedCategory,
                         'hasTransport': hasTransport,
+                        'isHome': isHome,
+                        'condition': isHome ? 'local' : 'visitante',
                         'opponentClubId': selectedOpponentId,
-                        'awayTeam': (selectedOpponentId != null)
-                            ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                            : 'Rival',
-                        'opponentName': (selectedOpponentId != null)
-                            ? (clubs.where((c) => c['id'] == selectedOpponentId).firstOrNull?['name'] ?? 'Rival')
-                            : null,
+                        'awayTeam': awayTeam,
+                        'homeTeam': homeTeam,
+                        'awayLogoUrl': awayLogoUrl,
+                        'homeLogoUrl': homeLogoUrl,
+                        'opponentName': opponentName,
                         'eventDate': dateStr,
                         'date': dateStr,
                         'eventTime': timeStr,

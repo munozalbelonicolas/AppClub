@@ -1,8 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import '../../features/communications/presentation/screens/communications_screen.dart';
+import '../../features/inbox/presentation/screens/chat_screen.dart';
+import '../../features/settings/presentation/screens/admin_user_profile_screen.dart';
+import '../../features/store/presentation/screens/admin_order_detail_screen.dart';
 import '../config/onesignal_config.dart';
 import 'app_logger.dart';
+import 'navigation_service.dart';
 import 'notification_service.dart';
 
 class OneSignalService {
@@ -11,6 +16,10 @@ class OneSignalService {
   OneSignalService._internal();
 
   bool _initialized = false;
+  String? _currentUserId;
+
+  /// Retorna el ID del usuario actualmente autenticado en OneSignal
+  String? get currentUserId => _currentUserId;
 
   /// Inicializa el SDK de OneSignal si el App ID está configurado.
   Future<void> initialize() async {
@@ -42,14 +51,38 @@ class OneSignalService {
           '🔔 OneSignal Notification Clicked: ${event.notification.title} - ${event.notification.additionalData}',
           tag: 'OneSignal',
         );
-        _handleNotificationClick(event.notification.additionalData);
+        handleNotificationPayload(event.notification.additionalData);
       });
 
       // Listener para cuando se recibe una notificación en primer plano
       OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+        final data = event.notification.additionalData;
+        final authorId = data?['authorId']?.toString();
+
+        // 1. Si la notificación fue generada por el usuario actual, prevenir banner duplicado
+        if (authorId != null &&
+            authorId.isNotEmpty &&
+            _currentUserId != null &&
+            authorId == _currentUserId) {
+          AppLogger.debug(
+            '🛑 Notificación push prevenida para el propio autor: ${event.notification.title}',
+            tag: 'OneSignal',
+          );
+          event.preventDefault();
+          return;
+        }
+
+        // 2. Prevenir duplicados entre Firestore stream / FCM / OneSignal
         final title = event.notification.title ?? '';
         final body = event.notification.body ?? '';
-        NotificationService.isDuplicateAndRecord(title, body);
+        if (NotificationService.isDuplicateAndRecord(title, body)) {
+          AppLogger.debug(
+            '🛑 Notificación duplicada prevenida en OneSignal: $title',
+            tag: 'OneSignal',
+          );
+          event.preventDefault();
+          return;
+        }
         AppLogger.debug(
           '🔔 OneSignal Notification Foreground Received: $title',
           tag: 'OneSignal',
@@ -66,6 +99,7 @@ class OneSignalService {
 
   /// Asocia el ID de usuario de la app (Firebase Auth UID) con OneSignal.
   Future<void> loginUser(String userId) async {
+    _currentUserId = userId;
     if (!_initialized) return;
     try {
       await OneSignal.login(userId);
@@ -77,6 +111,7 @@ class OneSignalService {
 
   /// Desvincula al usuario al cerrar sesión en la app.
   Future<void> logoutUser() async {
+    _currentUserId = null;
     if (!_initialized) return;
     try {
       await OneSignal.logout();
@@ -184,7 +219,7 @@ class OneSignalService {
           }
         ];
       } else {
-        payload['included_segments'] = ['Subscribed Users', 'All'];
+        payload['included_segments'] = ['Subscribed Users'];
       }
 
       final Map<String, String> headers = {
@@ -213,13 +248,64 @@ class OneSignalService {
   }
 
   /// Procesa los datos adjuntos de la notificación para navegación interna.
-  void _handleNotificationClick(Map<String, dynamic>? additionalData) {
+  void handleNotificationPayload(Map<String, dynamic>? additionalData) {
     if (additionalData == null) return;
+    AppLogger.debug('🚀 Procesando deep-link desde OneSignal: $additionalData', tag: 'OneSignal');
 
-    // Aquí se procesan rutas o acciones avanzadas al tocar una notificación
-    final route = additionalData['route'];
-    if (route != null) {
-      AppLogger.debug('🚀 Navegar a ruta desde notificación OneSignal: $route', tag: 'OneSignal');
+    try {
+      final type = additionalData['type']?.toString();
+      final threadId = additionalData['threadId']?.toString();
+
+      // 1. Mensaje de Chat
+      if (type == 'chat' || (threadId != null && threadId.isNotEmpty)) {
+        final otherUserId = additionalData['otherUserId']?.toString();
+        final otherUserName = additionalData['otherUserName']?.toString() ?? 'Conversación';
+        final otherUserRole = additionalData['otherUserRole']?.toString() ?? 'usuario';
+
+        if (threadId != null && threadId.isNotEmpty) {
+          NavigationService.navigateTo(
+            ChatScreen(
+              threadId: threadId,
+              otherUserId: otherUserId,
+              otherUserName: otherUserName,
+              otherUserRole: otherUserRole,
+            ),
+          );
+          return;
+        }
+      }
+
+      // 2. Comunicados / Novedades
+      if (type == 'announcement' || type == 'novedad' || type == 'novedades') {
+        NavigationService.navigateTo(const CommunicationsScreen());
+        return;
+      }
+
+      // 3. Compras en Tienda
+      if (type == 'store_purchase' || type == 'store_receipt_uploaded' || type == 'order') {
+        final orderId = additionalData['orderId']?.toString();
+        if (orderId != null && orderId.isNotEmpty) {
+          NavigationService.navigateTo(AdminOrderDetailScreen(orderId: orderId));
+          return;
+        }
+      }
+
+      // 4. Usuario pendiente de aprobación
+      if (type == 'new_user_pending' || type == 'player_registration') {
+        final userId = additionalData['userId']?.toString();
+        if (userId != null && userId.isNotEmpty) {
+          NavigationService.navigateTo(AdminUserProfileScreen(userId: userId));
+          return;
+        }
+      }
+
+      // 5. Convocatoria al partido
+      if (type == 'convocatoria') {
+        NavigationService.popToRoot();
+        return;
+      }
+    } catch (e) {
+      AppLogger.error('Error procesando deep-link de notificación', error: e, tag: 'OneSignal');
     }
   }
 }

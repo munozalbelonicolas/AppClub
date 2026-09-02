@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -49,6 +50,14 @@ class NotificationService {
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         AppLogger.debug('Notification tapped in foreground: ${response.payload}', tag: 'FCM');
+        if (response.payload != null && response.payload!.isNotEmpty) {
+          try {
+            final dynamic decoded = jsonDecode(response.payload!);
+            if (decoded is Map<String, dynamic>) {
+              OneSignalService().handleNotificationPayload(decoded);
+            }
+          } catch (_) {}
+        }
       },
     );
 
@@ -72,10 +81,17 @@ class NotificationService {
       final android = message.notification?.android;
 
       if (notification != null && !kIsWeb) {
+        final title = notification.title ?? '';
+        final body = notification.body ?? '';
+        if (isDuplicateAndRecord(title, body)) {
+          AppLogger.debug('🛑 FCM Notificación duplicada prevenida: $title', tag: 'FCM');
+          return;
+        }
+
         _localNotifications.show(
           notification.hashCode,
-          notification.title,
-          notification.body,
+          title,
+          body,
           NotificationDetails(
             android: AndroidNotificationDetails(
               _channel.id,
@@ -158,19 +174,35 @@ class NotificationService {
             if (data == null) continue;
 
             final authorId = data['authorId']?.toString() ?? '';
-            if (authorId == currentUserId) continue; // Don't notify self
-
+            if (authorId.isNotEmpty && authorId == currentUserId) continue; // Don't notify self
             final targetUserId = data['targetUserId']?.toString() ?? '';
+            final targetUserIds = data['targetUserIds'] as List<dynamic>?;
             final targetCategory = data['targetCategory']?.toString() ?? '';
             final targetRole = data['targetRole']?.toString() ?? '';
 
             bool isForMe = false;
-            if (targetUserId.isNotEmpty && targetUserId != 'all') {
-              isForMe = (targetUserId == currentUserId);
-            } else if (targetCategory == 'private') {
+            // 'private' notifications (e.g. chat messages) are delivered exclusively
+            // via OneSignal push.
+            if (targetCategory == 'private') {
               isForMe = false;
-            } else if (targetCategory == 'admin' || targetCategory == 'directivo' || targetRole == 'directivo' || targetRole == 'admin') {
+            } else if (targetUserIds != null &&
+                targetUserIds.isNotEmpty &&
+                targetUserIds.map((e) => e.toString()).contains(currentUserId)) {
+              isForMe = true;
+            } else if (targetUserId.isNotEmpty &&
+                targetUserId != 'all' &&
+                targetUserId != 'todos') {
+              isForMe = (targetUserId == currentUserId);
+            } else if (targetCategory == 'admin' ||
+                targetCategory == 'directivo' ||
+                targetRole == 'directivo' ||
+                targetRole == 'admin') {
               isForMe = isUserAdmin;
+            } else if (targetRole.isNotEmpty &&
+                targetRole != 'all' &&
+                targetRole != 'todos') {
+              isForMe = userRole != null &&
+                  userRole.toLowerCase() == targetRole.toLowerCase();
             } else if (targetCategory.isNotEmpty &&
                 targetCategory != 'all' &&
                 targetCategory != 'todos') {
@@ -201,12 +233,13 @@ class NotificationService {
   }
 
   static final Map<String, DateTime> _recentlyHandledNotifications = {};
+  static final Map<String, DateTime> _recentlySentNotifications = {};
 
   /// Registra y verifica si una notificación ya fue mostrada recientemente para evitar duplicados en pantalla
   static bool isDuplicateAndRecord(String title, String body) {
     final now = DateTime.now();
-    _recentlyHandledNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 20);
-    final key = '${title.trim()}:${body.trim()}';
+    _recentlyHandledNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 25);
+    final key = '${title.trim().toLowerCase()}:${body.trim().toLowerCase()}';
     if (_recentlyHandledNotifications.containsKey(key)) {
       return true; // Ya fue procesada/mostrada recientemente
     }
@@ -253,18 +286,35 @@ class NotificationService {
     required String title,
     required String body,
     required String authorId,
-    String targetUserId = 'all',
-    String targetCategory = 'all',
+    String? targetUserId,
+    String? targetCategory,
+    Map<String, dynamic>? data,
   }) async {
     try {
+      final now = DateTime.now();
+      _recentlySentNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 10);
+      final sendKey = '${title.trim().toLowerCase()}:${body.trim().toLowerCase()}:${targetUserId ?? ''}:${targetCategory ?? ''}';
+      if (_recentlySentNotifications.containsKey(sendKey)) {
+        AppLogger.warning('🛑 Notificación saliente duplicada prevenida: $title', tag: 'NotificationService');
+        return;
+      }
+      _recentlySentNotifications[sendKey] = now;
+
+      final effectiveTargetUser = targetUserId ?? 'all';
+      final effectiveTargetCat = (targetUserId != null && targetUserId != 'all' && targetCategory == null)
+          ? null
+          : (targetCategory ?? 'all');
+
       // 1. Guardar documento en Firestore (para notificaciones en tiempo real in-app)
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': title,
         'body': body,
         'authorId': authorId,
-        'targetUserId': targetUserId,
-        'targetCategory': targetCategory,
+        'targetUserId': effectiveTargetUser,
+        if (effectiveTargetCat != null) ...{'targetCategory': effectiveTargetCat},
         'read': false,
+        'readBy': [],
+        ...?data,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -272,8 +322,12 @@ class NotificationService {
       await OneSignalService().sendPushNotification(
         title: title,
         body: body,
-        targetUserId: targetUserId,
-        targetCategory: targetCategory,
+        targetUserId: effectiveTargetUser,
+        targetCategory: effectiveTargetCat ?? 'all',
+        data: {
+          if (authorId.isNotEmpty) 'authorId': authorId,
+          ...?data,
+        },
       );
     } catch (e) {
       AppLogger.error('Error sending notification doc', error: e, tag: 'FCM');
@@ -289,6 +343,15 @@ class NotificationService {
     Map<String, dynamic>? extraData,
   }) async {
     try {
+      final now = DateTime.now();
+      _recentlySentNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 10);
+      final sendKey = 'admin:${title.trim().toLowerCase()}:${body.trim().toLowerCase()}';
+      if (_recentlySentNotifications.containsKey(sendKey)) {
+        AppLogger.warning('🛑 Notificación a administradores duplicada prevenida: $title', tag: 'NotificationService');
+        return;
+      }
+      _recentlySentNotifications[sendKey] = now;
+
       // 1. Guardar documento en Firestore
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': title,
@@ -298,6 +361,7 @@ class NotificationService {
         'targetCategory': 'admin',
         'targetRole': 'directivo',
         'read': false,
+        'readBy': [],
         'createdAt': FieldValue.serverTimestamp(),
         ...?extraData,
       });
@@ -309,6 +373,7 @@ class NotificationService {
         targetCategory: 'admin',
         data: {
           'type': type,
+          'authorId': authorId ?? 'system',
           ...?extraData,
         },
       );

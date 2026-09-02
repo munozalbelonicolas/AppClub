@@ -194,20 +194,25 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         String title = n['title'] ?? 'Comunicado';
 
         if (isMatch) {
-          String awayTeam = 'Rival';
+          final isVisitor = n['isHome'] == false || n['condition'] == 'visitante' || n['isVisitor'] == true;
+          String opponentName = 'Rival';
           if (n['opponentClubId'] != null) {
             final club = clubs.where((c) => c['id'] == n['opponentClubId']).firstOrNull;
             if (club != null && club['name'] != null) {
-              awayTeam = club['name'] as String;
+              opponentName = club['name'] as String;
             }
           }
-          if (awayTeam == 'Rival' && n['title'] != null && n['title'].toString().isNotEmpty) {
-            awayTeam = n['title'] as String;
+          if (opponentName == 'Rival' && n['opponentName'] != null && n['opponentName'].toString().isNotEmpty) {
+            opponentName = n['opponentName'].toString();
           }
+
+          final homeTeam = n['homeTeam'] ?? (isVisitor ? opponentName : 'Jorge Newbery');
+          final awayTeam = n['awayTeam'] ?? (isVisitor ? 'Jorge Newbery' : opponentName);
+
           final catLabel = (n['category'] ?? n['eventCategory'] ?? '').toString();
           final cleanCat = _cleanCat(catLabel);
           final catSuffix = cleanCat.isNotEmpty && cleanCat != 'all' ? ' (Cat. $cleanCat)' : '';
-          title = 'Partido Amistoso$catSuffix: Jorge Newbery vs $awayTeam';
+          title = 'Partido Amistoso$catSuffix: $homeTeam vs $awayTeam';
         }
 
         allEvents.add({

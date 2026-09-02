@@ -91,18 +91,6 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // ─── Notifications ───
-    match /notifications/{notificationId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (
-        request.resource.data.authorId == request.auth.uid ||
-        request.resource.data.userId == request.auth.uid ||
-        request.resource.data.tutorId == request.auth.uid ||
-        isAdmin() ||
-        isCoach()
-      );
-      allow update, delete: if isAdmin();
-    }
 
     // ─── Events & Announcements ───
     match /events/{eventId} {
@@ -111,7 +99,11 @@ service cloud.firestore {
     }
     match /announcements/{announcementId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin() || isCoach();
+      allow update: if isAdmin() || isCoach() || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'comments', 'seenBy', 'read', 'seen', 'commentsEnabled', 'updatedAt'])
+      );
     }
 
     // ─── Payments ───
@@ -211,7 +203,16 @@ service cloud.firestore {
     }
 
     match /tutor_convocatorias/{convId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
+    }
+
+    match /notifications/{notifId} {
+      allow read, write: if true;
+    }
+
+    match /league_jornadas/{jornadaId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
 
     // ─── Default: deny everything else ───

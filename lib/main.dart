@@ -14,6 +14,7 @@ import 'app/app_shell.dart';
 import 'core/providers/session_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/navigation_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/onesignal_service.dart';
 import 'core/theme/app_theme.dart';
@@ -74,6 +75,7 @@ class JorgeNewberyApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
+      navigatorKey: NavigationService.navigatorKey,
       title: 'Jorge Newbery',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

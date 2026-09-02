@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers/session_provider.dart';
 import '../core/theme/app_theme_colors.dart';
 import '../features/calendar/presentation/screens/calendar_screen.dart';
+import '../features/communications/data/repositories/announcement_repository.dart';
 import '../features/communications/presentation/screens/communications_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/lineup/presentation/screens/lineup_screen.dart';
@@ -159,6 +160,8 @@ class _AppShellState extends ConsumerState<AppShell> {
         ],
       );
     }
+    final unreadNewsCount = ref.watch(unreadAnnouncementsCountProvider).valueOrNull ?? 0;
+
     return NavigationBar(
       selectedIndex: _currentIndex,
       onDestinationSelected: (index) {
@@ -187,9 +190,13 @@ class _AppShellState extends ConsumerState<AppShell> {
         ),
         NavigationDestination(
           icon: Badge(
+            isLabelVisible: unreadNewsCount > 0,
+            label: unreadNewsCount > 1 ? Text('$unreadNewsCount') : null,
             child: Icon(Icons.campaign_outlined, color: context.colors.textSecondary),
           ),
           selectedIcon: Badge(
+            isLabelVisible: unreadNewsCount > 0,
+            label: unreadNewsCount > 1 ? Text('$unreadNewsCount') : null,
             child: Icon(Icons.campaign, color: context.colors.primary),
           ),
           label: 'Noticias',
