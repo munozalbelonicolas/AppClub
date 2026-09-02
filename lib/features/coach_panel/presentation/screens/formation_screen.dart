@@ -182,7 +182,12 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
         setState(() {
           _selectedFormat = doc['format'] ?? '11v11';
           if (_selectedFormat != 'Solo lista') {
-            _selectedTactic = doc['tactic'] ?? _tactics[_selectedFormat]!.keys.first;
+            final validTactics = _tactics[_selectedFormat]?.keys.toList() ?? [];
+            final savedTactic = doc['tactic']?.toString();
+            _selectedTactic = (savedTactic != null && validTactics.contains(savedTactic))
+                ? savedTactic
+                : (validTactics.isNotEmpty ? validTactics.first : '4-3-3');
+
             final assignments = doc['assignments'] as Map<String, dynamic>? ?? {};
             _assignments.clear();
             assignments.forEach((key, value) {
@@ -192,6 +197,10 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
             final calledUp = doc['calledUpPlayers'] as List<dynamic>? ?? [];
             _calledUpPlayers.clear();
             _calledUpPlayers.addAll(calledUp.map((e) => e.toString()));
+          }
+
+          if (doc['category'] != null && doc['category'].toString().isNotEmpty) {
+            _selectedCategoryFilter = doc['category'].toString();
           }
         });
       }
@@ -208,6 +217,7 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
       final firestoreService = ref.read(firestoreServiceProvider);
       final data = {
         'format': _selectedFormat,
+        'category': _selectedCategoryFilter,
         if (_selectedFormat != 'Solo lista') 'tactic': _selectedTactic,
         if (_selectedFormat != 'Solo lista') 'assignments': _assignments,
         if (_selectedFormat == 'Solo lista') 'calledUpPlayers': _calledUpPlayers,
@@ -226,7 +236,7 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
+          SnackBar(content: Text('Error al guardar formación: $e'), backgroundColor: context.colors.error),
         );
       }
     } finally {
@@ -363,7 +373,10 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: _selectedCategoryFilter,
+                        key: ValueKey('cat_$_selectedCategoryFilter'),
+                        initialValue: categories.contains(_selectedCategoryFilter)
+                            ? _selectedCategoryFilter
+                            : (categories.isNotEmpty ? categories.first : null),
                         decoration: const InputDecoration(
                           labelText: 'Filtrar Jugadores por Categoría',
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -384,70 +397,75 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _selectedFormat,
-                          decoration: const InputDecoration(
-                            labelText: 'Formato',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            border: OutlineInputBorder(),
-                          ),
-                          items: _formats.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
-                          onChanged: (val) {
-                            if (val != null && val != _selectedFormat) {
-                              setState(() {
-                                _selectedFormat = val;
-                                if (val != 'Solo lista') {
-                                  _selectedTactic = _tactics[val]!.keys.first;
-                                  _assignments.clear();
-                                }
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _selectedFormat == 'Solo lista'
-                            ? const SizedBox.shrink()
-                            : DropdownButtonFormField<String>(
-                                initialValue: _selectedTactic,
-                                decoration: const InputDecoration(
-                                  labelText: 'Táctica',
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: _tactics[_selectedFormat]!
-                                    .keys
-                                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                                    .toList(),
-                                onChanged: (val) {
-                                  if (val != null && val != _selectedTactic) {
-                                    setState(() {
-                                      _selectedTactic = val;
-                                      _assignments.clear();
-                                    });
-                                  }
-                                },
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              key: ValueKey('format_$_selectedFormat'),
+                              initialValue: _formats.contains(_selectedFormat) ? _selectedFormat : _formats.first,
+                              decoration: const InputDecoration(
+                                labelText: 'Formato',
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                border: OutlineInputBorder(),
                               ),
+                              items: _formats.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
+                              onChanged: (val) {
+                                if (val != null && val != _selectedFormat) {
+                                  setState(() {
+                                    _selectedFormat = val;
+                                    if (val != 'Solo lista') {
+                                      _selectedTactic = _tactics[val]!.keys.first;
+                                      _assignments.clear();
+                                    }
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _selectedFormat == 'Solo lista'
+                                ? const SizedBox.shrink()
+                                : DropdownButtonFormField<String>(
+                                    key: ValueKey('tactic_${_selectedFormat}_$_selectedTactic'),
+                                    initialValue: (_tactics[_selectedFormat] != null &&
+                                            _tactics[_selectedFormat]!.containsKey(_selectedTactic))
+                                        ? _selectedTactic
+                                        : _tactics[_selectedFormat]?.keys.first,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Táctica',
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: (_tactics[_selectedFormat] ?? {})
+                                        .keys
+                                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                                        .toList(),
+                                    onChanged: (val) {
+                                      if (val != null && val != _selectedTactic) {
+                                        setState(() {
+                                          _selectedTactic = val;
+                                          _assignments.clear();
+                                        });
+                                      }
+                                    },
+                                  ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
+                ),
                 // Main Content
                 Expanded(
                   child: _selectedFormat == 'Solo lista'
                       ? _buildListaMode(players)
-                      : _buildPitchMode(players),
+                      : _buildPitchMode(players, allPlayers),
                 ),
               ],
             ),
     );
   }
 
-  Widget _buildPitchMode(List<Map<String, dynamic>> players) {
+  Widget _buildPitchMode(List<Map<String, dynamic>> players, List<Map<String, dynamic>> allPlayers) {
     final positions = _tactics[_selectedFormat]![_selectedTactic]!;
     
     return SingleChildScrollView(
@@ -460,7 +478,8 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
             slotBuilder: (slotId, position) {
               final assignedPlayerId = _assignments[slotId];
               final player = assignedPlayerId != null
-                  ? players.firstWhere((p) => p['id'] == assignedPlayerId, orElse: () => {})
+                  ? (allPlayers.where((p) => p['id'] == assignedPlayerId).firstOrNull ??
+                     players.where((p) => p['id'] == assignedPlayerId).firstOrNull)
                   : null;
               
               final isAssigned = player != null && player.isNotEmpty;

@@ -147,8 +147,9 @@ class NovedadesService {
   }
 
   Future<void> updateNovedad(String id, Map<String, dynamic> data) async {
-    data['updatedAt'] = FieldValue.serverTimestamp();
-    await _db.collection('novedades').doc(id).update(data);
+    final payload = Map<String, dynamic>.from(data);
+    payload['updatedAt'] = FieldValue.serverTimestamp();
+    await _db.collection('novedades').doc(id).update(payload);
   }
 
   Future<void> deleteNovedad(String id) async {

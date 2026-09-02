@@ -34,18 +34,57 @@ class MatchService {
   }
 
   Stream<Map<String, dynamic>?> getFormation(String matchId) {
-    return _db.collection('matches').doc(matchId).snapshots().map((doc) {
-      if (!doc.exists) return null;
-      final data = doc.data();
-      return data?['formation'] as Map<String, dynamic>?;
+    return _db.collection('matches').doc(matchId).snapshots().asyncMap((doc) async {
+      if (doc.exists && doc.data()?['formation'] != null) {
+        return doc.data()!['formation'] as Map<String, dynamic>?;
+      }
+      try {
+        final novDoc = await _db.collection('novedades').doc(matchId).get();
+        if (novDoc.exists && novDoc.data()?['formation'] != null) {
+          return novDoc.data()!['formation'] as Map<String, dynamic>?;
+        }
+      } catch (_) {}
+      try {
+        final lineupDoc = await _db.collection('match_lineups').doc(matchId).get();
+        if (lineupDoc.exists && lineupDoc.data()?['formation'] != null) {
+          return lineupDoc.data()!['formation'] as Map<String, dynamic>?;
+        }
+      } catch (_) {}
+      return null;
     });
   }
 
   Future<void> saveFormation(String matchId, Map<String, dynamic> formationData) async {
-    await _db.collection('matches').doc(matchId).update({
+    final payload = {
       'formation': formationData,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    // 1. Matches collection (merge ensures creation if document does not exist yet)
+    await _db.collection('matches').doc(matchId).set(payload, SetOptions(merge: true));
+
+    // 2. Novedades collection (if match is published in novedades)
+    try {
+      final novRef = _db.collection('novedades').doc(matchId);
+      final novDoc = await novRef.get();
+      if (novDoc.exists) {
+        await novRef.set(payload, SetOptions(merge: true));
+      }
+    } catch (_) {}
+
+    // 3. Match_lineups collection (keeps LineupScreen in sync)
+    try {
+      final assignments = formationData['assignments'] as Map<String, dynamic>? ?? {};
+      final playerIds = assignments.values.map((v) => v.toString()).toSet().toList();
+      await _db.collection('match_lineups').doc(matchId).set({
+        'matchId': matchId,
+        'category': formationData['category'],
+        'formation': formationData,
+        'positions': assignments,
+        'convocadosIds': playerIds,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {}
   }
 
   // ─── Fixtures ──────────────────────────────────────
@@ -132,8 +171,9 @@ class MatchService {
   }
 
   Future<void> addFixture(Map<String, dynamic> data) async {
-    data['createdAt'] = FieldValue.serverTimestamp();
-    await _db.collection('fixtures').add(data);
+    final payload = Map<String, dynamic>.from(data);
+    payload['createdAt'] = FieldValue.serverTimestamp();
+    await _db.collection('fixtures').add(payload);
   }
 
   Future<void> updateFixture(String id, Map<String, dynamic> data) async {
@@ -152,8 +192,9 @@ class MatchService {
   }
 
   Future<void> addLeagueReport(Map<String, dynamic> data) async {
-    data['createdAt'] = FieldValue.serverTimestamp();
-    await _db.collection('league_reports').add(data);
+    final payload = Map<String, dynamic>.from(data);
+    payload['createdAt'] = FieldValue.serverTimestamp();
+    await _db.collection('league_reports').add(payload);
   }
 
   Future<void> deleteLeagueReport(String id) async {
@@ -168,8 +209,9 @@ class MatchService {
   }
 
   Future<void> addCoachReport(Map<String, dynamic> data) async {
-    data['createdAt'] = FieldValue.serverTimestamp();
-    await _db.collection('coach_reports').add(data);
+    final payload = Map<String, dynamic>.from(data);
+    payload['createdAt'] = FieldValue.serverTimestamp();
+    await _db.collection('coach_reports').add(payload);
   }
 
   Future<void> deleteCoachReport(String id) async {
@@ -219,13 +261,15 @@ class MatchService {
   }
 
   Future<void> addScorer(Map<String, dynamic> data) async {
-    data['createdAt'] = FieldValue.serverTimestamp();
-    await _db.collection('scorers').add(data);
+    final payload = Map<String, dynamic>.from(data);
+    payload['createdAt'] = FieldValue.serverTimestamp();
+    await _db.collection('scorers').add(payload);
   }
 
   Future<void> updateScorer(String id, Map<String, dynamic> data) async {
-    data['updatedAt'] = FieldValue.serverTimestamp();
-    await _db.collection('scorers').doc(id).update(data);
+    final payload = Map<String, dynamic>.from(data);
+    payload['updatedAt'] = FieldValue.serverTimestamp();
+    await _db.collection('scorers').doc(id).update(payload);
   }
 
   Future<void> deleteScorer(String id) async {

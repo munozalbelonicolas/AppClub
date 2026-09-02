@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
@@ -40,11 +41,13 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
         throw Exception('No se pudo encontrar el lienzo para capturar.');
       }
 
-      // Wait if the frame still needs paint
-      int retries = 0;
-      while (boundary.debugNeedsPaint && retries < 10) {
-        await Future.delayed(const Duration(milliseconds: 50));
-        retries++;
+      // Wait if the frame still needs paint (only in debug mode, debugNeedsPaint throws LateInitializationError in release)
+      if (kDebugMode) {
+        int retries = 0;
+        while (boundary.debugNeedsPaint && retries < 10) {
+          await Future.delayed(const Duration(milliseconds: 50));
+          retries++;
+        }
       }
 
       // The Container is already 1080x1920, pixelRatio 1.0 yields full HD 1080x1920 image
@@ -78,11 +81,12 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
 
       final title = widget.announcement['title']?.toString() ?? 'Novedad Club';
 
-      // ignore: deprecated_member_use
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'image/png')],
-        text: title,
-        sharePositionOrigin: origin,
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'image/png')],
+          text: title,
+          sharePositionOrigin: origin,
+        ),
       );
     } catch (e) {
       if (mounted) {

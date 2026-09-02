@@ -124,19 +124,21 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                   ),
                   if (unreadCount > 0)
                     Positioned(
-                      right: 12,
-                      top: 12,
+                      right: 8,
+                      top: 8,
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                         decoration: BoxDecoration(
                           color: context.colors.error,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          '$unreadCount',
+                          unreadCount > 99 ? '99+' : '$unreadCount',
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

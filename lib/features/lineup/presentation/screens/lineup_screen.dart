@@ -12,6 +12,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../../../coach_panel/presentation/screens/formation_screen.dart';
 
 class LineupScreen extends ConsumerStatefulWidget {
   final String? initialCategory;
@@ -590,13 +591,25 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                           ],
                         ),
                       ),
-                      if (isCoach)
+                      if (isCoach) ...[
                         TextButton.icon(
                           onPressed: () => _showConvocatoriaManager(context, allCategoryPlayers, nextMatch),
                           icon: const Icon(Icons.playlist_add_check, size: 18),
                           label: const Text('Convocatoria', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        )
-                      else
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FormationScreen(matchId: nextMatch['id']),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.format_list_numbered, size: 18),
+                          label: const Text('Formación', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ] else
                         const JNBadge(
                           label: 'CONVOCATORIA',
                           type: JNBadgeType.accent,

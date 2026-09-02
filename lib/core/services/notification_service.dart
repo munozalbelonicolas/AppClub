@@ -264,6 +264,7 @@ class NotificationService {
         'authorId': authorId,
         'targetUserId': targetUserId,
         'targetCategory': targetCategory,
+        'read': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
 

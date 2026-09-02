@@ -58,7 +58,7 @@ class _CreateCoachReportScreenState extends ConsumerState<CreateCoachReportScree
         imageUrl = await ImageUploadService.uploadProductImage(_selectedImage!);
       }
 
-      final reportData = {
+      final Map<String, dynamic> reportData = {
         'title': title,
         'description': description,
         'attachmentUrl': imageUrl,
