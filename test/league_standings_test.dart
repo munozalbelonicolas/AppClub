@@ -241,5 +241,55 @@ void main() {
       expect(newberyAp['pj'], 0);
       expect(newberyAp['pts'], 0);
     });
+
+    test('Next year tournament automatically starts from 0 when Fecha 1 is loaded', () {
+      final nuevaTemporada = [
+        {
+          'id': 'jornada_1',
+          'fechaNumber': 1,
+          'tournament': 'anual',
+          'matches': [
+            {
+              'homeTeam': 'Jorge Newbery',
+              'awayTeam': 'Junior',
+              'homeReportedPts': 10,
+              'awayReportedPts': 2,
+              'categories': {
+                '2011': {'homeGoals': 3, 'awayGoals': 1},
+                '2012': {'homeGoals': 2, 'awayGoals': 0},
+              },
+            }
+          ],
+        }
+      ];
+
+      final resGeneral = computeStandingsWithJornadas(
+        jornadas: nuevaTemporada,
+        clubs: [],
+        category: 'all',
+      );
+
+      // Debe detectar que es un torneo nuevo desde la Fecha 1:
+      expect(resGeneral.baseFecha, 0);
+      expect(resGeneral.appliedFechas, [1]);
+      expect(resGeneral.latestFecha, 1);
+
+      // Newbery no arranca con 220 pts históricos, sino que arranca de 0 y suma sus 10 pts de Fecha 1:
+      final newbery = resGeneral.rows.firstWhere((r) => (r['name'] as String).contains('Newbery'));
+      expect(newbery['pj'], 1);
+      expect(newbery['pts'], 10);
+      expect(newbery['gf'], 5);
+      expect(newbery['gc'], 1);
+
+      // Junior no arranca con 293 pts históricos, sino con sus 2 pts de Fecha 1:
+      final junior = resGeneral.rows.firstWhere((r) => r['name'] == 'Junior');
+      expect(junior['pj'], 1);
+      expect(junior['pts'], 2);
+
+      // Los demás 18 clubes quedan limpios en 0 PJ y 0 PTS:
+      final losPibes = resGeneral.rows.firstWhere((r) => r['name'] == 'Los Pibes');
+      expect(losPibes['pj'], 0);
+      expect(losPibes['pts'], 0);
+    });
   });
 }

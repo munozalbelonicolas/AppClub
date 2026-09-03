@@ -667,31 +667,80 @@ StandingsComputationResult computeStandingsWithJornadas({
     }
   }
 
-  // 1. Determinar base inicial:
+  // 1. Filtrar jornadas oficiales que no sean documentos de tabla y ordenar cronológicamente
+  final validJornadas = jornadas.where((j) {
+    final isStandings = j['isStandings'] == true ||
+        j['type'] == 'custom_standings' ||
+        (j['id']?.toString().startsWith('standings_') ?? false);
+    return !isStandings;
+  }).toList();
+
+  validJornadas.sort((a, b) {
+    final fA = int.tryParse(a['fechaNumber']?.toString() ?? '0') ?? 0;
+    final fB = int.tryParse(b['fechaNumber']?.toString() ?? '0') ?? 0;
+    return fA.compareTo(fB);
+  });
+
+  // 2. Determinar base inicial:
   List<Map<String, dynamic>> baseRows = [];
   int baseFecha = 0;
 
   if (isGeneral) {
-    baseRows = kFecha22BaseRows;
-    baseFecha = 22;
+    // Si existen planillas oficiales de fechas tempranas (Fechas 1 a 19),
+    // o si el documento de Firestore indica explícitamente arrancar de cero (baseFecha == 0 o useHistoricalBase == false),
+    // significa que es un nuevo campeonato iniciado desde la Fecha 1, por lo que todos los 20 clubes arrancan de cero.
+    final hasEarlyFechas = validJornadas.any((j) {
+      final fNum = int.tryParse(j['fechaNumber']?.toString() ?? '0') ?? 0;
+      return fNum >= 1 && fNum <= 19;
+    });
 
-    if (customSavedStandings != null &&
-        customSavedStandings['initialBaseRows'] is List &&
-        (customSavedStandings['initialBaseRows'] as List).isNotEmpty) {
-      baseRows = (customSavedStandings['initialBaseRows'] as List)
-          .whereType<Map>()
-          .map((m) => Map<String, dynamic>.from(m))
-          .toList();
-      baseFecha = int.tryParse(customSavedStandings['initialBaseFecha']?.toString() ?? '22') ?? 22;
-    } else if (customSavedStandings != null &&
-        customSavedStandings['isManualOverride'] == true &&
-        customSavedStandings['rows'] is List &&
-        (customSavedStandings['rows'] as List).isNotEmpty) {
-      baseRows = (customSavedStandings['rows'] as List)
-          .whereType<Map>()
-          .map((m) => Map<String, dynamic>.from(m))
-          .toList();
-      baseFecha = int.tryParse(customSavedStandings['baseFecha']?.toString() ?? '22') ?? 22;
+    final explicitBaseZero = customSavedStandings != null &&
+        (customSavedStandings['baseFecha'] == 0 ||
+         customSavedStandings['initialBaseFecha'] == 0 ||
+         customSavedStandings['useHistoricalBase'] == false ||
+         customSavedStandings['baseFecha']?.toString() == '0' ||
+         customSavedStandings['initialBaseFecha']?.toString() == '0');
+
+    final bool shouldStartFromZero = hasEarlyFechas || explicitBaseZero;
+
+    if (shouldStartFromZero) {
+      baseRows = kFecha22BaseRows.map((c) {
+        final cName = (c['name']?.toString() ?? '').trim();
+        final isNewbery = c['isLocal'] == true ||
+            cName.toLowerCase().contains('newbery') ||
+            cName.toLowerCase().contains('jn');
+        final matchedClub = findMatchingClub(clubs, cName);
+        return <String, dynamic>{
+          'id': c['id']?.toString() ?? matchedClub?['id']?.toString(),
+          'name': cName,
+          'isLocal': isNewbery,
+          'logoUrl': extractClubLogo(matchedClub) ?? c['logoUrl'] ?? c['logo'],
+          'pj': 0, 'pg': 0, 'pe': 0, 'pp': 0, 'gf': 0, 'gc': 0, 'dg': 0, 'pts': 0,
+        };
+      }).toList();
+      baseFecha = 0;
+    } else {
+      baseRows = kFecha22BaseRows;
+      baseFecha = 22;
+
+      if (customSavedStandings != null &&
+          customSavedStandings['initialBaseRows'] is List &&
+          (customSavedStandings['initialBaseRows'] as List).isNotEmpty) {
+        baseRows = (customSavedStandings['initialBaseRows'] as List)
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList();
+        baseFecha = int.tryParse(customSavedStandings['initialBaseFecha']?.toString() ?? '22') ?? 22;
+      } else if (customSavedStandings != null &&
+          customSavedStandings['isManualOverride'] == true &&
+          customSavedStandings['rows'] is List &&
+          (customSavedStandings['rows'] as List).isNotEmpty) {
+        baseRows = (customSavedStandings['rows'] as List)
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList();
+        baseFecha = int.tryParse(customSavedStandings['baseFecha']?.toString() ?? '22') ?? 22;
+      }
     }
   } else {
     // Por categoría individual: todos los 20 clubes arrancan en 0
@@ -753,20 +802,6 @@ StandingsComputationResult computeStandingsWithJornadas({
       'pj': 0, 'pg': 0, 'pe': 0, 'pp': 0, 'gf': 0, 'gc': 0, 'dg': 0, 'pts': 0,
     });
   }
-
-  // Filtrar jornadas oficiales que no sean documentos de tabla
-  final validJornadas = jornadas.where((j) {
-    final isStandings = j['isStandings'] == true ||
-        j['type'] == 'custom_standings' ||
-        (j['id']?.toString().startsWith('standings_') ?? false);
-    return !isStandings;
-  }).toList();
-
-  validJornadas.sort((a, b) {
-    final fA = int.tryParse(a['fechaNumber']?.toString() ?? '0') ?? 0;
-    final fB = int.tryParse(b['fechaNumber']?.toString() ?? '0') ?? 0;
-    return fA.compareTo(fB);
-  });
 
   // Filtrar las jornadas según si es General o por Torneo/Fechas
   final jornadasToApply = validJornadas.where((j) {

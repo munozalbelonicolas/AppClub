@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -24,11 +25,24 @@ class StoreScreen extends ConsumerStatefulWidget {
 class _StoreScreenState extends ConsumerState<StoreScreen> {
   String _selectedFilter = 'todos';
 
+  // Botín de fútbol estilizado con tapones visibles en la suela y cordones (Opción B)
+  static const String _soccerBootSvg = '''<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+  <path fill-rule="evenodd" d="M2 14.5c.4-2 1.8-3.5 3.8-4.2l5.5-2c1.2-.4 2.5-.2 3.5.6l2.8 2.3c1.5.4 3 1.2 4.2 2.3 1.2 1.1 1.5 2.2 1.5 3.5H2.2z M4.5 17h2.2l-.4 2.5H4.8z M9.5 17h2.2l-.4 2.5H9.8z M14.5 17h2.2l-.4 2.5h-1.5z M18.5 17h2.2l-.4 2.5h-1.5z M8.6 10.6l.8.8-2 2-.8-.8z M11.1 11.1l.8.8-2 2-.8-.8z"/>
+</svg>''';
+
+  // Jugador de fútbol dinámico pateando pelota de fútbol (Opción B)
+  static const String _soccerPlayerSvg = '''<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+  <circle cx="12" cy="4" r="2.2"/>
+  <path d="M6 16.5l3.5-3.5L7.5 8.5 11 6.5l4 3 3.5-1.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9.5 13l3.5 5.5h2.5l-4.5-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="19.5" cy="16.5" r="2.2"/>
+</svg>''';
+
   final List<Map<String, dynamic>> _filters = [
     {'key': 'todos', 'label': 'Todos', 'icon': Icons.apps},
     {'key': 'indumentaria', 'label': 'Indumentaria', 'icon': Icons.checkroom},
-    {'key': 'accesorios', 'label': 'Accesorios', 'icon': Icons.sports_handball},
-    {'key': 'calzado', 'label': 'Calzado', 'icon': Icons.ice_skating},
+    {'key': 'accesorios', 'label': 'Accesorios', 'svg': _soccerPlayerSvg},
+    {'key': 'calzado', 'label': 'Calzado', 'svg': _soccerBootSvg},
     {'key': 'equipamiento', 'label': 'Equipamiento', 'icon': Icons.sports_soccer},
   ];
 
@@ -124,12 +138,22 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
               itemBuilder: (context, index) {
                 final filter = _filters[index];
                 final isSelected = _selectedFilter == filter['key'];
+                final iconColor = isSelected ? Colors.white : context.colors.textSecondary;
+                final Widget iconWidget = filter['svg'] != null
+                    ? SvgPicture.string(
+                        filter['svg'] as String,
+                        width: 16,
+                        height: 16,
+                        colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+                      )
+                    : Icon(
+                        filter['icon'] as IconData,
+                        size: 16,
+                        color: iconColor,
+                      );
+
                 return ChoiceChip(
-                  avatar: Icon(
-                    filter['icon'] as IconData,
-                    size: 16,
-                    color: isSelected ? Colors.white : context.colors.textSecondary,
-                  ),
+                  avatar: iconWidget,
                   label: Text(filter['label'] as String),
                   selected: isSelected,
                   selectedColor: context.colors.primary,
