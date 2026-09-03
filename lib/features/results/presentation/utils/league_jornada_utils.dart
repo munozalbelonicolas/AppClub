@@ -34,18 +34,20 @@ const Map<String, String> kClubAliases = {
   'AGRUP VARELENSE': 'Agrupación Varelense',
 
   // Medalla Milagrosa
-  'MEDALLA': 'Medalla Milagrosa',
-  'MEDALLA MILAGROSA': 'Medalla Milagrosa',
-  'MEDALLA MILAGROSA FC': 'Medalla Milagrosa',
-  'MEDALLA MILAGROSA F.C.': 'Medalla Milagrosa',
+  'MEDALLA': 'Medalla milagrosa',
+  'MEDALLA MILAGROSA': 'Medalla milagrosa',
+  'MEDALLA MILAGROSA FC': 'Medalla milagrosa',
+  'MEDALLA MILAGROSA F.C.': 'Medalla milagrosa',
 
   // Villa Angélica
-  'VILLA ANGELICA': 'Villa Angélica',
-  'VILLA ANGÉLICA': 'Villa Angélica',
-  'V. ANGELICA': 'Villa Angélica',
-  'V. ANGÉLICA': 'Villa Angélica',
-  'ANGELICA': 'Villa Angélica',
-  'ANGÉLICA': 'Villa Angélica',
+  'VILLA ANGELICA': 'Villa Angelica',
+  'VILLA ANGÉLICA': 'Villa Angelica',
+  'V. ANGELICA': 'Villa Angelica',
+  'V. ANGÉLICA': 'Villa Angelica',
+  'V ANGELICA': 'Villa Angelica',
+  'V ANGÉLICA': 'Villa Angelica',
+  'ANGELICA': 'Villa Angelica',
+  'ANGÉLICA': 'Villa Angelica',
 
   // San Eduardo
   'SAN EDUARDO': 'San Eduardo',
@@ -55,6 +57,8 @@ const Map<String, String> kClubAliases = {
   // Monte Cudine
   'MONTECUDINE': 'Monte Cudine',
   'MONTE CUDINE': 'Monte Cudine',
+  'MONTECUCINE': 'Monte Cudine',
+  'MONTE CUCINE': 'Monte Cudine',
   'M. CUDINE': 'Monte Cudine',
   'M CUDINE': 'Monte Cudine',
 
@@ -89,10 +93,10 @@ const Map<String, String> kClubAliases = {
   'KILÓMETRO26': 'Kilómetro 26',
 
   // Belgrano
-  'BELGRANO': 'Belgrano',
-  'GRAL. BELGRANO': 'Belgrano',
-  'GRAL BELGRANO': 'Belgrano',
-  'GENERAL BELGRANO': 'Belgrano',
+  'BELGRANO': 'Gral Belgrano',
+  'GRAL. BELGRANO': 'Gral Belgrano',
+  'GRAL BELGRANO': 'Gral Belgrano',
+  'GENERAL BELGRANO': 'Gral Belgrano',
 
   // San Cayetano
   'SAN CAYETANO': 'San Cayetano',
@@ -400,6 +404,423 @@ String formatDisplayDate(String? dateStr) {
   return dateStr;
 }
 
+/// Tabla histórica acumulada oficial consolidada hasta la Fecha 22 (antes de la digitalización de planillas).
+/// Sirve como ancla base inmutable para que cualquier fecha nueva (de la 23 a la 30) se sume automáticamente.
+const List<Map<String, dynamic>> kFecha22BaseRows = [
+  {'name': 'Junior', 'pj': 22, 'pg': 21, 'pe': 1, 'pp': 0, 'pts': 293, 'gf': 486, 'gc': 141, 'dg': 345, 'id': '6yoY9kVQwrTUvjdIW9BV', 'isLocal': false},
+  {'name': 'Los Pibes', 'pj': 22, 'pg': 18, 'pe': 1, 'pp': 3, 'pts': 270, 'gf': 420, 'gc': 209, 'dg': 211, 'id': 'mr1wU69yCHyZJ11Aha4o', 'isLocal': false},
+  {'name': 'Los Rojos', 'pj': 22, 'pg': 17, 'pe': 2, 'pp': 3, 'pts': 241, 'gf': 403, 'gc': 232, 'dg': 171, 'id': 'w2XPM3CmyxzR7yYUsoiN', 'isLocal': false},
+  {'name': 'San Carlos', 'pj': 22, 'pg': 17, 'pe': 1, 'pp': 4, 'pts': 239, 'gf': 397, 'gc': 251, 'dg': 146, 'id': 'SDspjxGjKvZJUFYoAsfp', 'isLocal': false},
+  {'name': 'San Cayetano', 'pj': 22, 'pg': 14, 'pe': 1, 'pp': 7, 'pts': 233, 'gf': 432, 'gc': 282, 'dg': 150, 'id': '6JliKhYeSuI9rHZPy3VG', 'isLocal': false},
+  {'name': 'Rivadavia', 'pj': 22, 'pg': 13, 'pe': 0, 'pp': 9, 'pts': 224, 'gf': 364, 'gc': 257, 'dg': 107, 'id': 'TlsUq2XE4DIgx4w0RekC', 'isLocal': false},
+  {'name': 'Jorge Newbery', 'pj': 22, 'pg': 10, 'pe': 0, 'pp': 12, 'pts': 220, 'gf': 387, 'gc': 336, 'dg': 51, 'id': 'HA3INYaIiElQ2gEajVZc', 'isLocal': true},
+  {'name': 'San Jorge', 'pj': 22, 'pg': 11, 'pe': 1, 'pp': 10, 'pts': 208, 'gf': 357, 'gc': 332, 'dg': 25, 'id': 'e9CEdLl0WayfISs0Pec4', 'isLocal': false},
+  {'name': 'San Eduardo', 'pj': 22, 'pg': 16, 'pe': 0, 'pp': 6, 'pts': 207, 'gf': 436, 'gc': 330, 'dg': 106, 'id': 'iivrmEcJXcuMAMRNLOwp', 'isLocal': false},
+  {'name': 'Alianza', 'pj': 22, 'pg': 11, 'pe': 3, 'pp': 8, 'pts': 206, 'gf': 395, 'gc': 305, 'dg': 53, 'id': 'JFRbNA6RW4gVej4KTXRg', 'isLocal': false},
+  {'name': 'Gral Belgrano', 'pj': 22, 'pg': 12, 'pe': 1, 'pp': 9, 'pts': 206, 'gf': 358, 'gc': 305, 'dg': 53, 'id': 'UKaqxe2PKSqExV1CeARa', 'isLocal': false},
+  {'name': 'Marconi', 'pj': 22, 'pg': 15, 'pe': 0, 'pp': 7, 'pts': 201, 'gf': 384, 'gc': 319, 'dg': 65, 'id': 'OzYKKaG4eZ3pX5ScoS14', 'isLocal': false},
+  {'name': 'Agrupación Varelense', 'pj': 22, 'pg': 10, 'pe': 1, 'pp': 11, 'pts': 196, 'gf': 345, 'gc': 353, 'dg': -8, 'id': 'g0N8pnVPQAh3MDWQRuUO', 'isLocal': false},
+  {'name': 'Kilómetro 26', 'pj': 22, 'pg': 9, 'pe': 2, 'pp': 11, 'pts': 194, 'gf': 296, 'gc': 271, 'dg': 25, 'id': 'jUzQFArpTq2b63l0Hl4O', 'isLocal': false},
+  {'name': 'Villa Aurora', 'pj': 22, 'pg': 6, 'pe': 1, 'pp': 15, 'pts': 177, 'gf': 284, 'gc': 391, 'dg': -107, 'id': 'LWuchU9YgUaZCAHx4lzN', 'isLocal': false},
+  {'name': 'Medalla milagrosa', 'pj': 22, 'pg': 3, 'pe': 1, 'pp': 18, 'pts': 177, 'gf': 252, 'gc': 385, 'dg': -133, 'id': 'TGzfk8mtwzVWjLu4P8rY', 'isLocal': false},
+  {'name': 'Villa Angelica', 'pj': 22, 'pg': 4, 'pe': 1, 'pp': 17, 'pts': 165, 'gf': 267, 'gc': 374, 'dg': -107, 'id': 'rnGWsA0BY6jYlb0j3EoU', 'isLocal': false},
+  {'name': 'San Pedro', 'pj': 22, 'pg': 3, 'pe': 1, 'pp': 18, 'pts': 140, 'gf': 232, 'gc': 489, 'dg': -257, 'id': 'SjMMlgaZPaVCKL1D0tmN', 'isLocal': false},
+  {'name': 'Ave Fénix', 'pj': 22, 'pg': 1, 'pe': 0, 'pp': 21, 'pts': 100, 'gf': 143, 'gc': 566, 'dg': -423, 'id': 'wx0UAmpaR8yK2jScPDIq', 'isLocal': false},
+  {'name': 'Monte Cudine', 'pj': 22, 'pg': 0, 'pe': 0, 'pp': 22, 'pts': 68, 'gf': 111, 'gc': 627, 'dg': -516, 'id': 'OnxOBoYFfa4jcFsdFKtf', 'isLocal': false},
+];
+
+/// Encuentra la fila correspondiente a un club dentro de las filas de la tabla de posiciones.
+Map<String, dynamic>? matchClubToRow(
+  String? rawName,
+  List<Map<String, dynamic>> rows, {
+  List<Map<String, dynamic>> clubs = const [],
+}) {
+  if (rawName == null || rawName.trim().isEmpty || rows.isEmpty) return null;
+  final clean = rawName.trim();
+  final simple = simplifyClubName(clean);
+
+  // 1. Coincidencia exacta por nombre o nombre simplificado o ID
+  for (final r in rows) {
+    final rName = (r['name']?.toString() ?? '').trim();
+    if (rName.toLowerCase() == clean.toLowerCase() ||
+        simplifyClubName(rName) == simple ||
+        (r['id'] != null && r['id'].toString() == clean)) {
+      return r;
+    }
+  }
+
+  // 2. Coincidencia por normalización / alias
+  final norm = normalizeClubName(clean);
+  if (norm.isNotEmpty) {
+    final simpleNorm = simplifyClubName(norm);
+    for (final r in rows) {
+      final rSimple = simplifyClubName(r['name']?.toString());
+      if (rSimple == simpleNorm || rSimple == simple) {
+        return r;
+      }
+    }
+  }
+
+  // 3. Raíces conocidas
+  if (simple.contains('newbery') || simple.contains('jn')) {
+    return rows.where((r) {
+      final n = (r['name']?.toString() ?? '').toLowerCase();
+      return n.contains('newbery') || r['isLocal'] == true;
+    }).firstOrNull;
+  }
+  if (simple.contains('cucine') || simple.contains('cudine')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('cudine')).firstOrNull;
+  }
+  if (simple.contains('angelica')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('angelica')).firstOrNull;
+  }
+  if (simple.contains('belgrano')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('belgrano')).firstOrNull;
+  }
+  if (simple.contains('pibes')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('pibes')).firstOrNull;
+  }
+  if (simple.contains('rojos')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('rojos')).firstOrNull;
+  }
+  if (simple.contains('medalla') || simple.contains('milagrosa')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('medalla')).firstOrNull;
+  }
+  if (simple.contains('agrupacion') || simple.contains('varelense')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('agrupacion')).firstOrNull;
+  }
+  if (simple.contains('aurora')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('aurora')).firstOrNull;
+  }
+  if (simple.contains('carlos')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('carlos')).firstOrNull;
+  }
+  if (simple.contains('cayetano')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('cayetano')).firstOrNull;
+  }
+  if (simple.contains('eduardo')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('eduardo')).firstOrNull;
+  }
+  if (simple.contains('jorge') && !simple.contains('newbery')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('san jorge')).firstOrNull;
+  }
+  if (simple.contains('pedro')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('pedro')).firstOrNull;
+  }
+  if (simple.contains('rivadavia')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('rivadavia')).firstOrNull;
+  }
+  if (simple.contains('junior')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('junior')).firstOrNull;
+  }
+  if (simple.contains('alianza')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('alianza')).firstOrNull;
+  }
+  if (simple.contains('marconi')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('marconi')).firstOrNull;
+  }
+  if (simple.contains('kilometro') || simple.contains('km26')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('26')).firstOrNull;
+  }
+  if (simple.contains('fenix')) {
+    return rows.where((r) =>
+        (r['name']?.toString() ?? '').toLowerCase().contains('fenix')).firstOrNull;
+  }
+
+  // 4. Buscar a través del listado de clubs de Firestore
+  if (clubs.isNotEmpty) {
+    final matchedClub = clubs.where((c) {
+      final cName = c['name']?.toString();
+      final sc = simplifyClubName(cName);
+      return sc == simple ||
+          (cName != null && sc.contains(simple)) ||
+          (simple.isNotEmpty && sc.isNotEmpty && simple.contains(sc));
+    }).firstOrNull;
+
+    if (matchedClub != null) {
+      final matchId = matchedClub['id']?.toString();
+      final matchSimple = simplifyClubName(matchedClub['name']?.toString());
+      for (final r in rows) {
+        if (r['id']?.toString() == matchId ||
+            simplifyClubName(r['name']?.toString()) == matchSimple) {
+          return r;
+        }
+      }
+    }
+  }
+
+  // 5. Parcial (uno contiene al otro)
+  for (final r in rows) {
+    final sr = simplifyClubName(r['name']?.toString());
+    if (sr.isNotEmpty && simple.isNotEmpty && (sr.contains(simple) || simple.contains(sr))) {
+      return r;
+    }
+  }
+
+  return null;
+}
+
+class StandingsComputationResult {
+  final List<Map<String, dynamic>> rows;
+  final int baseFecha;
+  final int latestFecha;
+  final List<int> appliedFechas;
+
+  const StandingsComputationResult({
+    required this.rows,
+    required this.baseFecha,
+    required this.latestFecha,
+    required this.appliedFechas,
+  });
+}
+
+/// Calcula la tabla de posiciones acumulada sumando sobre la base histórica oficial (Fecha 22)
+/// todas las jornadas oficiales de Firestore cuyo número de fecha sea mayor a la base (Fechas 23 a 30).
+StandingsComputationResult computeStandingsWithJornadas({
+  Map<String, dynamic>? customSavedStandings,
+  required List<Map<String, dynamic>> jornadas,
+  List<Map<String, dynamic>> clubs = const [],
+}) {
+  // 1. Determinar base inicial:
+  // Si existe initialBaseRows en Firestore o si hay una tabla manual con base, la usamos;
+  // de lo contrario usamos la base histórica oficial consolidada kFecha22BaseRows.
+  List<Map<String, dynamic>> baseRows = kFecha22BaseRows;
+  int baseFecha = 22;
+
+  if (customSavedStandings != null &&
+      customSavedStandings['initialBaseRows'] is List &&
+      (customSavedStandings['initialBaseRows'] as List).isNotEmpty) {
+    baseRows = (customSavedStandings['initialBaseRows'] as List)
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+    baseFecha = int.tryParse(customSavedStandings['initialBaseFecha']?.toString() ?? '22') ?? 22;
+  } else if (customSavedStandings != null &&
+      customSavedStandings['isManualOverride'] == true &&
+      customSavedStandings['rows'] is List &&
+      (customSavedStandings['rows'] as List).isNotEmpty) {
+    baseRows = (customSavedStandings['rows'] as List)
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+    baseFecha = int.tryParse(customSavedStandings['baseFecha']?.toString() ?? '22') ?? 22;
+  }
+
+  // Inicializar filas de trabajo clonadas
+  final workingRows = baseRows.map((r) => <String, dynamic>{
+    'id': r['id']?.toString(),
+    'name': r['name']?.toString() ?? '',
+    'isLocal': r['isLocal'] == true ||
+        (r['name']?.toString() ?? '').toLowerCase().contains('newbery') ||
+        (r['name']?.toString() ?? '').toLowerCase().contains('jn'),
+    'logoUrl': r['logoUrl'] ?? r['logo'],
+    'pj': int.tryParse(r['pj']?.toString() ?? '0') ?? 0,
+    'pg': int.tryParse(r['pg']?.toString() ?? '0') ?? 0,
+    'pe': int.tryParse(r['pe']?.toString() ?? '0') ?? 0,
+    'pp': int.tryParse(r['pp']?.toString() ?? '0') ?? 0,
+    'gf': int.tryParse(r['gf']?.toString() ?? '0') ?? 0,
+    'gc': int.tryParse(r['gc']?.toString() ?? '0') ?? 0,
+    'dg': (int.tryParse(r['gf']?.toString() ?? '0') ?? 0) -
+          (int.tryParse(r['gc']?.toString() ?? '0') ?? 0),
+    'pts': int.tryParse(r['pts']?.toString() ?? '0') ?? 0,
+  }).toList();
+
+  // Asegurar que Jorge Newbery esté presente
+  if (!workingRows.any((r) =>
+      (r['name']?.toString() ?? '').toLowerCase().contains('newbery') ||
+      r['isLocal'] == true)) {
+    workingRows.add({
+      'id': 'jn',
+      'name': 'Jorge Newbery',
+      'isLocal': true,
+      'pj': 0, 'pg': 0, 'pe': 0, 'pp': 0, 'gf': 0, 'gc': 0, 'dg': 0, 'pts': 0,
+    });
+  }
+
+  // Filtrar jornadas oficiales que no sean documentos de tabla
+  final validJornadas = jornadas.where((j) {
+    final isStandings = j['isStandings'] == true ||
+        j['type'] == 'custom_standings' ||
+        (j['id']?.toString().startsWith('standings_') ?? false);
+    return !isStandings;
+  }).toList();
+
+  validJornadas.sort((a, b) {
+    final numA = num.tryParse(a['fechaNumber']?.toString() ?? '0') ?? 0;
+    final numB = num.tryParse(b['fechaNumber']?.toString() ?? '0') ?? 0;
+    return numA.compareTo(numB);
+  });
+
+  // Solo sumar fechas posteriores a la fecha base (por defecto > 22)
+  final jornadasToApply = validJornadas.where((j) {
+    final fNum = num.tryParse(j['fechaNumber']?.toString() ?? '0') ?? 0;
+    return fNum > baseFecha;
+  }).toList();
+
+  final List<int> appliedFechas = [];
+
+  for (final jornada in jornadasToApply) {
+    final fNum = int.tryParse(jornada['fechaNumber']?.toString() ?? '0') ?? 0;
+    if (fNum > 0 && !appliedFechas.contains(fNum)) {
+      appliedFechas.add(fNum);
+    }
+
+    final matches = List<dynamic>.from(jornada['matches'] ?? []);
+    for (final rawM in matches) {
+      if (rawM is! Map) continue;
+      final m = Map<String, dynamic>.from(rawM);
+
+      final rawH = (m['homeTeam']?.toString() ?? '').trim();
+      final rawA = (m['awayTeam']?.toString() ?? '').trim();
+      if (rawH.isEmpty ||
+          rawA.isEmpty ||
+          rawH == 'Local' ||
+          rawA == 'Visitante' ||
+          rawH == 'Libre' ||
+          rawA == 'Libre') {
+        continue;
+      }
+
+      final hRow = matchClubToRow(rawH, workingRows, clubs: clubs);
+      final aRow = matchClubToRow(rawA, workingRows, clubs: clubs);
+
+      if (hRow == null || aRow == null) {
+        continue;
+      }
+
+      // Calcular goles totales de la tira
+      int hTotalGoals = 0;
+      int aTotalGoals = 0;
+      bool hasAnyCategoryScore = false;
+
+      final categoriesMap = m['categories'] as Map<String, dynamic>? ?? {};
+      for (final score in categoriesMap.values) {
+        if (score is Map) {
+          final hg = score['homeGoals'] ?? score['homeScore'] ?? score['local'];
+          final ag = score['awayGoals'] ?? score['awayScore'] ?? score['visitante'];
+          if (hg != null &&
+              ag != null &&
+              hg.toString().trim().isNotEmpty &&
+              ag.toString().trim().isNotEmpty) {
+            hTotalGoals += int.tryParse(hg.toString()) ?? 0;
+            aTotalGoals += int.tryParse(ag.toString()) ?? 0;
+            hasAnyCategoryScore = true;
+          }
+        }
+      }
+
+      // Calcular puntos de la jornada
+      int hPts = 0;
+      int aPts = 0;
+      if (m['homeReportedPts'] != null && m['homeReportedPts'].toString().trim().isNotEmpty) {
+        hPts = int.tryParse(m['homeReportedPts'].toString()) ?? 0;
+      } else if (m['calculatedHomePts'] != null) {
+        hPts = int.tryParse(m['calculatedHomePts'].toString()) ?? 0;
+      } else if (hasAnyCategoryScore) {
+        final calc = calculateMatchPoints(categoriesMap);
+        hPts = calc['homePts'] ?? 0;
+      }
+
+      if (m['awayReportedPts'] != null && m['awayReportedPts'].toString().trim().isNotEmpty) {
+        aPts = int.tryParse(m['awayReportedPts'].toString()) ?? 0;
+      } else if (m['calculatedAwayPts'] != null) {
+        aPts = int.tryParse(m['calculatedAwayPts'].toString()) ?? 0;
+      } else if (hasAnyCategoryScore) {
+        final calc = calculateMatchPoints(categoriesMap);
+        aPts = calc['awayPts'] ?? 0;
+      }
+
+      // Solo sumamos si hubo partidos disputados o puntos registrados
+      if (hasAnyCategoryScore || hPts > 0 || aPts > 0) {
+        hRow['pj'] = (hRow['pj'] as int) + 1;
+        aRow['pj'] = (aRow['pj'] as int) + 1;
+
+        hRow['pts'] = (hRow['pts'] as int) + hPts;
+        aRow['pts'] = (aRow['pts'] as int) + aPts;
+
+        hRow['gf'] = (hRow['gf'] as int) + hTotalGoals;
+        hRow['gc'] = (hRow['gc'] as int) + aTotalGoals;
+        aRow['gf'] = (aRow['gf'] as int) + aTotalGoals;
+        aRow['gc'] = (aRow['gc'] as int) + hTotalGoals;
+
+        hRow['dg'] = (hRow['gf'] as int) - (hRow['gc'] as int);
+        aRow['dg'] = (aRow['gf'] as int) - (aRow['gc'] as int);
+
+        if (hPts > aPts) {
+          hRow['pg'] = (hRow['pg'] as int) + 1;
+          aRow['pp'] = (aRow['pp'] as int) + 1;
+        } else if (hPts < aPts) {
+          aRow['pg'] = (aRow['pg'] as int) + 1;
+          hRow['pp'] = (hRow['pp'] as int) + 1;
+        } else {
+          hRow['pe'] = (hRow['pe'] as int) + 1;
+          aRow['pe'] = (aRow['pe'] as int) + 1;
+        }
+      }
+    }
+  }
+
+  // Resolver logos de la colección clubs
+  for (final row in workingRows) {
+    final matchedClub = findMatchingClub(clubs, row['name']?.toString());
+    final logo = extractClubLogo(matchedClub);
+    if (logo != null && logo.isNotEmpty) {
+      row['logoUrl'] = logo;
+    }
+    if (row['isLocal'] == true) {
+      row['isLocal'] = true;
+    }
+  }
+
+  // Ordenar por Puntos, luego Diferencia de Gol, luego Goles a Favor, luego Nombre
+  workingRows.sort((a, b) {
+    final ptsA = a['pts'] as int;
+    final ptsB = b['pts'] as int;
+    if (ptsB != ptsA) return ptsB.compareTo(ptsA);
+
+    final dgA = a['dg'] as int;
+    final dgB = b['dg'] as int;
+    if (dgB != dgA) return dgB.compareTo(dgA);
+
+    final gfA = a['gf'] as int;
+    final gfB = b['gf'] as int;
+    if (gfB != gfA) return gfB.compareTo(gfA);
+
+    final nameA = a['name']?.toString() ?? '';
+    final nameB = b['name']?.toString() ?? '';
+    return nameA.compareTo(nameB);
+  });
+
+  final latestFecha = appliedFechas.isNotEmpty
+      ? appliedFechas.reduce((curr, next) => curr > next ? curr : next)
+      : baseFecha;
+
+  return StandingsComputationResult(
+    rows: workingRows,
+    baseFecha: baseFecha,
+    latestFecha: latestFecha,
+    appliedFechas: appliedFechas,
+  );
+}
+
 /// Standings Calculation engine that replicates Deportes.jsx logic:
 /// Supports 'anual' | 'apertura' | 'clausura' tournaments and 'all' or category-specific views.
 List<Map<String, dynamic>> calculateStandings({
@@ -409,17 +830,27 @@ List<Map<String, dynamic>> calculateStandings({
   required String tournament, // 'anual' | 'apertura' | 'clausura'
   required String category,   // 'all' | '2011' | '2012' ...
 }) {
-  final Map<String, Map<String, dynamic>> table = {};
-
   final String sType = tournament.toLowerCase().trim();
+  final String cleanCategory = category.toLowerCase().trim();
 
-  // Check if a manual custom standings doc was saved (from Web or Admin)
+  // Buscar si existe un documento de standings personalizado en league_jornadas
   final customDoc = leagueJornadas.firstWhere(
     (j) => (j['isStandings'] == true || j['type'] == 'custom_standings' || (j['id'] != null && j['id'].toString().startsWith('standings_'))) &&
            (j['tournament']?.toString().toLowerCase().trim() == sType || (j['id'] != null && j['id'].toString().contains(sType))),
     orElse: () => <String, dynamic>{},
   );
 
+  // Si es la Tabla Anual General (Tira Completa / all), calcular dinámicamente sobre la Base Fecha 22
+  if ((sType == 'anual' || sType == 'todos' || sType == 'general') && (cleanCategory == 'all' || cleanCategory.isEmpty)) {
+    final computed = computeStandingsWithJornadas(
+      customSavedStandings: customDoc.isNotEmpty ? customDoc : null,
+      jornadas: leagueJornadas,
+      clubs: clubs,
+    );
+    return computed.rows;
+  }
+
+  // Si existe un documento guardado manual para otra categoría/torneo específico con filas:
   if (customDoc.isNotEmpty && customDoc['rows'] is List && (customDoc['rows'] as List).isNotEmpty) {
     final customRows = List<dynamic>.from(customDoc['rows'] as List);
     final List<Map<String, dynamic>> result = [];
@@ -455,6 +886,8 @@ List<Map<String, dynamic>> calculateStandings({
 
     return result;
   }
+
+  final Map<String, Map<String, dynamic>> table = {};
 
   // Filter official league jornadas by tournament (if 'anual', sum both apertura & clausura)
   final relevantJornadas = leagueJornadas.where((j) {

@@ -3581,13 +3581,19 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       standingsCategoryOptions.addAll(kDefaultCategories);
     }
 
-    final standings = calculateStandings(
-      leagueJornadas: jornadas,
-      fixtures: fixtures,
-      clubs: clubs,
-      tournament: 'anual',
-      category: 'all',
+    final customDoc = jornadas.firstWhere(
+      (j) => (j['isStandings'] == true || j['type'] == 'custom_standings' || (j['id'] != null && j['id'].toString().startsWith('standings_'))) &&
+             (j['tournament']?.toString().toLowerCase().trim() == 'anual' || (j['id'] != null && j['id'].toString().contains('anual'))),
+      orElse: () => <String, dynamic>{},
     );
+
+    final computedResult = computeStandingsWithJornadas(
+      customSavedStandings: customDoc.isNotEmpty ? customDoc : null,
+      jornadas: jornadas,
+      clubs: clubs,
+    );
+
+    final standings = computedResult.rows;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 100),
@@ -3596,28 +3602,54 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '🏆 Tabla Anual Acumulada',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFFE63946),
-                    letterSpacing: 0.3,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      Text(
+                        '🏆 Tabla Anual Acumulada${computedResult.latestFecha > 0 ? " · Hasta Fecha ${computedResult.latestFecha}" : ""}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFE63946),
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      if (computedResult.appliedFechas.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2ECC71).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.5)),
+                          ),
+                          child: Text(
+                            '⚡ +Fecha ${computedResult.appliedFechas.join(", ")} sumada',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF2ECC71),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Tabla General de Clubes (Tira Completa)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: context.colors.textPrimary,
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tabla General de Clubes (Tira Completa)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: context.colors.textPrimary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             if (ref.watch(currentUserProvider)?.isAdmin == true)
               OutlinedButton.icon(
@@ -3829,7 +3861,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                               final isNewbery = row['isLocal'] == true ||
                                   (row['name']?.toString() ?? '').toLowerCase().contains('newbery') ||
                                   (row['name']?.toString() ?? '').toLowerCase().contains('jn');
-                              final dg = row['dg'] as int;
+                              final dg = (row['dg'] as num?)?.toInt() ?? 0;
                               final isEven = idx % 2 == 0;
                               final rowBg = isNewbery
                                   ? const Color(0xFFC1121F).withValues(alpha: 0.15)
