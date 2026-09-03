@@ -266,7 +266,6 @@ void main() {
       final resGeneral = computeStandingsWithJornadas(
         jornadas: nuevaTemporada,
         clubs: [],
-        category: 'all',
       );
 
       // Debe detectar que es un torneo nuevo desde la Fecha 1:
