@@ -220,7 +220,6 @@ void main() {
         jornadas: jornadas,
         clubs: [],
         category: '2011',
-        tournament: 'clausura',
       );
       expect(resClausura.appliedFechas, [20, 21]);
       final marconi = resClausura.rows.firstWhere((r) => r['name'] == 'Marconi');
