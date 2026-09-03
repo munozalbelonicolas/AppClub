@@ -15,6 +15,70 @@ class ImageUploadService {
   static const String _cloudName = 'dp54uogda';
   static const String _uploadPreset = 'AppClub';
   static const String _apiUrl = 'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
+  static const String _rawApiUrl = 'https://api.cloudinary.com/v1_1/$_cloudName/raw/upload';
+
+  /// Upload a document (PDF, Office document, or image) to Cloudinary.
+  /// Returns a map with metadata for in-app viewing and downloading:
+  /// - `fileUrl`: secure download/resource URL
+  /// - `publicId`: Cloudinary public ID
+  /// - `version`: Cloudinary asset version
+  /// - `format`: 'pdf', 'png', 'jpg', 'docx', etc.
+  /// - `pageCount`: number of pages (for PDF)
+  /// - `previewUrl`: high-res image URL of the first page
+  static Future<Map<String, dynamic>> uploadDocument(File file, {String? originalFileName}) async {
+    final fileName = originalFileName ?? file.path.split(Platform.pathSeparator).last;
+    final extension = fileName.split('.').last.toLowerCase();
+    final isPdfOrImage = ['pdf', 'jpg', 'jpeg', 'png', 'webp'].contains(extension);
+    final endpoint = isPdfOrImage ? _apiUrl : _rawApiUrl;
+
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse(endpoint));
+      request.fields['upload_preset'] = _uploadPreset;
+      request.files.add(await http.MultipartFile.fromPath('file', file.path, filename: fileName));
+
+      final response = await request.send();
+      final responseData = await response.stream.bytesToString();
+      final jsonMap = json.decode(responseData);
+
+      if (response.statusCode == 200) {
+        final secureUrl = jsonMap['secure_url'] as String;
+        final publicId = jsonMap['public_id'] as String;
+        final version = jsonMap['version']?.toString();
+        final format = (jsonMap['format'] ?? extension).toString().toLowerCase();
+        final pageCount = jsonMap['pages'] is int ? jsonMap['pages'] as int : 1;
+
+        String previewUrl;
+        if (format == 'pdf') {
+          previewUrl = getPdfPageUrl(publicId, 1, version: version);
+        } else if (isPdfOrImage) {
+          previewUrl = secureUrl;
+        } else {
+          previewUrl = '';
+        }
+
+        return {
+          'fileUrl': secureUrl,
+          'publicId': publicId,
+          'version': version,
+          'format': format,
+          'pageCount': pageCount,
+          'previewUrl': previewUrl,
+        };
+      } else {
+        AppLogger.error('Cloudinary upload failed', error: jsonMap['error']?['message'], tag: 'ImageUpload');
+        throw Exception('Error subiendo archivo: ${jsonMap['error']?['message'] ?? 'Error desconocido'}');
+      }
+    } catch (e) {
+      AppLogger.error('Exception uploading document', error: e, tag: 'ImageUpload');
+      rethrow;
+    }
+  }
+
+  /// Generate a high-resolution PNG image URL for a specific page of a PDF.
+  static String getPdfPageUrl(String publicId, int page, {String? version}) {
+    final versionPath = version != null ? 'v$version/' : '';
+    return 'https://res.cloudinary.com/$_cloudName/image/upload/pg_$page/$versionPath$publicId.png';
+  }
 
   /// Upload a product image and return its secure URL.
   static Future<String> uploadProductImage(File file, {String? productId}) async {

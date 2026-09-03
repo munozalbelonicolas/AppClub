@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,7 +12,7 @@ import '../../../../core/widgets/jn_avatar.dart';
 import '../widgets/soccer_pitch_view.dart';
 
 // Predefined tactics with normalized coordinates (x, y) where 0,0 is top-left
-final _tactics = {
+final formationTactics = {
   '5v5': {
     '1-2-1': {
       'GK': const Offset(0.5, 0.95),
@@ -139,12 +140,16 @@ final _tactics = {
   },
 };
 
-final _formats = ['5v5', '7v7', '8v8', '11v11', 'Solo lista'];
+final formationFormats = ['5v5', '7v7', '8v8', '11v11', 'Solo lista'];
+
+final _tactics = formationTactics;
+final _formats = formationFormats;
 
 class FormationScreen extends ConsumerStatefulWidget {
   final String matchId;
+  final String? category;
 
-  const FormationScreen({super.key, required this.matchId});
+  const FormationScreen({super.key, required this.matchId, this.category});
 
   @override
   ConsumerState<FormationScreen> createState() => _FormationScreenState();
@@ -168,39 +173,104 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.category != null && widget.category!.isNotEmpty) {
+      _selectedCategoryFilter = widget.category!;
+    }
     _loadFormation();
   }
 
   Future<void> _loadFormation() async {
     try {
-      final firestoreService = ref.read(firestoreServiceProvider);
-      // Try to load existing formation for this match
-      final stream = firestoreService.getFormation(widget.matchId);
-      final doc = await stream.first;
-      
-      if (doc != null) {
+      final db = FirebaseFirestore.instance;
+      Map<String, dynamic>? formationData;
+
+      // 1. Check matches/{matchId}
+      try {
+        final doc = await db.collection('matches').doc(widget.matchId).get();
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data()!;
+          if (data['formation'] is Map) {
+            formationData = Map<String, dynamic>.from(data['formation'] as Map);
+          } else if (data['format'] != null) {
+            formationData = Map<String, dynamic>.from(data);
+          }
+        }
+      } catch (_) {}
+
+      // 2. Check match_lineups/{matchId}
+      if (formationData == null) {
+        try {
+          final doc = await db.collection('match_lineups').doc(widget.matchId).get();
+          if (doc.exists && doc.data() != null) {
+            final data = doc.data()!;
+            if (data['formation'] is Map) {
+              formationData = Map<String, dynamic>.from(data['formation'] as Map);
+            } else if (data['format'] != null) {
+              formationData = Map<String, dynamic>.from(data);
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Check novedades/{matchId}
+      if (formationData == null) {
+        try {
+          final doc = await db.collection('novedades').doc(widget.matchId).get();
+          if (doc.exists && doc.data() != null) {
+            final data = doc.data()!;
+            if (data['formation'] is Map) {
+              formationData = Map<String, dynamic>.from(data['formation'] as Map);
+            } else if (data['format'] != null) {
+              formationData = Map<String, dynamic>.from(data);
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 4. Check category fallback: match_lineups/next_match_{category}
+      final targetCat = widget.category ?? _selectedCategoryFilter;
+      if (formationData == null && targetCat.isNotEmpty && targetCat != 'Todas') {
+        try {
+          final doc = await db.collection('match_lineups').doc('next_match_$targetCat').get();
+          if (doc.exists && doc.data() != null) {
+            final data = doc.data()!;
+            if (data['formation'] is Map) {
+              formationData = Map<String, dynamic>.from(data['formation'] as Map);
+            } else if (data['format'] != null) {
+              formationData = Map<String, dynamic>.from(data);
+            }
+          }
+        } catch (_) {}
+      }
+
+      final fData = formationData;
+      if (fData != null) {
         setState(() {
-          _selectedFormat = doc['format'] ?? '11v11';
+          _selectedFormat = fData['format']?.toString() ?? '11v11';
           if (_selectedFormat != 'Solo lista') {
             final validTactics = _tactics[_selectedFormat]?.keys.toList() ?? [];
-            final savedTactic = doc['tactic']?.toString();
+            final savedTactic = fData['tactic']?.toString();
             _selectedTactic = (savedTactic != null && validTactics.contains(savedTactic))
                 ? savedTactic
                 : (validTactics.isNotEmpty ? validTactics.first : '4-3-3');
 
-            final assignments = doc['assignments'] as Map<String, dynamic>? ?? {};
+            final assignments = (fData['assignments'] as Map<String, dynamic>?) ??
+                (fData['positions'] as Map<String, dynamic>?) ??
+                {};
             _assignments.clear();
             assignments.forEach((key, value) {
-              _assignments[key] = value.toString();
+              _assignments[key.toString()] = value.toString();
             });
           } else {
-            final calledUp = doc['calledUpPlayers'] as List<dynamic>? ?? [];
+            final calledUp = (fData['calledUpPlayers'] as List<dynamic>?) ??
+                (fData['convocadosIds'] as List<dynamic>?) ??
+                [];
             _calledUpPlayers.clear();
             _calledUpPlayers.addAll(calledUp.map((e) => e.toString()));
           }
 
-          if (doc['category'] != null && doc['category'].toString().isNotEmpty) {
-            _selectedCategoryFilter = doc['category'].toString();
+          if (fData['category'] != null && fData['category'].toString().isNotEmpty) {
+            _selectedCategoryFilter = fData['category'].toString();
           }
         });
       }

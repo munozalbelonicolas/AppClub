@@ -12,6 +12,7 @@ import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../../../inbox/presentation/screens/chat_screen.dart';
 
 class AdminUserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -243,6 +244,73 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
       }
       return links;
     });
+  }
+
+  Future<void> _openChatWithUser(
+    BuildContext context,
+    Map<String, dynamic> targetUser, {
+    String? representingChild,
+  }) async {
+    final sessionUser = ref.read(currentUserProvider);
+    if (sessionUser == null) return;
+
+    final targetId = targetUser['id']?.toString() ?? widget.userId;
+    final targetName = '${targetUser['name'] ?? ''} ${targetUser['lastName'] ?? ''}'.trim();
+    final targetRole = (targetUser['role'] ?? 'tutor').toString();
+
+    final participants = [sessionUser.id, targetId];
+    participants.sort();
+    final threadId = 'chat_${participants[0]}_${participants[1]}';
+
+    final db = FirebaseFirestore.instance;
+    final docRef = db.collection('inbox_threads').doc(threadId);
+    final docSnap = await docRef.get();
+
+    final updateData = <String, dynamic>{
+      'id': threadId,
+      'participants': participants,
+      if (!docSnap.exists) 'lastMessageText': 'Conversación iniciada',
+      if (!docSnap.exists) 'lastMessageTime': FieldValue.serverTimestamp(),
+      if (!docSnap.exists) 'unreadByAdmin': sessionUser.isNormalUser,
+      if (!docSnap.exists) 'unreadByUser': !sessionUser.isNormalUser,
+      'user1Id': participants[0],
+      'user2Id': participants[1],
+      'userNames': {
+        sessionUser.id: '${sessionUser.name} ${sessionUser.lastName}'.trim(),
+        targetId: targetName.isNotEmpty ? targetName : 'Usuario',
+      },
+      'userRoles': {
+        sessionUser.id: sessionUser.role,
+        targetId: targetRole,
+      },
+      'userCategories': {
+        sessionUser.id: sessionUser.category ?? 'Todos',
+        targetId: targetUser['category'] ?? 'Todos',
+      },
+      if (representingChild != null && representingChild.isNotEmpty)
+        'tutorChildren': {
+          targetId: representingChild,
+        },
+    };
+
+    await docRef.set(updateData, SetOptions(merge: true));
+
+    if (context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            threadId: threadId,
+            otherUserId: targetId,
+            otherUserName: targetName.isNotEmpty ? targetName : 'Usuario',
+            otherUserRole: targetRole,
+            otherUserSubtitle: representingChild != null && representingChild.isNotEmpty
+                ? 'A cargo de: $representingChild'
+                : null,
+          ),
+        ),
+      );
+    }
   }
 
   void _showRoleDialog(Map<String, dynamic> data) {
@@ -535,6 +603,14 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                         },
                       ),
                     const SizedBox(height: 12),
+                    if (role == 'tutor') ...[
+                      JNButton(
+                        label: 'Enviar Mensaje al Tutor',
+                        icon: Icons.chat_bubble_outline,
+                        onPressed: () => _openChatWithUser(context, data),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     JNButton(
                       label: 'Cambiar Rol o Categoría',
                       onPressed: () => _showRoleDialog(data),
@@ -656,27 +732,41 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                             leading: JNAvatar(name: tName.isNotEmpty ? tName : 'Tutor', size: 40),
                             title: Text(tName),
                             subtitle: Text('DNI: ${t['dni'] ?? 'N/A'}'),
-                            trailing: IconButton(
-                              icon: Icon(Icons.delete_outline, color: context.colors.error),
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('¿Desvincular tutor?'),
-                                    content: const Text('Esto eliminará el vínculo entre el jugador y este tutor/co-tutor.'),
-                                    actions: [
-                                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(context);
-                                          _deleteLink(t['linkId']);
-                                        },
-                                        child: Text('Eliminar', style: TextStyle(color: context.colors.error)),
-                                      ),
-                                    ],
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.chat_bubble_outline, color: context.colors.primary),
+                                  tooltip: 'Enviar mensaje al tutor',
+                                  onPressed: () => _openChatWithUser(
+                                    context,
+                                    t,
+                                    representingChild: '$name $lastName ($category)',
                                   ),
-                                );
-                              },
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete_outline, color: context.colors.error),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('¿Desvincular tutor?'),
+                                        content: const Text('Esto eliminará el vínculo entre el jugador y este tutor/co-tutor.'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                              _deleteLink(t['linkId']);
+                                            },
+                                            child: Text('Eliminar', style: TextStyle(color: context.colors.error)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         );

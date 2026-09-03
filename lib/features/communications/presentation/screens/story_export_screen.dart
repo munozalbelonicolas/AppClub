@@ -26,14 +26,80 @@ class StoryExportScreen extends StatefulWidget {
 class _StoryExportScreenState extends State<StoryExportScreen> {
   final GlobalKey _globalKey = GlobalKey();
   bool _isExporting = false;
+  ImageProvider? _imageProvider;
+  bool _imageLoaded = false;
+
+  String? _resolveImageUrl() {
+    final raw = widget.announcement['imageUrl'] ??
+        widget.announcement['image'] ??
+        widget.announcement['attachmentUrl'] ??
+        widget.announcement['mediaUrl'] ??
+        widget.announcement['photoUrl'];
+    if (raw != null && raw.toString().trim().isNotEmpty) {
+      return raw.toString().trim();
+    }
+    return null;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final url = _resolveImageUrl();
+    if (url != null && !_imageLoaded) {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        _imageProvider = NetworkImage(url);
+      } else {
+        _imageProvider = FileImage(File(url));
+      }
+      precacheImage(_imageProvider!, context).then((_) {
+        if (mounted) {
+          setState(() => _imageLoaded = true);
+        }
+      }).catchError((_) {});
+    }
+  }
+
+  Widget _buildStoryImage(String url, {BoxFit fit = BoxFit.contain}) {
+    final clean = url.trim();
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      return Image.network(
+        clean,
+        fit: fit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(Icons.broken_image, color: Colors.white54, size: 48),
+        ),
+      );
+    } else {
+      return Image.file(
+        File(clean),
+        fit: fit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(Icons.broken_image, color: Colors.white54, size: 48),
+        ),
+      );
+    }
+  }
 
   Future<void> _captureAndShare() async {
     if (_isExporting) return;
     setState(() => _isExporting = true);
 
     try {
-      // Ensure UI is fully rendered
-      await Future.delayed(const Duration(milliseconds: 150));
+      // Ensure image is loaded before capturing
+      final url = _resolveImageUrl();
+      if (url != null && !_imageLoaded) {
+        int waits = 0;
+        while (!_imageLoaded && waits < 15) {
+          await Future.delayed(const Duration(milliseconds: 100));
+          waits++;
+        }
+      } else {
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
 
       final boundary = _globalKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
@@ -134,6 +200,33 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
     final authorStr =
         widget.announcement['authorName']?.toString() ?? 'Club Jorge Newbery';
     final categoryStr = widget.announcement['category']?.toString();
+    final imageUrl = _resolveImageUrl();
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+    final bodyText = (widget.announcement['body'] ?? '').toString().trim();
+
+    String badgeText;
+    if (isBirthday) {
+      badgeText = '¡CUMPLEAÑOS!';
+    } else {
+      final rawEvent = widget.announcement['eventType']?.toString() ??
+          widget.announcement['type']?.toString();
+      if (rawEvent != null &&
+          rawEvent.trim().isNotEmpty &&
+          rawEvent.toLowerCase() != 'ninguno') {
+        final ev = rawEvent.toLowerCase().trim();
+        if (ev == 'torneo') {
+          badgeText = 'TORNEO 🏆';
+        } else if (ev == 'comunicado') {
+          badgeText = 'COMUNICADO OFICIAL 📢';
+        } else if (ev == 'partido') {
+          badgeText = 'PRÓXIMO PARTIDO ⚽';
+        } else {
+          badgeText = rawEvent.toUpperCase();
+        }
+      } else {
+        badgeText = 'COMUNICADO OFICIAL';
+      }
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -210,209 +303,473 @@ class _StoryExportScreenState extends State<StoryExportScreen> {
                           // Story Card Content
                           Padding(
                             padding: const EdgeInsets.all(80.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 80),
+                            child: hasImage
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 20),
 
-                                // ─── Header: Badge + Category ───
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 28,
-                                        vertical: 14,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isBirthday
-                                            ? const Color(0xFFD4AF37)
-                                            : Colors.white,
-                                        borderRadius:
-                                            BorderRadius.circular(100),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black
-                                                .withValues(alpha: 0.3),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4),
+                                      // ─── Header: Badge + Category ───
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 28,
+                                              vertical: 14,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isBirthday
+                                                  ? const Color(0xFFD4AF37)
+                                                  : Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(100),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.3),
+                                                  blurRadius: 12,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                if (isBirthday)
+                                                  const Text(
+                                                    '🎂 ',
+                                                    style: TextStyle(fontSize: 28),
+                                                  ),
+                                                Text(
+                                                  badgeText,
+                                                  style: TextStyle(
+                                                    color: isBirthday
+                                                        ? Colors.black
+                                                        : context.colors.primary,
+                                                    fontSize: 28,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 1.2,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
+                                          const Spacer(),
+                                          if (categoryStr != null &&
+                                              categoryStr.isNotEmpty &&
+                                              categoryStr.toLowerCase() != 'all')
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 24,
+                                                vertical: 12,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius:
+                                                  BorderRadius.circular(100),
+                                                border: Border.all(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.3),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                'CAT. ${categoryStr.toUpperCase()}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 26,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (isBirthday) ...[
-                                            const Text(
-                                              '🎂 ',
-                                              style: TextStyle(fontSize: 28),
+
+                                      const SizedBox(height: 28),
+
+                                      // ─── Title ───
+                                      Text(
+                                        widget.announcement['title'] ?? '',
+                                        style: TextStyle(
+                                          color: isBirthday
+                                              ? const Color(0xFFFBBF24)
+                                              : Colors.white,
+                                          fontSize: 60,
+                                          fontWeight: FontWeight.w900,
+                                          height: 1.15,
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.5),
+                                              blurRadius: 16,
+                                              offset: const Offset(0, 4),
                                             ),
                                           ],
-                                          Text(
-                                            isBirthday
-                                                ? '¡CUMPLEAÑOS!'
-                                                : 'COMUNICADO OFICIAL',
-                                            style: TextStyle(
-                                              color: isBirthday
-                                                  ? Colors.black
-                                                  : context.colors.primary,
-                                              fontSize: 30,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1.2,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+
+                                      if (bodyText.isNotEmpty) ...[
+                                        const SizedBox(height: 16),
+                                        // ─── Body Text (compact card) ───
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 28,
+                                            vertical: 16,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(
+                                              alpha: isBirthday ? 0.3 : 0.2,
                                             ),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            bodyText,
+                                            style: const TextStyle(
+                                              color: Color(0xFFF1F5F9),
+                                              fontSize: 34,
+                                              fontWeight: FontWeight.w400,
+                                              height: 1.35,
+                                            ),
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+
+                                      const SizedBox(height: 24),
+
+                                      // ─── HERO IMAGE CONTAINER ───
+                                      Expanded(
+                                        child: Container(
+                                          width: double.infinity,
+                                          decoration: BoxDecoration(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.4),
+                                            borderRadius:
+                                                BorderRadius.circular(28),
+                                            border: Border.all(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.25),
+                                              width: 2,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.45),
+                                                blurRadius: 24,
+                                                offset: const Offset(0, 8),
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(26),
+                                            child: Stack(
+                                              fit: StackFit.expand,
+                                              children: [
+                                                // Ambient blurred background to fill the frame
+                                                ImageFiltered(
+                                                  imageFilter:
+                                                      ui.ImageFilter.blur(
+                                                    sigmaX: 30,
+                                                    sigmaY: 30,
+                                                  ),
+                                                  child: Opacity(
+                                                    opacity: 0.45,
+                                                    child: _buildStoryImage(
+                                                      imageUrl,
+                                                      fit: BoxFit.cover,
+                                                    ),
+                                                  ),
+                                                ),
+                                                // Sharp full-detail foreground image
+                                                Center(
+                                                  child: _buildStoryImage(
+                                                    imageUrl,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 28),
+
+                                      // ─── Footer: Date & Signature ───
+                                      const Divider(
+                                        color: Colors.white30,
+                                        thickness: 2,
+                                      ),
+                                      const SizedBox(height: 20),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'FECHA',
+                                                style: TextStyle(
+                                                  color: Colors.white60,
+                                                  fontSize: 26,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1.1,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                dateStr,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              const Text(
+                                                'PUBLICADO POR',
+                                                style: TextStyle(
+                                                  color: Colors.white60,
+                                                  fontSize: 26,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1.1,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                authorStr,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                    ),
-                                    const Spacer(),
-                                    if (categoryStr != null &&
-                                        categoryStr.isNotEmpty &&
-                                        categoryStr.toLowerCase() != 'all')
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 24,
-                                          vertical: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.15),
-                                          borderRadius:
-                                              BorderRadius.circular(100),
-                                          border: Border.all(
-                                            color: Colors.white
-                                                .withValues(alpha: 0.3),
+                                      const SizedBox(height: 20),
+                                    ],
+                                  )
+                                : Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 80),
+
+                                      // ─── Header: Badge + Category ───
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 28,
+                                              vertical: 14,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isBirthday
+                                                  ? const Color(0xFFD4AF37)
+                                                  : Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(100),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.3),
+                                                  blurRadius: 12,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                if (isBirthday) ...[
+                                                  const Text(
+                                                    '🎂 ',
+                                                    style: TextStyle(fontSize: 28),
+                                                  ),
+                                                ],
+                                                Text(
+                                                  badgeText,
+                                                  style: TextStyle(
+                                                    color: isBirthday
+                                                        ? Colors.black
+                                                        : context.colors.primary,
+                                                    fontSize: 30,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 1.2,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
+                                          const Spacer(),
+                                          if (categoryStr != null &&
+                                              categoryStr.isNotEmpty &&
+                                              categoryStr.toLowerCase() != 'all')
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 24,
+                                                vertical: 12,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(100),
+                                                border: Border.all(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.3),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                'CAT. ${categoryStr.toUpperCase()}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 28,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 100),
+
+                                      // ─── Title ───
+                                      Text(
+                                        widget.announcement['title'] ?? '',
+                                        style: TextStyle(
+                                          color: isBirthday
+                                              ? const Color(0xFFFBBF24) // Gold
+                                              : Colors.white,
+                                          fontSize: 84,
+                                          fontWeight: FontWeight.w900,
+                                          height: 1.1,
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.5),
+                                              blurRadius: 16,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
                                         ),
-                                        child: Text(
-                                          'CAT. ${categoryStr.toUpperCase()}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.bold,
+                                      ),
+
+                                      const SizedBox(height: 50),
+
+                                      // ─── Body Text ───
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.all(40),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(
+                                              alpha: isBirthday ? 0.3 : 0.15,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(32),
+                                            border: Border.all(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.1,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            bodyText,
+                                            style: const TextStyle(
+                                              color: Color(0xFFF1F5F9),
+                                              fontSize: 44,
+                                              fontWeight: FontWeight.w400,
+                                              height: 1.45,
+                                            ),
+                                            maxLines: 12,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ),
-                                  ],
-                                ),
 
-                                const SizedBox(height: 100),
+                                      const SizedBox(height: 40),
 
-                                // ─── Title ───
-                                Text(
-                                  widget.announcement['title'] ?? '',
-                                  style: TextStyle(
-                                    color: isBirthday
-                                        ? const Color(0xFFFBBF24) // Gold
-                                        : Colors.white,
-                                    fontSize: 84,
-                                    fontWeight: FontWeight.w900,
-                                    height: 1.1,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.5),
-                                        blurRadius: 16,
-                                        offset: const Offset(0, 4),
+                                      // ─── Footer: Date & Signature ───
+                                      const Divider(
+                                        color: Colors.white30,
+                                        thickness: 2,
                                       ),
+                                      const SizedBox(height: 30),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'FECHA',
+                                                style: TextStyle(
+                                                  color: Colors.white60,
+                                                  fontSize: 28,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1.1,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                dateStr,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 36,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              const Text(
+                                                'PUBLICADO POR',
+                                                style: TextStyle(
+                                                  color: Colors.white60,
+                                                  fontSize: 28,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1.1,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                authorStr,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 36,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 40),
                                     ],
                                   ),
-                                ),
-
-                                const SizedBox(height: 50),
-
-                                // ─── Body Text ───
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(40),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: isBirthday ? 0.3 : 0.15,
-                                      ),
-                                      borderRadius: BorderRadius.circular(32),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      widget.announcement['body'] ?? '',
-                                      style: const TextStyle(
-                                        color: Color(0xFFF1F5F9),
-                                        fontSize: 44,
-                                        fontWeight: FontWeight.w400,
-                                        height: 1.45,
-                                      ),
-                                      maxLines: 12,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 40),
-
-                                // ─── Footer: Date & Signature ───
-                                const Divider(
-                                  color: Colors.white30,
-                                  thickness: 2,
-                                ),
-                                const SizedBox(height: 30),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'FECHA',
-                                          style: TextStyle(
-                                            color: Colors.white60,
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1.1,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          dateStr,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 36,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        const Text(
-                                          'PUBLICADO POR',
-                                          style: TextStyle(
-                                            color: Colors.white60,
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1.1,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          authorStr,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 36,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 40),
-                              ],
-                            ),
                           ),
                         ],
                       ),

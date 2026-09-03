@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -65,9 +66,24 @@ class _CreateCoachReportScreenState extends ConsumerState<CreateCoachReportScree
         'coachId': sessionUser.id,
         'coachName': '${sessionUser.name} ${sessionUser.lastName}',
         'category': sessionUser.category ?? 'Sin categoría',
+        'reviewed': false,
       };
 
       await ref.read(firestoreServiceProvider).addCoachReport(reportData);
+
+      // Create a notification for the directors so the bell rings immediately
+      try {
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'type': 'coach_report',
+          'title': 'Informe de DT: $title',
+          'body': '${sessionUser.name} ${sessionUser.lastName} (${sessionUser.category ?? 'DT'}): $description',
+          'authorName': '${sessionUser.name} ${sessionUser.lastName}',
+          'category': sessionUser.category ?? 'General',
+          'targetRole': 'directivo',
+          'read': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

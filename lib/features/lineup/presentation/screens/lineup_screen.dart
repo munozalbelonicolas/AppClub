@@ -194,6 +194,11 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   body: '$playerName fue convocado/a para el partido vs $rival${dateStr.isNotEmpty ? " ($dateStr)" : ""}. Confirmá su asistencia en la app.',
                   authorId: currentUser?.id ?? '',
                   targetUserId: tId,
+                  data: {
+                    'type': 'convocatoria',
+                    'category': _selectedCategory,
+                    'playerId': playerId,
+                  },
                 ),
               );
             }
@@ -520,29 +525,51 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
             .doc(docId)
             .snapshots(),
         builder: (context, snapshot) {
+          Map<String, dynamic>? formationData;
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
             if (data != null && !_isSaving) {
-              if (data['convocadosIds'] != null) {
-                final List<dynamic> rawIds = data['convocadosIds'];
-                _convocadosIds.clear();
+              formationData = data['formation'] as Map<String, dynamic>?;
+
+              final rawPositions = (data['positions'] as Map<String, dynamic>?) ??
+                  (formationData?['assignments'] as Map<String, dynamic>?) ??
+                  {};
+              _positions.clear();
+              rawPositions.forEach((k, v) {
+                _positions[k] = v.toString();
+              });
+
+              final List<dynamic>? rawIds = data['convocadosIds'] as List<dynamic>?;
+              _convocadosIds.clear();
+              if (rawIds != null && rawIds.isNotEmpty) {
                 _convocadosIds.addAll(rawIds.map((e) => e.toString()));
-              } else {
-                _convocadosIds.clear();
-              }
-              if (data['positions'] != null) {
-                final rawPositions = data['positions'] as Map<String, dynamic>;
-                _positions.clear();
-                rawPositions.forEach((k, v) {
-                  _positions[k] = v.toString();
-                });
-              } else {
-                _positions.clear();
+              } else if (_positions.isNotEmpty) {
+                _convocadosIds.addAll(_positions.values);
               }
             }
-          } else if (snapshot.hasData && !snapshot.data!.exists && !_isSaving) {
-            _convocadosIds.clear();
-            _positions.clear();
+          }
+
+          // Fallback to nextMatch['formation'] if match_lineups was not populated yet
+          if (formationData == null && nextMatch != null && nextMatch['formation'] is Map) {
+            formationData = nextMatch['formation'] as Map<String, dynamic>;
+            if (_positions.isEmpty && formationData['assignments'] is Map) {
+              (formationData['assignments'] as Map).forEach((k, v) {
+                _positions[k.toString()] = v.toString();
+              });
+              if (_convocadosIds.isEmpty) {
+                _convocadosIds.addAll(_positions.values);
+              }
+            }
+          }
+
+          // Also merge any confirmed players from convocatoriaAsync
+          if (convocatoriaAsync.valueOrNull != null) {
+            for (final doc in convocatoriaAsync.valueOrNull!) {
+              final pid = (doc['playerId'] ?? doc['id'])?.toString();
+              if (pid != null && !_convocadosIds.contains(pid)) {
+                _convocadosIds.add(pid);
+              }
+            }
           }
 
           // Convocados vs No Convocados
@@ -624,68 +651,107 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               // Next Match Info Banner
               if (nextMatch != null)
                 JNCard(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.sports_soccer,
-                        color: context.colors.primary,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
-                              style: context.typography.titleMedium,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: context.colors.primary.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
                             ),
-                            Builder(
-                              builder: (context) {
-                                final rawV = (nextMatch['venue'] ?? nextMatch['location'] ?? '').toString().trim();
-                                final isVis = nextMatch['isVisitor'] == true ||
-                                    (nextMatch['awayTeam'] != null && nextMatch['awayTeam'].toString().toLowerCase().contains('newbery'));
-                                final venueStr = (rawV.isEmpty ||
-                                        rawV.toLowerCase().contains('cancha principal') ||
-                                        rawV.toLowerCase().contains('cancha visitante') ||
-                                        rawV == 'Cancha Club')
-                                    ? (isVis ? 'Visitante' : 'Local')
-                                    : (rawV.toLowerCase() == 'local'
-                                        ? 'Local'
-                                        : (rawV.toLowerCase() == 'visitante' ? 'Visitante' : rawV));
-                                return Text(
-                                  '${nextMatch['date'] != null && nextMatch['date'].toString().isNotEmpty ? "${nextMatch['date']} " : ""}${nextMatch['time'] != null && nextMatch['time'].toString().isNotEmpty && nextMatch['time'] != 'A confirmar' ? "· ${nextMatch['time']} " : ""}· $venueStr',
-                                  style: context.typography.bodySmall,
+                            child: Icon(
+                              Icons.sports_soccer,
+                              color: context.colors.primary,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${nextMatch['homeTeam']} vs ${nextMatch['awayTeam']}',
+                                  style: context.typography.titleMedium.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Builder(
+                                  builder: (context) {
+                                    final rawV = (nextMatch['venue'] ?? nextMatch['location'] ?? '').toString().trim();
+                                    final isVis = nextMatch['isVisitor'] == true ||
+                                        (nextMatch['awayTeam'] != null && nextMatch['awayTeam'].toString().toLowerCase().contains('newbery'));
+                                    final venueStr = (rawV.isEmpty ||
+                                            rawV.toLowerCase().contains('cancha principal') ||
+                                            rawV.toLowerCase().contains('cancha visitante') ||
+                                            rawV == 'Cancha Club')
+                                        ? (isVis ? 'Visitante' : 'Local')
+                                        : (rawV.toLowerCase() == 'local'
+                                            ? 'Local'
+                                            : (rawV.toLowerCase() == 'visitante' ? 'Visitante' : rawV));
+                                    final datePart = nextMatch['date'] != null && nextMatch['date'].toString().isNotEmpty
+                                        ? '${nextMatch['date']} '
+                                        : '';
+                                    final timePart = nextMatch['time'] != null &&
+                                            nextMatch['time'].toString().isNotEmpty &&
+                                            nextMatch['time'] != 'A confirmar'
+                                        ? '· ${nextMatch['time']} '
+                                        : '';
+                                    return Text(
+                                      '$datePart$timePart· $venueStr',
+                                      style: context.typography.bodySmall.copyWith(
+                                        color: context.colors.textSecondary,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!isCoach && !isAdmin)
+                            const JNBadge(
+                              label: 'CONVOCATORIA',
+                              type: JNBadgeType.accent,
+                            ),
+                        ],
+                      ),
+                      if (isCoach || isAdmin) ...[
+                        const SizedBox(height: 10),
+                        const Divider(height: 1),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => _showConvocatoriaManager(context, allCategoryPlayers, nextMatch),
+                              icon: const Icon(Icons.playlist_add_check, size: 18),
+                              label: const Text('Convocatoria', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FormationScreen(
+                                      matchId: nextMatch['id'] ?? docId,
+                                      category: _selectedCategory,
+                                    ),
+                                  ),
                                 );
                               },
+                              icon: const Icon(Icons.format_list_numbered, size: 18),
+                              label: const Text('Formación', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                             ),
                           ],
                         ),
-                      ),
-                      if (isCoach) ...[
-                        TextButton.icon(
-                          onPressed: () => _showConvocatoriaManager(context, allCategoryPlayers, nextMatch),
-                          icon: const Icon(Icons.playlist_add_check, size: 18),
-                          label: const Text('Convocatoria', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => FormationScreen(matchId: nextMatch['id']),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.format_list_numbered, size: 18),
-                          label: const Text('Formación', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ] else
-                        const JNBadge(
-                          label: 'CONVOCATORIA',
-                          type: JNBadgeType.accent,
-                        ),
+                      ],
                     ],
                   ),
                 ).animate().fadeIn(duration: 400.ms)
@@ -733,7 +799,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                       ),
                     ],
                   ),
-                  if (isCoach)
+                  if (isCoach || isAdmin)
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: context.colors.primary,
@@ -749,7 +815,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
 
               const SizedBox(height: 12),
 
-              // ─── GREEN PITCH DISPLAYING ONLY CONVOCADOS (NO-CONVOCADOS NEVER APPEAR HERE) ───
+              // ─── GREEN PITCH DISPLAYING ONLY CONVOCADOS ───
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
@@ -811,22 +877,42 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                             const SizedBox(height: 14),
 
                             if (convocados.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 28),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 24),
                                 child: Center(
                                   child: Column(
                                     children: [
-                                      Icon(Icons.person_add_disabled, color: Colors.white54, size: 28),
-                                      SizedBox(height: 8),
-                                      Text(
+                                      const Icon(Icons.person_add_disabled, color: Colors.white54, size: 28),
+                                      const SizedBox(height: 8),
+                                      const Text(
                                         'No hay jugadores convocados aún.',
                                         style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
                                       ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        'Toca "+ Convocar" en la lista de abajo para sumar jugadores.',
-                                        style: TextStyle(color: Colors.white54, fontSize: 11),
-                                      ),
+                                      const SizedBox(height: 10),
+                                      if (isCoach || isAdmin)
+                                        ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: context.colors.primary,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          ),
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => FormationScreen(
+                                                  matchId: nextMatch?['id'] ?? docId,
+                                                  category: _selectedCategory,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          icon: const Icon(Icons.format_list_numbered, size: 16),
+                                          label: const Text(
+                                            'Armar Formación Táctica',
+                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),

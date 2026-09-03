@@ -104,6 +104,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String? otherUserId;
   final String otherUserName;
   final String otherUserRole;
+  final String? otherUserSubtitle;
   /// True when an auditor (admin/directivo/secretario) is viewing a thread
   /// they are NOT a participant of.
   final bool isAuditMode;
@@ -118,6 +119,7 @@ class ChatScreen extends ConsumerStatefulWidget {
     this.otherUserId,
     required this.otherUserName,
     required this.otherUserRole,
+    this.otherUserSubtitle,
     this.isAuditMode = false,
     this.auditParticipantNames,
     this.auditParticipantRoles,
@@ -314,14 +316,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           style: context.typography.titleLarge,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          widget.otherUserRole.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: context.colors.primary.withValues(alpha: 0.8),
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              widget.otherUserRole.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: context.colors.primary.withValues(alpha: 0.8),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            if (widget.otherUserSubtitle != null &&
+                                widget.otherUserSubtitle!.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '· ${widget.otherUserSubtitle!}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: context.colors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),

@@ -180,11 +180,19 @@ class NotificationService {
             final targetCategory = data['targetCategory']?.toString() ?? '';
             final targetRole = data['targetRole']?.toString() ?? '';
 
+            final type = data['type']?.toString().toLowerCase().trim() ?? '';
+
+            // Si es administrador, no recibir convocatorias de partidos
+            if (isUserAdmin && (type == 'convocatoria' || type == 'partido')) {
+              continue;
+            }
+
             bool isForMe = false;
             // 'private' notifications (e.g. chat messages) are delivered exclusively
-            // via OneSignal push.
+            // via OneSignal push, a menos que el usuario sea el destinatario directo.
             if (targetCategory == 'private') {
-              isForMe = false;
+              isForMe = (targetUserId == currentUserId) ||
+                  (targetUserIds != null && targetUserIds.map((e) => e.toString()).contains(currentUserId));
             } else if (targetUserIds != null &&
                 targetUserIds.isNotEmpty &&
                 targetUserIds.map((e) => e.toString()).contains(currentUserId)) {

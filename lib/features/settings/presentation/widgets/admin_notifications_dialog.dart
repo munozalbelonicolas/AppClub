@@ -4,18 +4,20 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../coach_panel/presentation/screens/coach_reports_admin_screen.dart';
 import '../../../store/presentation/screens/admin_order_detail_screen.dart';
 import '../screens/admin_user_profile_screen.dart';
 
 void showAdminNotificationsDialog(BuildContext context, {dynamic sessionUser}) {
   showDialog(
     context: context,
-    builder: (context) => const _AdminNotificationsDialog(),
+    builder: (context) => _AdminNotificationsDialog(sessionUser: sessionUser),
   );
 }
 
 class _AdminNotificationsDialog extends StatefulWidget {
-  const _AdminNotificationsDialog();
+  final dynamic sessionUser;
+  const _AdminNotificationsDialog({this.sessionUser});
 
   @override
   State<_AdminNotificationsDialog> createState() => _AdminNotificationsDialogState();
@@ -24,6 +26,16 @@ class _AdminNotificationsDialog extends StatefulWidget {
 class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
   int _selectedTab = 0; // 0: No leídas, 1: Todas
   bool _isProcessing = false;
+
+  void _markDocAsRead(DocumentReference docRef, [Map<String, dynamic>? data]) {
+    final updateData = <String, dynamic>{'read': true};
+    final sUser = widget.sessionUser;
+    final uid = sUser?.id?.toString();
+    if (uid != null && uid.isNotEmpty) {
+      updateData['readBy'] = FieldValue.arrayUnion([uid]);
+    }
+    docRef.update(updateData).catchError((_) {});
+  }
 
   Future<void> _markAllAsRead() async {
     setState(() => _isProcessing = true);
@@ -42,12 +54,19 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
         return;
       }
 
+      final updateData = <String, dynamic>{'read': true};
+      final sUser = widget.sessionUser;
+      final uid = sUser?.id?.toString();
+      if (uid != null && uid.isNotEmpty) {
+        updateData['readBy'] = FieldValue.arrayUnion([uid]);
+      }
+
       // Batch in chunks of 400 operations
       for (var i = 0; i < query.docs.length; i += 400) {
         final end = (i + 400 < query.docs.length) ? i + 400 : query.docs.length;
         final batch = FirebaseFirestore.instance.batch();
         for (var j = i; j < end; j++) {
-          batch.update(query.docs[j].reference, {'read': true});
+          batch.update(query.docs[j].reference, updateData);
         }
         await batch.commit();
       }
@@ -158,9 +177,7 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
     Map<String, dynamic> data,
   ) {
     // Mark as read
-    if ((data['read'] ?? false) == false) {
-      docRef.update({'read': true}).catchError((_) {});
-    }
+    _markDocAsRead(docRef, data);
 
     final title = data['title']?.toString() ?? 'Notificación';
     final body = data['body']?.toString() ??
@@ -238,10 +255,14 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           else ...[
-            IconButton(
-              icon: const Icon(Icons.done_all, size: 22),
-              tooltip: 'Marcar todas como leídas',
+            TextButton.icon(
+              icon: const Icon(Icons.done_all, size: 18),
+              label: const Text('Marcar leídas', style: TextStyle(fontSize: 12)),
               onPressed: _markAllAsRead,
+            ),
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
             ),
           ],
         ],
@@ -260,10 +281,61 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final allDocs = snapshot.data!.docs;
+            final rawDocs = snapshot.data!.docs;
+            final sUser = widget.sessionUser;
+            final uid = sUser?.id?.toString();
+
+            // Filtrar notificaciones para la vista de Administración
+            final allDocs = rawDocs.where((doc) {
+              if (sUser?.isAdmin != true) return true;
+              final data = doc.data() as Map<String, dynamic>;
+              final type = data['type']?.toString().toLowerCase().trim() ?? '';
+              final targetCat = data['targetCategory']?.toString().toLowerCase().trim() ?? '';
+              final targetRole = data['targetRole']?.toString().toLowerCase().trim() ?? '';
+              final targetUserId = data['targetUserId']?.toString().trim() ?? '';
+              final targetUserIds = data['targetUserIds'] as List<dynamic>?;
+
+              // Excluir convocatorias a partidos
+              if (type == 'convocatoria' || type == 'partido') return false;
+
+              // Excluir mensajes privados entre otros usuarios
+              if (targetCat == 'private' || type == 'private_chat') {
+                return (uid != null && uid.isNotEmpty && targetUserId == uid) ||
+                    (targetUserIds != null && uid != null && targetUserIds.map((e) => e.toString()).contains(uid));
+              }
+
+              // 1. Solicitudes de aprobación de usuarios nuevos
+              if (type == 'new_user_pending' || type == 'pending_approval') return true;
+
+              // 2. Notas o informes que envíen DTs o familias
+              if (type == 'coach_report' || type == 'family_note' || type == 'informe') return true;
+
+              // 3. Mensajes enviados directamente hacia la administración
+              if (targetRole == 'directivo' ||
+                  targetRole == 'admin' ||
+                  targetRole == 'secretario' ||
+                  targetCat == 'admin' ||
+                  targetCat == 'directivo') {
+                return true;
+              }
+              if (uid != null && uid.isNotEmpty && targetUserId == uid) return true;
+              if (targetUserIds != null && uid != null && targetUserIds.map((e) => e.toString()).contains(uid)) return true;
+
+              // Pedidos de tienda para administradores
+              if (type == 'new_order') return true;
+
+              return false;
+            }).toList();
+
             final unreadDocs = allDocs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
-              return (data['read'] ?? false) == false;
+              if (data['read'] == true) return false;
+              if (uid != null && uid.isNotEmpty) {
+                if (data['readBy'] is List && (data['readBy'] as List).contains(uid)) {
+                  return false;
+                }
+              }
+              return true;
             }).toList();
 
             final displayDocs = _selectedTab == 0 ? unreadDocs : allDocs;
@@ -389,7 +461,7 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
                                 ),
                                 onTap: () {
                                   // Mark read
-                                  doc.reference.update({'read': true}).catchError((_) {});
+                                  _markDocAsRead(doc.reference, data);
                                   Navigator.pop(context);
                                   showDialog(
                                     context: context,
@@ -490,7 +562,7 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
                                   onPressed: () => doc.reference.delete(),
                                 ),
                                 onTap: () {
-                                  doc.reference.update({'read': true}).catchError((_) {});
+                                  _markDocAsRead(doc.reference, data);
                                   Navigator.pop(context);
                                   final orderId = data['orderId'];
                                   if (orderId != null) {
@@ -542,7 +614,7 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
                                   onPressed: () => doc.reference.delete(),
                                 ),
                                 onTap: () {
-                                  doc.reference.update({'read': true}).catchError((_) {});
+                                  _markDocAsRead(doc.reference, data);
                                   Navigator.pop(context);
                                   final userId = data['userId'];
                                   if (userId != null) {
@@ -596,8 +668,60 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
                                 onTap: () => _showNotificationDetail(context, doc.reference, data),
                               );
                             }
+                            // 5. Informe de Entrenador (DT)
+                            if (type == 'coach_report') {
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: isRead
+                                      ? context.colors.textTertiary.withValues(alpha: 0.1)
+                                      : context.colors.primary.withValues(alpha: 0.15),
+                                  child: Icon(
+                                    Icons.assignment_ind,
+                                    color: isRead ? context.colors.textTertiary : context.colors.primary,
+                                    size: 20,
+                                  ),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        data['title']?.toString() ?? 'Informe de DT',
+                                        style: context.typography.bodyMedium.copyWith(
+                                          fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    if (timeStr.isNotEmpty)
+                                      Text(
+                                        timeStr,
+                                        style: TextStyle(fontSize: 11, color: context.colors.textTertiary),
+                                      ),
+                                  ],
+                                ),
+                                subtitle: Text(
+                                  data['body']?.toString() ?? 'Nuevo informe enviado por entrenador.',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  tooltip: 'Eliminar notificación',
+                                  onPressed: () => doc.reference.delete(),
+                                ),
+                                onTap: () {
+                                  _markDocAsRead(doc.reference, data);
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const CoachReportsAdminScreen(),
+                                    ),
+                                  );
+                                },
+                              );
+                            }
 
-                            // 5. Fallback genérico para cualquier otra notificación (comunicados, partidos, informes, etc.)
+                            // 6. Fallback genérico para cualquier otra notificación (comunicados, partidos, informes, etc.)
                             final title = data['title']?.toString() ?? 'Notificación';
                             final subtitle = data['body']?.toString() ??
                                 data['message']?.toString() ??

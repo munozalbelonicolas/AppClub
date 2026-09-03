@@ -50,12 +50,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             currentUserRole: currentUser.role,
             currentUserCategory: currentUser.category,
             currentUserAssignedCategories: currentUser.assignedCategories,
-            onUserSelected: (selectedUser) async {
+            onUserSelected: (selectedUser, {String? tutorChildrenInfo}) async {
               Navigator.pop(modalContext);
               try {
                 final threadId = await _getOrCreateThread(
                   currentUser,
                   selectedUser,
+                  tutorChildrenInfo: tutorChildrenInfo,
                 );
                 if (mounted) {
                   final otherName =
@@ -68,6 +69,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                         otherUserId: selectedUser['id']?.toString(),
                         otherUserName: otherName.isNotEmpty ? otherName : 'Usuario',
                         otherUserRole: selectedUser['role'] ?? 'tutor',
+                        otherUserSubtitle: tutorChildrenInfo != null && tutorChildrenInfo.isNotEmpty
+                            ? 'A cargo de: $tutorChildrenInfo'
+                            : null,
                       ),
                     ),
                   );
@@ -91,8 +95,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   Future<String> _getOrCreateThread(
     dynamic currentUser,
-    Map<String, dynamic> otherUser,
-  ) async {
+    Map<String, dynamic> otherUser, {
+    String? tutorChildrenInfo,
+  }) async {
     final db = FirebaseFirestore.instance;
     // Thread ID format: lower id first to ensure uniqueness between two users
     final participants = [currentUser.id, otherUser['id']];
@@ -102,7 +107,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final docRef = db.collection('inbox_threads').doc(threadId);
     final docSnap = await docRef.get();
 
-    await docRef.set({
+    final updateData = <String, dynamic>{
       'id': threadId,
       'participants': participants,
       if (!docSnap.exists) 'lastMessageText': 'Conversación iniciada',
@@ -126,7 +131,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         currentUser.id: currentUser.category ?? 'Todos',
         if (otherUser['category'] != null) otherUser['id']: otherUser['category'],
       },
-    }, SetOptions(merge: true));
+      if (tutorChildrenInfo != null && tutorChildrenInfo.isNotEmpty)
+        'tutorChildren': {
+          otherUser['id']: tutorChildrenInfo,
+        },
+    };
+
+    await docRef.set(updateData, SetOptions(merge: true));
 
     return threadId;
   }
@@ -502,6 +513,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             final rolesMap = data['userRoles'] as Map<String, dynamic>? ?? {};
             final categoriesMap =
                 data['userCategories'] as Map<String, dynamic>? ?? {};
+            final tutorChildrenMap =
+                data['tutorChildren'] as Map<String, dynamic>? ?? {};
 
             // Detect audit mode: admin is viewing a thread they are NOT part of
             final isAuditMode =
@@ -513,6 +526,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             String avatarName;
             String otherRole;
             String otherCategory;
+            String otherTutorChildren = '';
 
             String otherUserId = '';
             if (isAuditMode) {
@@ -540,6 +554,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               displayRole = otherRole;
               avatarName = displayTitle;
               otherCategory = (categoriesMap[otherUserId] ?? '').toString();
+              otherTutorChildren = tutorChildrenMap[otherUserId]?.toString() ?? '';
             }
 
             final lastMsg = data['lastMessageText'] ?? '';
@@ -578,6 +593,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                         otherUserId: !isAuditMode && otherUserId.isNotEmpty ? otherUserId : null,
                         otherUserName: displayTitle,
                         otherUserRole: displayRole,
+                        otherUserSubtitle: otherTutorChildren.isNotEmpty
+                            ? 'A cargo de: $otherTutorChildren'
+                            : null,
                         isAuditMode: isAuditMode,
                         auditParticipantNames: isAuditMode
                             ? Map<String, String>.fromEntries(
@@ -670,7 +688,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                       : JNBadgeType.neutral,
                                   small: true,
                                 ),
-                                if (otherCategory.isNotEmpty &&
+                                if (otherTutorChildren.isNotEmpty)
+                                  JNBadge(
+                                    label: 'A cargo de: $otherTutorChildren',
+                                    small: true,
+                                  )
+                                else if (otherCategory.isNotEmpty &&
                                     otherCategory != 'Todos')
                                   JNBadge(
                                     label: otherCategory,
@@ -762,12 +785,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   }
 }
 
+typedef OnChatUserSelected = void Function(Map<String, dynamic> user, {String? tutorChildrenInfo});
+
 class _NewChatUserSelector extends StatefulWidget {
   final String currentUserId;
   final String currentUserRole;
   final String? currentUserCategory;
   final List<String>? currentUserAssignedCategories;
-  final Function(Map<String, dynamic>) onUserSelected;
+  final OnChatUserSelected onUserSelected;
 
   const _NewChatUserSelector({
     required this.currentUserId,
@@ -790,6 +815,119 @@ class _NewChatUserSelectorState extends State<_NewChatUserSelector> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _handlePlayerTapped(
+    BuildContext context,
+    Map<String, dynamic> player,
+    List<Map<String, dynamic>> linkedTutors,
+  ) {
+    final playerName = '${player['name'] ?? ''} ${player['lastName'] ?? ''}'.trim();
+    final playerCat = (player['category'] != null && player['category'].toString().isNotEmpty)
+        ? 'Cat. ${player['category']}'
+        : '';
+    final playerSubtitle = playerCat.isNotEmpty ? '$playerName ($playerCat)' : playerName;
+
+    if (linkedTutors.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('El jugador "$playerName" no tiene tutores vinculados aún.'),
+          backgroundColor: context.colors.warning,
+        ),
+      );
+      return;
+    }
+
+    if (linkedTutors.length == 1) {
+      final singleTutor = linkedTutors.first;
+      final tutorName = '${singleTutor['name'] ?? ''} ${singleTutor['lastName'] ?? ''}'.trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Conectando con el tutor: $tutorName...'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+      widget.onUserSelected(
+        singleTutor,
+        tutorChildrenInfo: playerSubtitle,
+      );
+      return;
+    }
+
+    // Multiple tutors linked (e.g. Padre y Madre) -> Prompt admin to choose
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Tutores de $playerName',
+                      style: context.typography.titleLarge,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(sheetContext),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Este jugador tiene ${linkedTutors.length} tutores registrados. ¿Con quién deseas chatear?',
+                  style: context.typography.bodyMedium.copyWith(color: context.colors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                ...linkedTutors.map((tutor) {
+                  final tName = '${tutor['name'] ?? ''} ${tutor['lastName'] ?? ''}'.trim();
+                  final tPhone = tutor['phone1'] ?? tutor['phone2'] ?? tutor['email'] ?? 'Tutor registrado';
+                  return JNCard(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      widget.onUserSelected(
+                        tutor,
+                        tutorChildrenInfo: playerSubtitle,
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        JNAvatar(name: tName.isNotEmpty ? tName : 'Tutor', size: 40),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(tName, style: context.typography.titleMedium),
+                              Text(
+                                tPhone,
+                                style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chat_outlined, color: context.colors.primary),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -825,7 +963,7 @@ class _NewChatUserSelectorState extends State<_NewChatUserSelector> {
             controller: _searchController,
             style: context.typography.bodyMedium,
             decoration: InputDecoration(
-              hintText: 'Buscar por nombre, apellido, DNI o categoría...',
+              hintText: 'Buscar por nombre, apellido, DNI, categoría o hijo...',
               prefixIcon: const Icon(Icons.search, size: 20),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
@@ -879,40 +1017,76 @@ class _NewChatUserSelectorState extends State<_NewChatUserSelector> {
           const SizedBox(height: 8),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Error al cargar usuarios: ${snapshot.error}',
-                      style: TextStyle(color: context.colors.error),
-                    ),
-                  );
-                }
+              stream: FirebaseFirestore.instance.collection('player_tutor_links').snapshots(),
+              builder: (context, linksSnapshot) {
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                  builder: (context, usersSnapshot) {
+                    if (usersSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (usersSnapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Error al cargar usuarios: ${usersSnapshot.error}',
+                          style: TextStyle(color: context.colors.error),
+                        ),
+                      );
+                    }
 
-                final docs = snapshot.data?.docs ?? [];
+                    final usersDocs = usersSnapshot.data?.docs ?? [];
+                    final linksDocs = linksSnapshot.data?.docs ?? [];
 
-                // Convert to Maps and filter by permissions
-                final List<Map<String, dynamic>> allAllowedUsers = docs
-                    .map((doc) {
+                    // Fast map of user ID -> user data
+                    final Map<String, Map<String, dynamic>> usersMap = {};
+                    for (final doc in usersDocs) {
                       final data = doc.data() as Map<String, dynamic>;
-                      return <String, dynamic>{'id': doc.id, ...data};
-                    })
-                    .where((u) {
-                      // Don't chat with self
+                      usersMap[doc.id] = <String, dynamic>{'id': doc.id, ...data};
+                    }
+
+                    // Map tutorId -> list of players
+                    final Map<String, List<Map<String, dynamic>>> tutorPlayersMap = {};
+                    // Map playerId -> list of tutors
+                    final Map<String, List<Map<String, dynamic>>> playerTutorsMap = {};
+
+                    for (final lDoc in linksDocs) {
+                      final lData = lDoc.data() as Map<String, dynamic>;
+                      final tId = lData['tutorId']?.toString();
+                      final pId = lData['playerId']?.toString();
+                      if (tId != null && pId != null) {
+                        final player = usersMap[pId];
+                        final tutor = usersMap[tId];
+                        if (player != null) {
+                          tutorPlayersMap.putIfAbsent(tId, () => []).add(player);
+                        }
+                        if (tutor != null) {
+                          playerTutorsMap.putIfAbsent(pId, () => []).add(tutor);
+                        }
+                      }
+                    }
+
+                    // Filter users by role and permissions
+                    final List<Map<String, dynamic>> allAllowedUsers = usersMap.values.where((u) {
                       if (u['id'] == widget.currentUserId) return false;
 
-                      // Coaches (DT) can only message users of their category OR secretaries/directors
+                      // Coaches (DT) permissions
                       if (widget.currentUserRole == 'dt') {
                         final uRole = (u['role'] ?? '').toString().toLowerCase();
                         final isStaff = uRole == 'secretario' || uRole == 'directivo' || uRole == 'admin';
                         if (isStaff) return true;
 
+                        // If user is a tutor, check if any of their children belong to DT's category
+                        if (uRole == 'tutor') {
+                          final children = tutorPlayersMap[u['id']] ?? [];
+                          return children.any((c) {
+                            final cCat = (c['category'] ?? '').toString();
+                            return (widget.currentUserAssignedCategories != null && widget.currentUserAssignedCategories!.isNotEmpty)
+                                ? widget.currentUserAssignedCategories!.contains(cCat)
+                                : cCat == widget.currentUserCategory;
+                          });
+                        }
+
+                        // If user is a player, check category
                         final uCategory = (u['category'] ?? '').toString();
                         final hasAssignedCategory = (widget.currentUserAssignedCategories != null && widget.currentUserAssignedCategories!.isNotEmpty)
                             ? widget.currentUserAssignedCategories!.contains(uCategory)
@@ -922,130 +1096,218 @@ class _NewChatUserSelectorState extends State<_NewChatUserSelector> {
                       }
 
                       return true;
-                    })
-                    .toList();
+                    }).toList();
 
-                // Apply role filter and search query
-                final filteredUsers = allAllowedUsers.where((u) {
-                  final uRole = (u['role'] ?? 'tutor').toString().toLowerCase();
-                  if (_selectedRoleFilter == 'Tutores' && uRole != 'tutor') return false;
-                  if (_selectedRoleFilter == 'Jugadores' && uRole != 'jugador') return false;
-                  if (_selectedRoleFilter == 'DTs' && uRole != 'dt' && uRole != 'coach' && uRole != 'profesor') return false;
-                  if (_selectedRoleFilter == 'Directivos' && uRole != 'directivo' && uRole != 'admin' && uRole != 'administrator') return false;
-                  if (_selectedRoleFilter == 'Secretarios' && uRole != 'secretario') return false;
+                    // Apply role filter and search query
+                    final filteredUsers = allAllowedUsers.where((u) {
+                      final uRole = (u['role'] ?? 'tutor').toString().toLowerCase();
+                      if (_selectedRoleFilter == 'Tutores' && uRole != 'tutor') return false;
+                      if (_selectedRoleFilter == 'Jugadores' && uRole != 'jugador') return false;
+                      if (_selectedRoleFilter == 'DTs' && uRole != 'dt' && uRole != 'coach' && uRole != 'profesor') return false;
+                      if (_selectedRoleFilter == 'Directivos' && uRole != 'directivo' && uRole != 'admin' && uRole != 'administrator') return false;
+                      if (_selectedRoleFilter == 'Secretarios' && uRole != 'secretario') return false;
 
-                  if (_searchQuery.isNotEmpty) {
-                    final name = (u['name'] ?? '').toString().toLowerCase();
-                    final lastName = (u['lastName'] ?? '').toString().toLowerCase();
-                    final fullName = '$name $lastName';
-                    final dni = (u['dni'] ?? '').toString().toLowerCase();
-                    final category = (u['category'] ?? '').toString().toLowerCase();
-                    final role = uRole;
+                      if (_searchQuery.isNotEmpty) {
+                        final name = (u['name'] ?? '').toString().toLowerCase();
+                        final lastName = (u['lastName'] ?? '').toString().toLowerCase();
+                        final fullName = '$name $lastName';
+                        final dni = (u['dni'] ?? '').toString().toLowerCase();
+                        final category = (u['category'] ?? '').toString().toLowerCase();
+                        final role = uRole;
 
-                    final matches = fullName.contains(_searchQuery) ||
-                        name.contains(_searchQuery) ||
-                        lastName.contains(_searchQuery) ||
-                        dni.contains(_searchQuery) ||
-                        category.contains(_searchQuery) ||
-                        role.contains(_searchQuery);
+                        bool matches = fullName.contains(_searchQuery) ||
+                            name.contains(_searchQuery) ||
+                            lastName.contains(_searchQuery) ||
+                            dni.contains(_searchQuery) ||
+                            category.contains(_searchQuery) ||
+                            role.contains(_searchQuery);
 
-                    if (!matches) return false;
-                  }
+                        // If tutor, search also against their children's names and categories
+                        if (!matches && uRole == 'tutor') {
+                          final children = tutorPlayersMap[u['id']] ?? [];
+                          matches = children.any((c) {
+                            final cName = (c['name'] ?? '').toString().toLowerCase();
+                            final cLastName = (c['lastName'] ?? '').toString().toLowerCase();
+                            final cFullName = '$cName $cLastName';
+                            final cCat = (c['category'] ?? '').toString().toLowerCase();
+                            final cDni = (c['dni'] ?? '').toString().toLowerCase();
+                            return cFullName.contains(_searchQuery) ||
+                                cName.contains(_searchQuery) ||
+                                cLastName.contains(_searchQuery) ||
+                                cCat.contains(_searchQuery) ||
+                                cDni.contains(_searchQuery);
+                          });
+                        }
 
-                  return true;
-                }).toList();
+                        // If player, search also against their tutors' names
+                        if (!matches && uRole == 'jugador') {
+                          final tutors = playerTutorsMap[u['id']] ?? [];
+                          matches = tutors.any((t) {
+                            final tName = (t['name'] ?? '').toString().toLowerCase();
+                            final tLastName = (t['lastName'] ?? '').toString().toLowerCase();
+                            return '$tName $tLastName'.contains(_searchQuery);
+                          });
+                        }
 
-                // Sort alphabetically by last name / name
-                filteredUsers.sort((a, b) {
-                  final nameA = '${a['lastName'] ?? ''} ${a['name'] ?? ''}'.trim().toLowerCase();
-                  final nameB = '${b['lastName'] ?? ''} ${b['name'] ?? ''}'.trim().toLowerCase();
-                  return nameA.compareTo(nameB);
-                });
+                        if (!matches) return false;
+                      }
 
-                if (filteredUsers.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.person_search_outlined,
-                            size: 48,
-                            color: context.colors.textTertiary,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _searchQuery.isNotEmpty
-                                ? 'No se encontraron usuarios para "$_searchQuery"'
-                                : 'No hay usuarios en este filtro.',
-                            style: context.typography.bodyMedium.copyWith(
-                              color: context.colors.textSecondary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
+                      return true;
+                    }).toList();
 
-                return ListView.separated(
-                  itemCount: filteredUsers.length,
-                  separatorBuilder: (context, index) =>
-                      Divider(height: 1, color: context.colors.divider),
-                  itemBuilder: (context, index) {
-                    final user = filteredUsers[index];
-                    final String name = '${user['name'] ?? ''} ${user['lastName'] ?? ''}'.trim();
-                    final String displayName = name.isNotEmpty ? name : (user['email'] ?? 'Usuario');
-                    final String role = user['role'] ?? 'tutor';
-                    final String category = user['category'] ?? '';
+                    // Sort alphabetically
+                    filteredUsers.sort((a, b) {
+                      final nameA = '${a['lastName'] ?? ''} ${a['name'] ?? ''}'.trim().toLowerCase();
+                      final nameB = '${b['lastName'] ?? ''} ${b['name'] ?? ''}'.trim().toLowerCase();
+                      return nameA.compareTo(nameB);
+                    });
 
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      leading: JNAvatar(name: displayName, size: 40),
-                      title: Text(displayName, style: context.typography.titleSmall),
-                      subtitle: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: role == 'directivo' || role == 'admin'
-                                  ? context.colors.error.withValues(alpha: 0.15)
-                                  : role == 'secretario'
-                                      ? context.colors.info.withValues(alpha: 0.15)
-                                      : role == 'dt'
-                                          ? context.colors.accent.withValues(alpha: 0.15)
-                                          : context.colors.surfaceVariant,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              role.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: role == 'directivo' || role == 'admin'
-                                    ? context.colors.error
-                                    : role == 'secretario'
-                                        ? context.colors.info
-                                        : role == 'dt'
-                                            ? context.colors.accent
-                                            : context.colors.textSecondary,
+                    if (filteredUsers.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.person_search_outlined,
+                                size: 48,
+                                color: context.colors.textTertiary,
                               ),
-                            ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _searchQuery.isNotEmpty
+                                    ? 'No se encontraron usuarios para "$_searchQuery"'
+                                    : 'No hay usuarios en este filtro.',
+                                style: context.typography.bodyMedium.copyWith(
+                                  color: context.colors.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
-                          if (category.isNotEmpty && category != 'Todos') ...[
-                            const SizedBox(width: 8),
-                            Text('Cat. $category', style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary)),
-                          ],
-                        ],
-                      ),
-                      trailing: Icon(
-                        Icons.chat_bubble_outline,
-                        size: 18,
-                        color: context.colors.primary,
-                      ),
-                      onTap: () => widget.onUserSelected(user),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      itemCount: filteredUsers.length,
+                      separatorBuilder: (context, index) =>
+                          Divider(height: 1, color: context.colors.divider),
+                      itemBuilder: (context, index) {
+                        final user = filteredUsers[index];
+                        final String name = '${user['name'] ?? ''} ${user['lastName'] ?? ''}'.trim();
+                        final String displayName = name.isNotEmpty ? name : (user['email'] ?? 'Usuario');
+                        final String role = (user['role'] ?? 'tutor').toString().toLowerCase();
+                        final String category = user['category']?.toString() ?? '';
+
+                        // Tutor children info
+                        String childrenSummary = '';
+                        if (role == 'tutor') {
+                          final children = tutorPlayersMap[user['id']] ?? [];
+                          childrenSummary = children.map((c) {
+                            final cName = '${c['name'] ?? ''} ${c['lastName'] ?? ''}'.trim();
+                            final cCat = (c['category'] != null && c['category'].toString().isNotEmpty)
+                                ? 'Cat. ${c['category']}'
+                                : '';
+                            return cCat.isNotEmpty ? '$cName ($cCat)' : cName;
+                          }).join(' · ');
+                        }
+
+                        // Player tutor info
+                        String tutorSummary = '';
+                        if (role == 'jugador') {
+                          final tutors = playerTutorsMap[user['id']] ?? [];
+                          tutorSummary = tutors.map((t) => '${t['name'] ?? ''} ${t['lastName'] ?? ''}'.trim()).join(', ');
+                        }
+
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                          leading: JNAvatar(name: displayName, size: 40),
+                          title: Text(displayName, style: context.typography.titleSmall),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: role == 'directivo' || role == 'admin'
+                                          ? context.colors.error.withValues(alpha: 0.15)
+                                          : role == 'secretario'
+                                              ? context.colors.info.withValues(alpha: 0.15)
+                                              : role == 'dt'
+                                                  ? context.colors.accent.withValues(alpha: 0.15)
+                                                  : context.colors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      role.toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: role == 'directivo' || role == 'admin'
+                                            ? context.colors.error
+                                            : role == 'secretario'
+                                                ? context.colors.info
+                                                : role == 'dt'
+                                                    ? context.colors.accent
+                                                    : context.colors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  if (category.isNotEmpty && category != 'Todos') ...[
+                                    const SizedBox(width: 8),
+                                    Text('Cat. $category', style: context.typography.bodySmall.copyWith(color: context.colors.textTertiary)),
+                                  ],
+                                ],
+                              ),
+                              if (childrenSummary.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  'A cargo de: $childrenSummary',
+                                  style: context.typography.labelSmall.copyWith(
+                                    color: context.colors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                              if (role == 'jugador' && tutorSummary.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Tutor: $tutorSummary',
+                                  style: context.typography.labelSmall.copyWith(
+                                    color: context.colors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          ),
+                          trailing: Icon(
+                            Icons.chat_bubble_outline,
+                            size: 18,
+                            color: context.colors.primary,
+                          ),
+                          onTap: () {
+                            if (role == 'jugador') {
+                              final linkedTutors = playerTutorsMap[user['id']] ?? [];
+                              _handlePlayerTapped(context, user, linkedTutors);
+                            } else {
+                              widget.onUserSelected(
+                                user,
+                                tutorChildrenInfo: childrenSummary.isNotEmpty ? childrenSummary : null,
+                              );
+                            }
+                          },
+                        );
+                      },
                     );
                   },
                 );

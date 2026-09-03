@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'app_logger.dart';
 
 /// Service for match-related operations: matches, fixtures, formations, lineups, 
 /// convocatorias, league reports, coach reports, and scorers.
@@ -76,15 +77,42 @@ class MatchService {
     try {
       final assignments = formationData['assignments'] as Map<String, dynamic>? ?? {};
       final playerIds = assignments.values.map((v) => v.toString()).toSet().toList();
-      await _db.collection('match_lineups').doc(matchId).set({
+      final category = formationData['category']?.toString();
+
+      final lineupPayload = {
         'matchId': matchId,
-        'category': formationData['category'],
+        if (category != null && category.isNotEmpty) 'category': category,
         'formation': formationData,
         'positions': assignments,
         'convocadosIds': playerIds,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (_) {}
+      };
+
+      await _db.collection('match_lineups').doc(matchId).set(lineupPayload, SetOptions(merge: true));
+
+      // Also save by category key so if LineupScreen uses 'next_match_{category}' fallback, it syncs immediately
+      if (category != null && category.isNotEmpty && category != 'Todas') {
+        final catKey = 'next_match_$category';
+        await _db.collection('match_lineups').doc(catKey).set(lineupPayload, SetOptions(merge: true));
+      }
+
+      // Also ensure matches/{matchId}/convocatoria has these players marked as confirmed convocados
+      if (playerIds.isNotEmpty) {
+        final batch = _db.batch();
+        for (final pid in playerIds) {
+          final cDoc = _db.collection('matches').doc(matchId).collection('convocatoria').doc(pid);
+          batch.set(cDoc, {
+            'playerId': pid,
+            'status': 'confirmed',
+            'isStarter': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      AppLogger.error('Error syncing match_lineups or convocatoria in saveFormation', error: e, tag: 'MatchService');
+    }
   }
 
   // ─── Fixtures ──────────────────────────────────────

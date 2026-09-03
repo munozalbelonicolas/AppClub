@@ -16,6 +16,7 @@ import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../coach_panel/presentation/screens/coach_dashboard_screen.dart';
+import '../../../coach_panel/presentation/screens/coach_reports_admin_screen.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../player/presentation/screens/child_detail_screen.dart';
 import '../../../player/presentation/screens/my_profile_screen.dart';
@@ -288,6 +289,19 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
+              if (user.isAdmin)
+                _SettingNav(
+                  icon: Icons.assignment_ind_outlined,
+                  label: 'Informes de DTs',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CoachReportsAdminScreen(),
+                      ),
+                    );
+                  },
+                ),
             ],
           ).animate(delay: 135.ms).fadeIn(duration: 400.ms),
 

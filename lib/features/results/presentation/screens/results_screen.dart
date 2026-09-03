@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_badge.dart';
@@ -1547,6 +1548,54 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       'matches': currentMatches,
                     });
 
+                    // ─── Notificación Push de Resultado ───
+                    final isFinished = status.toLowerCase().contains('final');
+                    if (isFinished) {
+                      final sUser = ref.read(currentUserProvider);
+                      final matchCat = match['category']?.toString() ?? category;
+                      final hName = match['homeTeam'] ?? match['homeClubName'] ?? 'Jorge Newbery';
+                      final aName = match['awayTeam'] ?? match['awayClubName'] ?? 'Rival';
+
+                      // 1. Notificación push por partido finalizado a todos los usuarios
+                      NotificationService().sendNotification(
+                        title: '⚽ ¡Final del partido! Cat. $matchCat',
+                        body: '$hName $hScore - $aScore $aName',
+                        authorId: sUser?.id ?? '',
+                        targetCategory: 'all',
+                        data: {
+                          'type': 'match_result',
+                          'fixtureId': fixture['id'],
+                          'category': matchCat,
+                        },
+                      );
+
+                      // 2. Comprobar si concluyó toda la jornada/fecha
+                      final allFinished = currentMatches.isNotEmpty &&
+                          currentMatches.every((m) {
+                            final st = (m['status']?.toString() ?? '').toLowerCase();
+                            return st.contains('final') || st.contains('susp');
+                          });
+
+                      if (allFinished) {
+                        int totH = 0;
+                        int totA = 0;
+                        for (final m in currentMatches) {
+                          totH += (m['homeScore'] as int? ?? 0);
+                          totA += (m['awayScore'] as int? ?? 0);
+                        }
+                        NotificationService().sendNotification(
+                          title: '🏆 ¡Finalizó la fecha vs $aName!',
+                          body: 'Se completaron todos los partidos. Total de la jornada: $hName $totH - $totA $aName. ¡Consultá la tabla en la app!',
+                          authorId: sUser?.id ?? '',
+                          targetCategory: 'all',
+                          data: {
+                            'type': 'jornada_finished',
+                            'fixtureId': fixture['id'],
+                          },
+                        );
+                      }
+                    }
+
                     if (ctx.mounted) {
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -2622,6 +2671,57 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
+  // ─── Modal de confirmación para notificar actualización de tablas y planillas ───
+  Future<void> _promptNotifyStandingsUpdated(BuildContext context) async {
+    final sUser = ref.read(currentUserProvider);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.campaign_rounded, color: Color(0xFFC1121F)),
+            SizedBox(width: 8),
+            Text('Notificar a Usuarios'),
+          ],
+        ),
+        content: const Text(
+          '¿Deseas enviar una notificación push a todos los usuarios del club avisando que las planillas y tablas de posiciones fueron actualizadas?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC1121F)),
+            child: const Text('Enviar Notificación'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      await NotificationService().sendNotification(
+        title: '📊 Tablas y Planillas Actualizadas',
+        body: 'Se actualizaron las planillas oficiales y la tabla de posiciones de la liga. ¡Revisalas en la app!',
+        authorId: sUser?.id ?? '',
+        targetCategory: 'all',
+        data: {
+          'type': 'standings_updated',
+        },
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notificación push enviada a todos los usuarios.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
   // ─── 1. Planilla de Resultados Oficiales UCIV ─────────────────────────────
   Widget _buildLeagueJornadaSheetTab() {
     final jornadasAsync = ref.watch(leagueJornadasStreamProvider);
@@ -2692,39 +2792,51 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                   ),
                 ),
 
-                // Selector Torneo Apertura / Clausura
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: context.colors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: context.colors.border.withValues(alpha: 0.4)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _sheetTournamentFilter,
-                      dropdownColor: context.colors.surface,
-                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFE63946)),
-                      style: TextStyle(
-                        color: context.colors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                // Selector Torneo Apertura / Clausura y botón de notificación
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: context.colors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: context.colors.border.withValues(alpha: 0.4)),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'apertura', child: Text('🏆 Torneo Apertura')),
-                        DropdownMenuItem(value: 'clausura', child: Text('🏆 Torneo Clausura')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _sheetTournamentFilter = val;
-                            final matching = allJornadas.where((j) => (j['tournamentType'] ?? 'apertura') == val).firstOrNull;
-                            _selectedJornadaId = matching?['id']?.toString();
-                          });
-                        }
-                      },
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _sheetTournamentFilter,
+                          dropdownColor: context.colors.surface,
+                          icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFE63946)),
+                          style: TextStyle(
+                            color: context.colors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'apertura', child: Text('🏆 Torneo Apertura')),
+                            DropdownMenuItem(value: 'clausura', child: Text('🏆 Torneo Clausura')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _sheetTournamentFilter = val;
+                                final matching = allJornadas.where((j) => (j['tournamentType'] ?? 'apertura') == val).firstOrNull;
+                                _selectedJornadaId = matching?['id']?.toString();
+                              });
+                            }
+                          },
+                        ),
+                      ),
                     ),
-                  ),
+                    if (ref.watch(currentUserProvider)?.isAdmin == true) ...[
+                      const SizedBox(width: 6),
+                      IconButton(
+                        icon: const Icon(Icons.campaign_outlined, color: Color(0xFFE63946)),
+                        tooltip: 'Notificar planillas y tablas actualizadas a todos',
+                        onPressed: () => _promptNotifyStandingsUpdated(context),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -3507,6 +3619,17 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                 ),
               ],
             ),
+            if (ref.watch(currentUserProvider)?.isAdmin == true)
+              OutlinedButton.icon(
+                icon: const Icon(Icons.campaign_outlined, size: 16, color: Color(0xFFE63946)),
+                label: const Text('Notificar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFE63946))),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFE63946)),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () => _promptNotifyStandingsUpdated(context),
+              ),
           ],
         ),
 

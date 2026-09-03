@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/session_provider.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
+import '../../../coach_panel/presentation/screens/coach_reports_admin_screen.dart';
 import '../../../player/presentation/screens/consolidated_roster_screen.dart';
 import '../../../results/presentation/screens/manage_scorers_screen.dart';
 import '../widgets/admin_notifications_dialog.dart';
@@ -103,6 +105,8 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sessionUser = ref.watch(currentUserProvider);
+
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(
@@ -120,7 +124,7 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined),
-                    onPressed: () => showAdminNotificationsDialog(context),
+                    onPressed: () => showAdminNotificationsDialog(context, sessionUser: sessionUser),
                   ),
                   if (unreadCount > 0)
                     Positioned(
@@ -339,6 +343,35 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                             children: [
                               Text('Cumpleaños del Mes', style: context.typography.titleMedium),
                               Text('Consultar cumpleaños de los jugadores', style: context.typography.bodySmall),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: context.colors.textTertiary),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: JNCard(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CoachReportsAdminScreen()),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.assignment_ind_outlined, color: context.colors.primary, size: 28),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Informes de Entrenadores (DT)', style: context.typography.titleMedium),
+                              Text('Novedades de partidos, rendimiento y solicitudes', style: context.typography.bodySmall),
                             ],
                           ),
                         ),

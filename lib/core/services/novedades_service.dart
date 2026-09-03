@@ -141,6 +141,10 @@ class NovedadesService {
         body: notifBody.length > 200 ? '${notifBody.substring(0, 197)}...' : notifBody,
         authorId: authorId,
         targetCategory: targetCategory,
+        data: {
+          'type': isMatch ? 'partido' : (type.isNotEmpty ? type : 'comunicado'),
+          'category': targetCategory,
+        },
       );
     } catch (e) {
       AppLogger.error('Error al disparar notificación push para novedad', error: e, tag: 'Novedades');

@@ -1578,46 +1578,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         int unreadCount = 0;
                         if (snapshot.hasData) {
                           bool isDocRead(Map<String, dynamic> data) {
+                            if (data['read'] == true) return true;
                             if (sessionUser.id.isNotEmpty) {
                               if (data['readBy'] is List &&
                                   (data['readBy'] as List).contains(sessionUser.id)) {
                                 return true;
                               }
-                              if (data['targetUserId'] == sessionUser.id && data['read'] == true) {
-                                return true;
-                              }
-                              return false;
                             }
-                            return data['read'] == true;
+                            return false;
                           }
 
                           unreadCount = snapshot.data!.docs.where((d) {
                             final data = d.data() as Map<String, dynamic>;
                             if (isDocRead(data)) return false;
-                            if (sessionUser.isAdmin) return true;
 
-                            final targetUserId = data['targetUserId']?.toString();
+                            final type = data['type']?.toString().toLowerCase().trim() ?? '';
+                            final targetCat = data['targetCategory']?.toString().toLowerCase().trim() ?? '';
+                            final targetRole = data['targetRole']?.toString().toLowerCase().trim() ?? '';
+                            final targetUserId = data['targetUserId']?.toString().trim() ?? '';
                             final targetUserIds = data['targetUserIds'] as List<dynamic>?;
-                            final targetCat = data['targetCategory']?.toString();
-                            final targetRole = data['targetRole']?.toString();
+
+                            // ─── REGLAS PARA ADMINISTRADORES ───
+                            if (sessionUser.isAdmin) {
+                              // Exclusión explícita: Convocatorias a partidos
+                              if (type == 'convocatoria' || type == 'partido') return false;
+
+                              // Exclusión explícita: Mensajes privados entre otros usuarios
+                              if (targetCat == 'private' || type == 'private_chat') {
+                                return targetUserId == sessionUser.id ||
+                                    (targetUserIds != null && targetUserIds.map((e) => e.toString()).contains(sessionUser.id));
+                              }
+
+                              // 1. Solicitud de usuarios nuevos para aprobación
+                              if (type == 'new_user_pending' || type == 'pending_approval') return true;
+
+                              // 2. Notas o informes que envíen DTs o familias
+                              if (type == 'coach_report' || type == 'family_note' || type == 'informe') return true;
+
+                              // 3. Mensajes enviados directamente hacia los administradores
+                              if (targetRole == 'directivo' ||
+                                  targetRole == 'admin' ||
+                                  targetRole == 'secretario' ||
+                                  targetCat == 'admin' ||
+                                  targetCat == 'directivo') {
+                                return true;
+                              }
+                              if (targetUserId == sessionUser.id) return true;
+                              if (targetUserIds != null && targetUserIds.map((e) => e.toString()).contains(sessionUser.id)) return true;
+
+                              // Pedidos de tienda para administradores
+                              if (type == 'new_order') return true;
+
+                              return false;
+                            }
+
+                            // ─── REGLAS PARA USUARIOS GENERALES ───
+                            if (type == 'new_user_pending' || type == 'coach_report') return false;
 
                             if (targetUserIds != null && targetUserIds.isNotEmpty) {
                               return targetUserIds.map((e) => e.toString()).contains(sessionUser.id);
                             }
-                            if (targetUserId != null && targetUserId.isNotEmpty && targetUserId != 'all') {
+                            if (targetUserId.isNotEmpty && targetUserId != 'all' && targetUserId != 'todos') {
                               return targetUserId == sessionUser.id;
                             }
-                            if (targetRole != null && targetRole.isNotEmpty && targetRole != 'all') {
+                            if (targetRole.isNotEmpty && targetRole != 'all' && targetRole != 'todos') {
                               return targetRole == sessionUser.role;
                             }
-                            if (targetCat != null && targetCat.isNotEmpty && targetCat != 'all' && targetCat != 'todos') {
+                            if (targetCat.isNotEmpty && targetCat != 'all' && targetCat != 'todos') {
                               if (sessionUser.category != null &&
-                                  targetCat.toLowerCase().trim() == sessionUser.category!.toLowerCase().trim()) {
+                                  targetCat == sessionUser.category!.toLowerCase().trim()) {
                                 return true;
                               }
                               if (sessionUser.assignedCategories != null) {
                                 return (sessionUser.assignedCategories as List)
-                                    .any((c) => c.toString().toLowerCase().trim() == targetCat.toLowerCase().trim());
+                                    .any((c) => c.toString().toLowerCase().trim() == targetCat);
                               }
                               return false;
                             }

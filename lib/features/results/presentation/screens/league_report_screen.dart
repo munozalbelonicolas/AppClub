@@ -1,15 +1,20 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/image_upload_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_card.dart';
+import 'document_viewer_screen.dart';
 
 class LeagueReportScreen extends ConsumerStatefulWidget {
   const LeagueReportScreen({super.key});
@@ -96,13 +101,25 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
           const SizedBox(height: 12),
           Text(report['description'] ?? '', style: context.typography.bodyMedium),
           const SizedBox(height: 16),
-          if (report['fileName'] != null)
+          if (report['fileName'] != null) ...[
             InkWell(
-              onTap: () async {
-                final url = report['fileUrl'];
-                if (url != null && await canLaunchUrl(Uri.parse(url))) {
-                  await launchUrl(Uri.parse(url));
-                }
+              borderRadius: BorderRadius.circular(8),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DocumentViewerScreen(
+                      title: report['title'] ?? 'Informe',
+                      fileName: report['fileName'] ?? 'Documento',
+                      fileUrl: report['fileUrl'] as String?,
+                      previewUrl: report['previewUrl'] as String?,
+                      format: report['format'] as String?,
+                      pageCount: (report['pageCount'] as int?) ?? 1,
+                      publicId: report['publicId'] as String?,
+                      version: report['version']?.toString(),
+                    ),
+                  ),
+                );
               },
               child: Container(
                 padding: const EdgeInsets.all(12),
@@ -113,24 +130,47 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.picture_as_pdf, color: context.colors.error),
+                    Icon(
+                      (report['fileName'] as String).toLowerCase().endsWith('.pdf')
+                          ? Icons.picture_as_pdf
+                          : ((report['fileName'] as String).toLowerCase().endsWith('.jpg') ||
+                                  (report['fileName'] as String).toLowerCase().endsWith('.png') ||
+                                  (report['fileName'] as String).toLowerCase().endsWith('.jpeg'))
+                              ? Icons.image
+                              : Icons.description,
+                      color: (report['fileName'] as String).toLowerCase().endsWith('.pdf')
+                          ? context.colors.error
+                          : context.colors.primary,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        report['fileName'],
-                        style: context.typography.bodyMedium.copyWith(
-                          color: context.colors.primary,
-                          decoration: TextDecoration.underline,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            report['fileName'],
+                            style: context.typography.bodyMedium.copyWith(
+                              color: context.colors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'Toca para visualizar',
+                            style: context.typography.bodySmall.copyWith(
+                              color: context.colors.textTertiary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Icon(Icons.download, size: 20, color: context.colors.textSecondary),
+                    Icon(Icons.visibility_outlined, size: 20, color: context.colors.primary),
                   ],
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -140,9 +180,11 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
     final titleController = TextEditingController();
     final descController = TextEditingController();
     PlatformFile? selectedFile;
+    bool isUploading = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -155,12 +197,14 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
                   children: [
                     TextField(
                       controller: titleController,
+                      enabled: !isUploading,
                       decoration: const InputDecoration(labelText: 'Título'),
                       style: context.typography.bodyLarge,
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: descController,
+                      enabled: !isUploading,
                       decoration: const InputDecoration(labelText: 'Descripción'),
                       maxLines: 3,
                       style: context.typography.bodyLarge,
@@ -189,62 +233,155 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.close, size: 16),
-                                  onPressed: () {
-                                    setDialogState(() {
-                                      selectedFile = null;
-                                    });
-                                  },
-                                ),
+                                if (!isUploading)
+                                  IconButton(
+                                    icon: const Icon(Icons.close, size: 16),
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        selectedFile = null;
+                                      });
+                                    },
+                                  ),
                               ],
                             ),
                           ] else ...[
                             TextButton.icon(
-                              onPressed: () async {
-                                final result = await FilePicker.pickFiles(
-                                  type: FileType.custom,
-                                  allowedExtensions: ['pdf', 'doc', 'docx'],
-                                );
-                                if (result != null) {
-                                  setDialogState(() {
-                                    selectedFile = result.files.first;
-                                  });
-                                }
-                              },
+                              onPressed: isUploading
+                                  ? null
+                                  : () async {
+                                      final result = await FilePicker.pickFiles(
+                                        type: FileType.custom,
+                                        allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+                                      );
+                                      if (result != null) {
+                                        setDialogState(() {
+                                          selectedFile = result.files.first;
+                                        });
+                                      }
+                                    },
                               icon: const Icon(Icons.upload_file),
                               label: const Text('Adjuntar Archivo'),
                             ),
-                          ]
+                          ],
                         ],
                       ),
                     ),
+                    if (isUploading) ...[
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Subiendo documento... por favor espera.',
+                              style: context.typography.bodySmall.copyWith(
+                                color: context.colors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: isUploading ? null : () => Navigator.pop(context),
                   child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary),
-                  onPressed: () async {
-                    if (titleController.text.isNotEmpty) {
-                      // Mock upload for now
-                      final fileUrl = selectedFile != null ? 'https://example.com/${selectedFile!.name}' : null;
-                      final fileName = selectedFile?.name;
+                  onPressed: isUploading
+                      ? null
+                      : () async {
+                          final title = titleController.text.trim();
+                          if (title.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('El título es obligatorio.')),
+                            );
+                            return;
+                          }
 
-                      await ref.read(firestoreServiceProvider).addLeagueReport({
-                        'title': titleController.text.trim(),
-                        'description': descController.text.trim(),
-                        'fileUrl': fileUrl,
-                        'fileName': fileName,
-                        'authorId': ref.read(currentUserProvider)!.id,
-                      });
-                      if (context.mounted) Navigator.pop(context);
-                    }
-                  },
+                          setDialogState(() => isUploading = true);
+
+                          try {
+                            String? fileUrl;
+                            String? previewUrl;
+                            String? format;
+                            int pageCount = 1;
+                            String? publicId;
+                            String? version;
+
+                            if (selectedFile != null) {
+                              final File fileToUpload;
+                              if (selectedFile!.path != null) {
+                                fileToUpload = File(selectedFile!.path!);
+                              } else {
+                                final bytes = await selectedFile!.readAsBytes();
+                                final tempDir = await getTemporaryDirectory();
+                                fileToUpload = File('${tempDir.path}/${selectedFile!.name}');
+                                await fileToUpload.writeAsBytes(bytes);
+                              }
+
+                              final uploadResult = await ImageUploadService.uploadDocument(
+                                fileToUpload,
+                                originalFileName: selectedFile!.name,
+                              );
+                                fileUrl = uploadResult['fileUrl'] as String?;
+                                previewUrl = uploadResult['previewUrl'] as String?;
+                                format = uploadResult['format'] as String?;
+                                pageCount = (uploadResult['pageCount'] as int?) ?? 1;
+                                publicId = uploadResult['publicId'] as String?;
+                                version = uploadResult['version'] as String?;
+                              }
+
+                            final currentUser = ref.read(currentUserProvider);
+                            await ref.read(firestoreServiceProvider).addLeagueReport({
+                              'title': title,
+                              'description': descController.text.trim(),
+                              'fileUrl': fileUrl,
+                              'fileName': selectedFile?.name,
+                              'previewUrl': previewUrl,
+                              'format': format,
+                              'pageCount': pageCount,
+                              'publicId': publicId,
+                              'version': version,
+                              'authorId': currentUser?.id ?? '',
+                            });
+
+                            // Notificación Push a todos los usuarios del club
+                            await NotificationService().sendNotification(
+                              title: '📄 Nuevo Informe de Liga',
+                              body: 'Se ha publicado un nuevo informe oficial: "$title". Ya disponible para consultar en la app.',
+                              authorId: currentUser?.id ?? '',
+                              targetCategory: 'all',
+                              data: {
+                                'type': 'league_report',
+                                'title': title,
+                              },
+                            );
+
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Informe guardado correctamente.')),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => isUploading = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error al subir informe: $e')),
+                              );
+                            }
+                          }
+                        },
                   child: const Text('Subir'),
                 ),
               ],
