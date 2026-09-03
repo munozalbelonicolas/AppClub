@@ -29,6 +29,8 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
 
   // Estado de Fixture y Goleadores
   String _selectedCategory = 'all';
+  String _standingsCategory = 'all';
+  String _standingsTournament = 'clausura'; // 'apertura' | 'clausura'
   String? _lastChildId;
 
   @override
@@ -3555,31 +3557,109 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
   }
 
+  Widget _buildStandingsCategoryPill({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final primaryColor = context.colors.primary;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected ? primaryColor : context.colors.surfaceVariant,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? primaryColor : context.colors.border.withValues(alpha: 0.5),
+              width: 1.2,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: primaryColor.withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    )
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected ? Colors.white : context.colors.textSecondary,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStandingsTournamentPill({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final primaryColor = context.colors.primary;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? primaryColor : context.colors.surfaceVariant,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isSelected ? primaryColor : context.colors.border.withValues(alpha: 0.5),
+              width: 1.1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: primaryColor.withValues(alpha: 0.25),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1.5),
+                    )
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected ? Colors.white : context.colors.textSecondary,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─── 2. Tabla de Posiciones ──────────────────────────────────
   Widget _buildStandingsTab() {
     final jornadasAsync = ref.watch(leagueJornadasStreamProvider);
-    final fixturesAsync = ref.watch(fixturesStreamProvider('all'));
     final clubsAsync = ref.watch(clubsStreamProvider);
-    final rawCategories = ref.watch(appCategoriesProvider);
 
     final jornadas = jornadasAsync.valueOrNull ?? [];
-    final fixtures = fixturesAsync.valueOrNull ?? [];
     final clubs = clubsAsync.valueOrNull ?? [];
 
     const double rowHeight = 42.0;
     const double leftColWidth = 158.0;
 
-    // Categorías para la tabla de posiciones (excluyendo promocionales 2020 y 2021)
-    final standingsCategoryOptions = rawCategories
-        .where((cat) {
-          final clean = cat.replaceAll(RegExp(r'^cat\.?\s*', caseSensitive: false), '').trim();
-          return clean != '2020' && clean != '2021';
-        })
-        .toList();
-
-    if (standingsCategoryOptions.isEmpty) {
-      standingsCategoryOptions.addAll(kDefaultCategories);
-    }
+    final categoriesList = extractCategoriesFromJornadas(jornadas);
+    final bool isGeneral = _standingsCategory == 'all';
 
     final customDoc = jornadas.firstWhere(
       (j) => (j['isStandings'] == true || j['type'] == 'custom_standings' || (j['id'] != null && j['id'].toString().startsWith('standings_'))) &&
@@ -3588,64 +3668,74 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
 
     final computedResult = computeStandingsWithJornadas(
-      customSavedStandings: customDoc.isNotEmpty ? customDoc : null,
+      customSavedStandings: isGeneral ? (customDoc.isNotEmpty ? customDoc : null) : null,
       jornadas: jornadas,
       clubs: clubs,
+      category: _standingsCategory,
+      tournament: isGeneral ? 'anual' : _standingsTournament,
     );
 
     final standings = computedResult.rows;
 
+    final String badgeText = isGeneral
+        ? '🏆 Tabla Anual Acumulada${computedResult.latestFecha > 0 ? " · Hasta Fecha ${computedResult.latestFecha}" : ""}'
+        : (_standingsTournament == 'apertura'
+            ? '🏆 Categoría $_standingsCategory · Torneo Apertura${computedResult.appliedFechas.isNotEmpty ? " · Hasta Fecha ${computedResult.latestFecha}" : ""}'
+            : '🏆 Categoría $_standingsCategory · Torneo Clausura${computedResult.appliedFechas.isNotEmpty ? " · Hasta Fecha ${computedResult.latestFecha}" : ""}');
+
+    final String titleText = isGeneral
+        ? 'Tabla General de Clubes (Tira Completa · 38 Fechas)'
+        : 'Tabla de Posiciones · Categoría $_standingsCategory';
+
+    final String legendText = isGeneral
+        ? '(PG = 2 pts · PE = 1 pt · Acumulado de planillas oficiales)'
+        : '(PG = 2 pts · PE = 1 pt · Partidos disputados en ${_standingsTournament == 'apertura' ? 'Torneo Apertura' : 'Torneo Clausura'})';
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 100),
       children: [
-        // ─── Header: Tabla Anual Acumulada ───
+        // ─── Header: Tabla de Posiciones ───
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      Text(
-                        '🏆 Tabla Anual Acumulada${computedResult.latestFecha > 0 ? " · Hasta Fecha ${computedResult.latestFecha}" : ""}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFFE63946),
-                          letterSpacing: 0.3,
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFC1121F).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFC1121F).withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      badgeText,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFE63946),
+                        letterSpacing: 0.3,
                       ),
-                      if (computedResult.appliedFechas.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2ECC71).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.5)),
-                          ),
-                          child: Text(
-                            '⚡ +Fecha ${computedResult.appliedFechas.join(", ")} sumada',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF2ECC71),
-                            ),
-                          ),
-                        ),
-                    ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    titleText,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: context.colors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Tabla General de Clubes (Tira Completa)',
+                    legendText,
                     style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: context.colors.textPrimary,
+                      fontSize: 10.5,
+                      color: context.colors.textTertiary,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -3665,7 +3755,76 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
           ],
         ),
 
+        // ─── Selector Dinámico de Categorías (Pills) ───
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              _buildStandingsCategoryPill(
+                label: '🏆 General',
+                isSelected: isGeneral,
+                onTap: () {
+                  if (_standingsCategory != 'all') {
+                    setState(() => _standingsCategory = 'all');
+                  }
+                },
+              ),
+              ...categoriesList.map((cat) {
+                final isSelected = _standingsCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: _buildStandingsCategoryPill(
+                    label: 'Cat. $cat',
+                    isSelected: isSelected,
+                    onTap: () {
+                      if (_standingsCategory != cat) {
+                        setState(() => _standingsCategory = cat);
+                      }
+                    },
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+
+        // ─── Sub-selector de Torneo Apertura / Clausura (solo para categorías) ───
+        if (!isGeneral) ...[
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: [
+                _buildStandingsTournamentPill(
+                  label: '🟡 Torneo Apertura (Fechas 1 a 19)',
+                  isSelected: _standingsTournament == 'apertura',
+                  onTap: () {
+                    if (_standingsTournament != 'apertura') {
+                      setState(() => _standingsTournament = 'apertura');
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                _buildStandingsTournamentPill(
+                  label: '🔵 Torneo Clausura (Fechas 20 a 38)',
+                  isSelected: _standingsTournament == 'clausura',
+                  onTap: () {
+                    if (_standingsTournament != 'clausura') {
+                      setState(() => _standingsTournament = 'clausura');
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+
         const SizedBox(height: 14),
+
+
 
         if (standings.isEmpty)
           JNCard(

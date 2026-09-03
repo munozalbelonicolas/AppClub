@@ -578,6 +578,56 @@ Map<String, dynamic>? matchClubToRow(
   return null;
 }
 
+/// Obtiene todas las categorías únicas a partir de las planillas en league_jornadas.
+/// Recorre jornada.categories y las claves de match.categories en cada partido.
+/// Si no hubiera planillas, usa por defecto ['2011'..'2019'] ordenadas numéricamente.
+List<String> extractCategoriesFromJornadas(List<Map<String, dynamic>> jornadas) {
+  final Set<String> foundCats = {};
+
+  for (final j in jornadas) {
+    if (j['isStandings'] == true ||
+        j['type'] == 'custom_standings' ||
+        (j['id']?.toString().startsWith('standings_') ?? false)) {
+      continue;
+    }
+
+    if (j['categories'] is List) {
+      for (final c in (j['categories'] as List)) {
+        final clean = c.toString().replaceAll(RegExp(r'^cat\.?\s*', caseSensitive: false), '').trim();
+        if (clean.isNotEmpty && clean != '2020' && clean != '2021') {
+          foundCats.add(clean);
+        }
+      }
+    }
+
+    final matches = List<dynamic>.from(j['matches'] ?? []);
+    for (final rawM in matches) {
+      if (rawM is! Map) continue;
+      final catsMap = rawM['categories'];
+      if (catsMap is Map) {
+        for (final k in catsMap.keys) {
+          final clean = k.toString().replaceAll(RegExp(r'^cat\.?\s*', caseSensitive: false), '').trim();
+          if (clean.isNotEmpty && clean != '2020' && clean != '2021') {
+            foundCats.add(clean);
+          }
+        }
+      }
+    }
+  }
+
+  if (foundCats.isEmpty) {
+    return ['2011', '2012', '2013', '2014', '2015', '2016', '2017', '2018', '2019'];
+  }
+
+  final list = foundCats.toList();
+  list.sort((a, b) {
+    final numA = int.tryParse(a) ?? 0;
+    final numB = int.tryParse(b) ?? 0;
+    return numA.compareTo(numB);
+  });
+  return list;
+}
+
 class StandingsComputationResult {
   final List<Map<String, dynamic>> rows;
   final int baseFecha;
@@ -592,36 +642,85 @@ class StandingsComputationResult {
   });
 }
 
-/// Calcula la tabla de posiciones acumulada sumando sobre la base histórica oficial (Fecha 22)
-/// todas las jornadas oficiales de Firestore cuyo número de fecha sea mayor a la base (Fechas 23 a 30).
+/// Calcula la tabla de posiciones acumulada (General o por Categoría específica)
+/// sumando sobre la base guardada todas las jornadas oficiales de Firestore.
 StandingsComputationResult computeStandingsWithJornadas({
   Map<String, dynamic>? customSavedStandings,
   required List<Map<String, dynamic>> jornadas,
   List<Map<String, dynamic>> clubs = const [],
+  String category = 'all',
+  String tournament = 'clausura',
 }) {
-  // 1. Determinar base inicial:
-  // Si existe initialBaseRows en Firestore o si hay una tabla manual con base, la usamos;
-  // de lo contrario usamos la base histórica oficial consolidada kFecha22BaseRows.
-  List<Map<String, dynamic>> baseRows = kFecha22BaseRows;
-  int baseFecha = 22;
+  final cleanCategory = category.replaceAll(RegExp(r'^cat\.?\s*', caseSensitive: false), '').trim();
+  final isGeneral = cleanCategory.isEmpty || cleanCategory.toLowerCase() == 'all';
+  final effectiveTournament = isGeneral ? 'anual' : (tournament.trim().toLowerCase() == 'apertura' ? 'apertura' : 'clausura');
 
-  if (customSavedStandings != null &&
-      customSavedStandings['initialBaseRows'] is List &&
-      (customSavedStandings['initialBaseRows'] as List).isNotEmpty) {
-    baseRows = (customSavedStandings['initialBaseRows'] as List)
-        .whereType<Map>()
-        .map((m) => Map<String, dynamic>.from(m))
-        .toList();
-    baseFecha = int.tryParse(customSavedStandings['initialBaseFecha']?.toString() ?? '22') ?? 22;
-  } else if (customSavedStandings != null &&
-      customSavedStandings['isManualOverride'] == true &&
-      customSavedStandings['rows'] is List &&
-      (customSavedStandings['rows'] as List).isNotEmpty) {
-    baseRows = (customSavedStandings['rows'] as List)
-        .whereType<Map>()
-        .map((m) => Map<String, dynamic>.from(m))
-        .toList();
-    baseFecha = int.tryParse(customSavedStandings['baseFecha']?.toString() ?? '22') ?? 22;
+  int minFecha = 1;
+  int maxFecha = 38;
+  if (!isGeneral) {
+    if (effectiveTournament == 'apertura') {
+      minFecha = 1;
+      maxFecha = 19;
+    } else {
+      minFecha = 20;
+      maxFecha = 38;
+    }
+  }
+
+  // 1. Determinar base inicial:
+  List<Map<String, dynamic>> baseRows = [];
+  int baseFecha = 0;
+
+  if (isGeneral) {
+    baseRows = kFecha22BaseRows;
+    baseFecha = 22;
+
+    if (customSavedStandings != null &&
+        customSavedStandings['initialBaseRows'] is List &&
+        (customSavedStandings['initialBaseRows'] as List).isNotEmpty) {
+      baseRows = (customSavedStandings['initialBaseRows'] as List)
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+      baseFecha = int.tryParse(customSavedStandings['initialBaseFecha']?.toString() ?? '22') ?? 22;
+    } else if (customSavedStandings != null &&
+        customSavedStandings['isManualOverride'] == true &&
+        customSavedStandings['rows'] is List &&
+        (customSavedStandings['rows'] as List).isNotEmpty) {
+      baseRows = (customSavedStandings['rows'] as List)
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+      baseFecha = int.tryParse(customSavedStandings['baseFecha']?.toString() ?? '22') ?? 22;
+    }
+  } else {
+    // Por categoría individual: todos los 20 clubes arrancan en 0
+    baseFecha = 0;
+    if (customSavedStandings != null &&
+        customSavedStandings['isManualOverride'] == true &&
+        customSavedStandings['rows'] is List &&
+        (customSavedStandings['rows'] as List).isNotEmpty) {
+      baseRows = (customSavedStandings['rows'] as List)
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+      baseFecha = int.tryParse(customSavedStandings['baseFecha']?.toString() ?? '0') ?? 0;
+    } else {
+      baseRows = kFecha22BaseRows.map((c) {
+        final cName = (c['name']?.toString() ?? '').trim();
+        final isNewbery = c['isLocal'] == true ||
+            cName.toLowerCase().contains('newbery') ||
+            cName.toLowerCase().contains('jn');
+        final matchedClub = findMatchingClub(clubs, cName);
+        return <String, dynamic>{
+          'id': c['id']?.toString() ?? matchedClub?['id']?.toString(),
+          'name': cName,
+          'isLocal': isNewbery,
+          'logoUrl': extractClubLogo(matchedClub) ?? c['logoUrl'] ?? c['logo'],
+          'pj': 0, 'pg': 0, 'pe': 0, 'pp': 0, 'gf': 0, 'gc': 0, 'dg': 0, 'pts': 0,
+        };
+      }).toList();
+    }
   }
 
   // Inicializar filas de trabajo clonadas
@@ -664,24 +763,41 @@ StandingsComputationResult computeStandingsWithJornadas({
   }).toList();
 
   validJornadas.sort((a, b) {
-    final numA = num.tryParse(a['fechaNumber']?.toString() ?? '0') ?? 0;
-    final numB = num.tryParse(b['fechaNumber']?.toString() ?? '0') ?? 0;
-    return numA.compareTo(numB);
+    final fA = int.tryParse(a['fechaNumber']?.toString() ?? '0') ?? 0;
+    final fB = int.tryParse(b['fechaNumber']?.toString() ?? '0') ?? 0;
+    return fA.compareTo(fB);
   });
 
-  // Solo sumar fechas posteriores a la fecha base (por defecto > 22)
+  // Filtrar las jornadas según si es General o por Torneo/Fechas
   final jornadasToApply = validJornadas.where((j) {
-    final fNum = num.tryParse(j['fechaNumber']?.toString() ?? '0') ?? 0;
-    return fNum > baseFecha;
+    final fNum = int.tryParse(j['fechaNumber']?.toString() ?? '0') ?? 0;
+    if (isGeneral) {
+      return fNum > baseFecha;
+    } else {
+      final jType = (j['tournamentType'] ?? j['torneo'] ?? j['tournament'] ?? '')
+          .toString()
+          .toLowerCase()
+          .trim();
+
+      bool matchesTournament = false;
+      if (effectiveTournament == 'apertura') {
+        matchesTournament = jType == 'apertura' ||
+            ((jType.isEmpty || jType == 'anual') && fNum >= 1 && fNum <= 19);
+      } else if (effectiveTournament == 'clausura') {
+        matchesTournament = jType == 'clausura' ||
+            ((jType.isEmpty || jType == 'anual') && fNum >= 20 && fNum <= 38);
+      } else {
+        matchesTournament = fNum >= minFecha && fNum <= maxFecha;
+      }
+
+      return matchesTournament && fNum > baseFecha;
+    }
   }).toList();
 
   final List<int> appliedFechas = [];
 
   for (final jornada in jornadasToApply) {
     final fNum = int.tryParse(jornada['fechaNumber']?.toString() ?? '0') ?? 0;
-    if (fNum > 0 && !appliedFechas.contains(fNum)) {
-      appliedFechas.add(fNum);
-    }
 
     final matches = List<dynamic>.from(jornada['matches'] ?? []);
     for (final rawM in matches) {
@@ -706,73 +822,134 @@ StandingsComputationResult computeStandingsWithJornadas({
         continue;
       }
 
-      // Calcular goles totales de la tira
-      int hTotalGoals = 0;
-      int aTotalGoals = 0;
-      bool hasAnyCategoryScore = false;
+      if (isGeneral) {
+        // CÁLCULO GENERAL DE TIRA COMPLETA
+        int hTotalGoals = 0;
+        int aTotalGoals = 0;
+        bool hasAnyCategoryScore = false;
 
-      final categoriesMap = m['categories'] as Map<String, dynamic>? ?? {};
-      for (final score in categoriesMap.values) {
-        if (score is Map) {
-          final hg = score['homeGoals'] ?? score['homeScore'] ?? score['local'];
-          final ag = score['awayGoals'] ?? score['awayScore'] ?? score['visitante'];
+        final categoriesMap = m['categories'] as Map<String, dynamic>? ?? {};
+        for (final score in categoriesMap.values) {
+          if (score is Map) {
+            final hg = score['homeGoals'] ?? score['homeScore'] ?? score['local'];
+            final ag = score['awayGoals'] ?? score['awayScore'] ?? score['visitante'];
+            if (hg != null &&
+                ag != null &&
+                hg.toString().trim().isNotEmpty &&
+                ag.toString().trim().isNotEmpty) {
+              hTotalGoals += int.tryParse(hg.toString()) ?? 0;
+              aTotalGoals += int.tryParse(ag.toString()) ?? 0;
+              hasAnyCategoryScore = true;
+            }
+          }
+        }
+
+        // Calcular puntos de la jornada
+        int hPts = 0;
+        int aPts = 0;
+        if (m['homeReportedPts'] != null && m['homeReportedPts'].toString().trim().isNotEmpty) {
+          hPts = int.tryParse(m['homeReportedPts'].toString()) ?? 0;
+        } else if (m['calculatedHomePts'] != null) {
+          hPts = int.tryParse(m['calculatedHomePts'].toString()) ?? 0;
+        } else if (hasAnyCategoryScore) {
+          final calc = calculateMatchPoints(categoriesMap);
+          hPts = calc['homePts'] ?? 0;
+        }
+
+        if (m['awayReportedPts'] != null && m['awayReportedPts'].toString().trim().isNotEmpty) {
+          aPts = int.tryParse(m['awayReportedPts'].toString()) ?? 0;
+        } else if (m['calculatedAwayPts'] != null) {
+          aPts = int.tryParse(m['calculatedAwayPts'].toString()) ?? 0;
+        } else if (hasAnyCategoryScore) {
+          final calc = calculateMatchPoints(categoriesMap);
+          aPts = calc['awayPts'] ?? 0;
+        }
+
+        // Solo sumamos si hubo partidos disputados o puntos registrados
+        if (hasAnyCategoryScore || hPts > 0 || aPts > 0) {
+          hRow['pj'] = (hRow['pj'] as int) + 1;
+          aRow['pj'] = (aRow['pj'] as int) + 1;
+
+          hRow['pts'] = (hRow['pts'] as int) + hPts;
+          aRow['pts'] = (aRow['pts'] as int) + aPts;
+
+          hRow['gf'] = (hRow['gf'] as int) + hTotalGoals;
+          hRow['gc'] = (hRow['gc'] as int) + aTotalGoals;
+          aRow['gf'] = (aRow['gf'] as int) + aTotalGoals;
+          aRow['gc'] = (aRow['gc'] as int) + hTotalGoals;
+
+          hRow['dg'] = (hRow['gf'] as int) - (hRow['gc'] as int);
+          aRow['dg'] = (aRow['gf'] as int) - (aRow['gc'] as int);
+
+          if (hPts > aPts) {
+            hRow['pg'] = (hRow['pg'] as int) + 1;
+            aRow['pp'] = (aRow['pp'] as int) + 1;
+          } else if (hPts < aPts) {
+            aRow['pg'] = (aRow['pg'] as int) + 1;
+            hRow['pp'] = (hRow['pp'] as int) + 1;
+          } else {
+            hRow['pe'] = (hRow['pe'] as int) + 1;
+            aRow['pe'] = (aRow['pe'] as int) + 1;
+          }
+
+          if (fNum > 0 && !appliedFechas.contains(fNum)) {
+            appliedFechas.add(fNum);
+          }
+        }
+      } else {
+        // CÁLCULO ESPECÍFICO POR CATEGORÍA
+        final categoriesMap = m['categories'] as Map<String, dynamic>? ?? {};
+        String? foundKey;
+        for (final k in categoriesMap.keys) {
+          final kClean = k.toString().replaceAll(RegExp(r'^cat\.?\s*', caseSensitive: false), '').trim();
+          if (kClean == cleanCategory) {
+            foundKey = k.toString();
+            break;
+          }
+        }
+
+        final scoreObj = foundKey != null ? categoriesMap[foundKey] : categoriesMap[cleanCategory];
+        if (scoreObj is Map) {
+          final hg = scoreObj['homeGoals'] ?? scoreObj['homeScore'] ?? scoreObj['local'];
+          final ag = scoreObj['awayGoals'] ?? scoreObj['awayScore'] ?? scoreObj['visitante'];
+
           if (hg != null &&
               ag != null &&
               hg.toString().trim().isNotEmpty &&
               ag.toString().trim().isNotEmpty) {
-            hTotalGoals += int.tryParse(hg.toString()) ?? 0;
-            aTotalGoals += int.tryParse(ag.toString()) ?? 0;
-            hasAnyCategoryScore = true;
+            final hs = int.tryParse(hg.toString()) ?? 0;
+            final as = int.tryParse(ag.toString()) ?? 0;
+
+            hRow['pj'] = (hRow['pj'] as int) + 1;
+            aRow['pj'] = (aRow['pj'] as int) + 1;
+
+            hRow['gf'] = (hRow['gf'] as int) + hs;
+            hRow['gc'] = (hRow['gc'] as int) + as;
+            aRow['gf'] = (aRow['gf'] as int) + as;
+            aRow['gc'] = (aRow['gc'] as int) + hs;
+
+            hRow['dg'] = (hRow['gf'] as int) - (hRow['gc'] as int);
+            aRow['dg'] = (aRow['gf'] as int) - (aRow['gc'] as int);
+
+            if (hs > as) {
+              hRow['pg'] = (hRow['pg'] as int) + 1;
+              hRow['pts'] = (hRow['pts'] as int) + 2;
+              aRow['pp'] = (aRow['pp'] as int) + 1;
+            } else if (hs < as) {
+              aRow['pg'] = (aRow['pg'] as int) + 1;
+              aRow['pts'] = (aRow['pts'] as int) + 2;
+              hRow['pp'] = (hRow['pp'] as int) + 1;
+            } else {
+              hRow['pe'] = (hRow['pe'] as int) + 1;
+              hRow['pts'] = (hRow['pts'] as int) + 1;
+              aRow['pe'] = (aRow['pe'] as int) + 1;
+              aRow['pts'] = (aRow['pts'] as int) + 1;
+            }
+
+            if (fNum > 0 && !appliedFechas.contains(fNum)) {
+              appliedFechas.add(fNum);
+            }
           }
-        }
-      }
-
-      // Calcular puntos de la jornada
-      int hPts = 0;
-      int aPts = 0;
-      if (m['homeReportedPts'] != null && m['homeReportedPts'].toString().trim().isNotEmpty) {
-        hPts = int.tryParse(m['homeReportedPts'].toString()) ?? 0;
-      } else if (m['calculatedHomePts'] != null) {
-        hPts = int.tryParse(m['calculatedHomePts'].toString()) ?? 0;
-      } else if (hasAnyCategoryScore) {
-        final calc = calculateMatchPoints(categoriesMap);
-        hPts = calc['homePts'] ?? 0;
-      }
-
-      if (m['awayReportedPts'] != null && m['awayReportedPts'].toString().trim().isNotEmpty) {
-        aPts = int.tryParse(m['awayReportedPts'].toString()) ?? 0;
-      } else if (m['calculatedAwayPts'] != null) {
-        aPts = int.tryParse(m['calculatedAwayPts'].toString()) ?? 0;
-      } else if (hasAnyCategoryScore) {
-        final calc = calculateMatchPoints(categoriesMap);
-        aPts = calc['awayPts'] ?? 0;
-      }
-
-      // Solo sumamos si hubo partidos disputados o puntos registrados
-      if (hasAnyCategoryScore || hPts > 0 || aPts > 0) {
-        hRow['pj'] = (hRow['pj'] as int) + 1;
-        aRow['pj'] = (aRow['pj'] as int) + 1;
-
-        hRow['pts'] = (hRow['pts'] as int) + hPts;
-        aRow['pts'] = (aRow['pts'] as int) + aPts;
-
-        hRow['gf'] = (hRow['gf'] as int) + hTotalGoals;
-        hRow['gc'] = (hRow['gc'] as int) + aTotalGoals;
-        aRow['gf'] = (aRow['gf'] as int) + aTotalGoals;
-        aRow['gc'] = (aRow['gc'] as int) + hTotalGoals;
-
-        hRow['dg'] = (hRow['gf'] as int) - (hRow['gc'] as int);
-        aRow['dg'] = (aRow['gf'] as int) - (aRow['gc'] as int);
-
-        if (hPts > aPts) {
-          hRow['pg'] = (hRow['pg'] as int) + 1;
-          aRow['pp'] = (aRow['pp'] as int) + 1;
-        } else if (hPts < aPts) {
-          aRow['pg'] = (aRow['pg'] as int) + 1;
-          hRow['pp'] = (hRow['pp'] as int) + 1;
-        } else {
-          hRow['pe'] = (hRow['pe'] as int) + 1;
-          aRow['pe'] = (aRow['pe'] as int) + 1;
         }
       }
     }
@@ -831,7 +1008,7 @@ List<Map<String, dynamic>> calculateStandings({
   required String category,   // 'all' | '2011' | '2012' ...
 }) {
   final String sType = tournament.toLowerCase().trim();
-  final String cleanCategory = category.toLowerCase().trim();
+  final String cleanCategory = category.replaceAll(RegExp(r'^cat\.?\s*', caseSensitive: false), '').toLowerCase().trim();
 
   // Buscar si existe un documento de standings personalizado en league_jornadas
   final customDoc = leagueJornadas.firstWhere(
@@ -840,12 +1017,14 @@ List<Map<String, dynamic>> calculateStandings({
     orElse: () => <String, dynamic>{},
   );
 
-  // Si es la Tabla Anual General (Tira Completa / all), calcular dinámicamente sobre la Base Fecha 22
-  if ((sType == 'anual' || sType == 'todos' || sType == 'general') && (cleanCategory == 'all' || cleanCategory.isEmpty)) {
+  // Si es torneo anual o categoría, calcular dinámicamente con computeStandingsWithJornadas
+  if (sType == 'anual' || sType == 'todos' || sType == 'general' || cleanCategory != 'all') {
     final computed = computeStandingsWithJornadas(
-      customSavedStandings: customDoc.isNotEmpty ? customDoc : null,
+      customSavedStandings: cleanCategory == 'all' || cleanCategory.isEmpty ? (customDoc.isNotEmpty ? customDoc : null) : null,
       jornadas: leagueJornadas,
       clubs: clubs,
+      category: cleanCategory.isEmpty ? 'all' : cleanCategory,
+      tournament: sType,
     );
     return computed.rows;
   }

@@ -93,5 +93,154 @@ void main() {
       expect(belgrano['pj'], 23);
       expect(belgrano['pts'], 206 + 4);
     });
+
+    test('extractCategoriesFromJornadas extracts and sorts categories', () {
+      final jornadas = [
+        {
+          'categories': ['2014', '2011', 'Cat. 2013'],
+          'matches': [
+            {
+              'categories': {
+                '2012': {'homeGoals': 1, 'awayGoals': 0},
+                '2015': {'homeGoals': 2, 'awayGoals': 2},
+              }
+            }
+          ]
+        }
+      ];
+
+      final cats = extractCategoriesFromJornadas(jornadas);
+      expect(cats, ['2011', '2012', '2013', '2014', '2015']);
+    });
+
+    test('Category specific mode starts at 0 and calculates baby fútbol points', () {
+      final jornada1 = {
+        'id': 'jornada_20',
+        'fechaNumber': 20,
+        'tournament': 'anual',
+        'matches': [
+          {
+            'homeTeam': 'Marconi',
+            'awayTeam': 'Jorge Newbery',
+            'categories': {
+              '2011': {'homeGoals': 4, 'awayGoals': 1},
+            },
+          },
+          {
+            'homeTeam': 'Junior',
+            'awayTeam': 'Los Pibes',
+            'categories': {
+              '2011': {'homeGoals': 2, 'awayGoals': 2},
+            },
+          }
+        ],
+      };
+
+      final res2011 = computeStandingsWithJornadas(
+        jornadas: [jornada1],
+        clubs: [],
+        category: '2011',
+      );
+
+      expect(res2011.latestFecha, 20);
+      expect(res2011.appliedFechas, [20]);
+
+      // Marconi ganó: 2 pts, 4 GF, 1 GC, DG +3
+      final marconi = res2011.rows.firstWhere((r) => r['name'] == 'Marconi');
+      expect(marconi['pj'], 1);
+      expect(marconi['pg'], 1);
+      expect(marconi['pe'], 0);
+      expect(marconi['pp'], 0);
+      expect(marconi['pts'], 2);
+      expect(marconi['gf'], 4);
+      expect(marconi['gc'], 1);
+      expect(marconi['dg'], 3);
+
+      // Newbery perdió: 0 pts, 1 GF, 4 GC, DG -3
+      final newbery = res2011.rows.firstWhere((r) => (r['name'] as String).contains('Newbery'));
+      expect(newbery['pj'], 1);
+      expect(newbery['pp'], 1);
+      expect(newbery['pts'], 0);
+      expect(newbery['gf'], 1);
+      expect(newbery['gc'], 4);
+      expect(newbery['dg'], -3);
+
+      // Junior empató: 1 pt
+      final junior = res2011.rows.firstWhere((r) => r['name'] == 'Junior');
+      expect(junior['pj'], 1);
+      expect(junior['pe'], 1);
+      expect(junior['pts'], 1);
+
+      // Los Pibes empató: 1 pt
+      final losPibes = res2011.rows.firstWhere((r) => r['name'] == 'Los Pibes');
+      expect(losPibes['pj'], 1);
+      expect(losPibes['pe'], 1);
+      expect(losPibes['pts'], 1);
+
+      // Clubes que no jugaron quedan con 0 pj y 0 pts
+      final sanCarlos = res2011.rows.firstWhere((r) => r['name'] == 'San Carlos');
+      expect(sanCarlos['pj'], 0);
+      expect(sanCarlos['pts'], 0);
+    });
+
+    test('Torneo Clausura sums fechas 20-38 while Torneo Apertura stays at 0 when only 20-23 exist', () {
+      final jornadas = [
+        {
+          'id': 'jornada_20',
+          'fechaNumber': 20,
+          'tournamentType': 'clausura',
+          'matches': [
+            {
+              'homeTeam': 'Marconi',
+              'awayTeam': 'Jorge Newbery',
+              'categories': {
+                '2011': {'homeGoals': 4, 'awayGoals': 1},
+              },
+            }
+          ],
+        },
+        {
+          'id': 'jornada_21',
+          'fechaNumber': 21,
+          'tournamentType': 'clausura',
+          'matches': [
+            {
+              'homeTeam': 'Junior',
+              'awayTeam': 'Jorge Newbery',
+              'categories': {
+                '2011': {'homeGoals': 2, 'awayGoals': 0},
+              },
+            }
+          ],
+        }
+      ];
+
+      // Clausura: suma las 2 fechas
+      final resClausura = computeStandingsWithJornadas(
+        jornadas: jornadas,
+        clubs: [],
+        category: '2011',
+        tournament: 'clausura',
+      );
+      expect(resClausura.appliedFechas, [20, 21]);
+      final marconi = resClausura.rows.firstWhere((r) => r['name'] == 'Marconi');
+      expect(marconi['pj'], 1);
+      expect(marconi['pts'], 2);
+
+      // Apertura: ninguna fecha corresponde a Apertura (1 a 19), todo queda en 0
+      final resApertura = computeStandingsWithJornadas(
+        jornadas: jornadas,
+        clubs: [],
+        category: '2011',
+        tournament: 'apertura',
+      );
+      expect(resApertura.appliedFechas.isEmpty, true);
+      final marconiAp = resApertura.rows.firstWhere((r) => r['name'] == 'Marconi');
+      expect(marconiAp['pj'], 0);
+      expect(marconiAp['pts'], 0);
+      final newberyAp = resApertura.rows.firstWhere((r) => (r['name'] as String).contains('Newbery'));
+      expect(newberyAp['pj'], 0);
+      expect(newberyAp['pts'], 0);
+    });
   });
 }
