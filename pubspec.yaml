@@ -1,7 +1,7 @@
 name: jorge_newbery_app
 description: "App oficial del club ASOC. DEPORTIVA INF. Y JUV. JORGE NEWBERY"
 publish_to: 'none'
-version: 5.15.11+34
+version: 5.15.12+35
 
 environment:
   sdk: ^3.12.1
