@@ -85,9 +85,16 @@ class _CreateProductScreenState extends ConsumerState<CreateProductScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final picked = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 800);
+      final picked = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 1200);
       if (picked != null) {
-        setState(() => _localImage = File(picked.path));
+        final bytes = await picked.readAsBytes();
+        final ext = picked.path.split('.').last;
+        final tempDir = Directory.systemTemp;
+        final targetFile = File('${tempDir.path}/picked_product_${DateTime.now().millisecondsSinceEpoch}.$ext');
+        await targetFile.writeAsBytes(bytes);
+        if (mounted) {
+          setState(() => _localImage = targetFile);
+        }
       }
     } catch (e) {
       AppLogger.error('Error picking image', error: e, tag: 'App');

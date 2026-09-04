@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 
 import 'app_logger.dart';
 
@@ -32,9 +32,10 @@ class ImageUploadService {
     final endpoint = isPdfOrImage ? _apiUrl : _rawApiUrl;
 
     try {
+      final bytes = await file.readAsBytes();
       final request = http.MultipartRequest('POST', Uri.parse(endpoint));
       request.fields['upload_preset'] = _uploadPreset;
-      request.files.add(await http.MultipartFile.fromPath('file', file.path, filename: fileName));
+      request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
 
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
@@ -103,10 +104,37 @@ class ImageUploadService {
   /// Helper to post the image to Cloudinary API.
   static Future<String> _uploadToCloudinary(File file) async {
     try {
-      final compressedFile = await _compressFile(file);
+      Uint8List bytes;
+      if (await file.exists()) {
+        bytes = await file.readAsBytes();
+      } else {
+        throw Exception('El archivo de imagen no existe o no se pudo acceder.');
+      }
+
+      // Try compressing bytes safely
+      Uint8List uploadBytes = bytes;
+      try {
+        final compressed = await FlutterImageCompress.compressWithList(
+          bytes,
+          quality: 80,
+          minWidth: 1080,
+        );
+        if (compressed.isNotEmpty) {
+          uploadBytes = compressed;
+        }
+      } catch (e) {
+        AppLogger.error('Image compression failed, proceeding with original bytes', error: e, tag: 'ImageUpload');
+      }
+
       final request = http.MultipartRequest('POST', Uri.parse(_apiUrl));
       request.fields['upload_preset'] = _uploadPreset;
-      request.files.add(await http.MultipartFile.fromPath('file', compressedFile.path));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          uploadBytes,
+          filename: 'upload_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        ),
+      );
 
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
@@ -115,36 +143,12 @@ class ImageUploadService {
       if (response.statusCode == 200) {
         return jsonMap['secure_url'] as String;
       } else {
-        AppLogger.error('Cloudinary upload failed', error: jsonMap['error']['message'], tag: 'ImageUpload');
-        throw Exception('Error subiendo imagen: ${jsonMap['error']['message']}');
+        AppLogger.error('Cloudinary upload failed', error: jsonMap['error']?['message'], tag: 'ImageUpload');
+        throw Exception('Error subiendo imagen: ${jsonMap['error']?['message'] ?? 'Error desconocido'}');
       }
     } catch (e) {
       AppLogger.error('Exception uploading image', error: e, tag: 'ImageUpload');
       rethrow;
     }
-  }
-
-  static Future<File> _compressFile(File file) async {
-    try {
-      final dir = await getTemporaryDirectory();
-      final targetPath = '${dir.absolute.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      final result = await FlutterImageCompress.compressAndGetFile(
-        file.absolute.path,
-        targetPath,
-        quality: 80,
-        minWidth: 1080,
-      );
-
-      if (result != null) {
-        final compressedFile = File(result.path);
-        if (await compressedFile.exists() && await compressedFile.length() > 0) {
-          return compressedFile;
-        }
-      }
-    } catch (e) {
-      AppLogger.error('Image compression failed, proceeding with original file', error: e, tag: 'ImageUpload');
-    }
-    return file;
   }
 }
