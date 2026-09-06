@@ -209,13 +209,24 @@ class OneSignalService {
       } else if (targetCategory != null &&
           targetCategory.isNotEmpty &&
           targetCategory != 'all' &&
-          targetCategory != 'todos') {
+          targetCategory != 'todos' &&
+          targetCategory != 'general') {
+        final catClean = targetCategory.toLowerCase().trim();
         payload['filters'] = [
           {
             'field': 'tag',
             'key': 'category',
             'relation': '=',
             'value': targetCategory,
+          },
+          {
+            'operator': 'OR',
+          },
+          {
+            'field': 'tag',
+            'key': 'cat_$catClean',
+            'relation': '=',
+            'value': 'true',
           }
         ];
       } else {

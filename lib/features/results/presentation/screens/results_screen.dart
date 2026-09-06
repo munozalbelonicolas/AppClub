@@ -1558,12 +1558,12 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       final hName = match['homeTeam'] ?? match['homeClubName'] ?? 'Jorge Newbery';
                       final aName = match['awayTeam'] ?? match['awayClubName'] ?? 'Rival';
 
-                      // 1. Notificación push por partido finalizado a todos los usuarios
+                      // 1. Notificación push por partido finalizado a la categoría específica
                       NotificationService().sendNotification(
                         title: '⚽ ¡Final del partido! Cat. $matchCat',
                         body: '$hName $hScore - $aScore $aName',
                         authorId: sUser?.id ?? '',
-                        targetCategory: 'all',
+                        targetCategory: matchCat,
                         data: {
                           'type': 'match_result',
                           'fixtureId': fixture['id'],

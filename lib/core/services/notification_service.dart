@@ -156,7 +156,13 @@ class NotificationService {
   DateTime _sessionStartTime = DateTime.now();
 
   /// Listens to real-time notifications in Firestore and displays local notifications
-  void startNotificationStream(String currentUserId, {String? userCategory, String? userRole, bool? isAdmin}) {
+  void startNotificationStream(
+    String currentUserId, {
+    String? userCategory,
+    List<String>? assignedCategories,
+    String? userRole,
+    bool? isAdmin,
+  }) {
     _notificationSubscription?.cancel();
     _sessionStartTime = DateTime.now().subtract(const Duration(seconds: 5));
 
@@ -182,15 +188,26 @@ class NotificationService {
 
             final type = data['type']?.toString().toLowerCase().trim() ?? '';
 
-            // Si es administrador, no recibir convocatorias de partidos
+            // 1. Reglas de exclusión para administradores
             if (isUserAdmin && (type == 'convocatoria' || type == 'partido')) {
               continue;
+            }
+
+            // 2. Reglas de exclusión para no-administradores
+            if (!isUserAdmin) {
+              // No recibir solicitudes de aprobación o informes de DTs ajenos
+              if (type == 'new_user_pending' || type == 'pending_approval') {
+                continue;
+              }
+              if (type == 'coach_report' && authorId != currentUserId && targetUserId != currentUserId) {
+                continue;
+              }
             }
 
             bool isForMe = false;
             // 'private' notifications (e.g. chat messages) are delivered exclusively
             // via OneSignal push, a menos que el usuario sea el destinatario directo.
-            if (targetCategory == 'private') {
+            if (targetCategory == 'private' || type == 'private_chat' || type == 'chat') {
               isForMe = (targetUserId == currentUserId) ||
                   (targetUserIds != null && targetUserIds.map((e) => e.toString()).contains(currentUserId));
             } else if (targetUserIds != null &&
@@ -204,7 +221,8 @@ class NotificationService {
             } else if (targetCategory == 'admin' ||
                 targetCategory == 'directivo' ||
                 targetRole == 'directivo' ||
-                targetRole == 'admin') {
+                targetRole == 'admin' ||
+                targetRole == 'secretario') {
               isForMe = isUserAdmin;
             } else if (targetRole.isNotEmpty &&
                 targetRole != 'all' &&
@@ -213,10 +231,15 @@ class NotificationService {
                   userRole.toLowerCase() == targetRole.toLowerCase();
             } else if (targetCategory.isNotEmpty &&
                 targetCategory != 'all' &&
-                targetCategory != 'todos') {
-              isForMe = userCategory != null &&
+                targetCategory != 'todos' &&
+                targetCategory != 'general') {
+              final catLower = targetCategory.toLowerCase().trim();
+              final isMatchUserCat = userCategory != null &&
                   userCategory.isNotEmpty &&
-                  userCategory.toLowerCase() == targetCategory.toLowerCase();
+                  userCategory.toLowerCase().trim() == catLower;
+              final isMatchAssigned = assignedCategories != null &&
+                  assignedCategories.any((c) => c.toLowerCase().trim() == catLower);
+              isForMe = isMatchUserCat || isMatchAssigned;
             } else {
               isForMe = true;
             }

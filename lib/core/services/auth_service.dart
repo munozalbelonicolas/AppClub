@@ -525,17 +525,34 @@ class AuthService {
     NotificationService().startNotificationStream(
       uid,
       userCategory: session.category,
+      assignedCategories: session.assignedCategories,
       userRole: session.role,
       isAdmin: isUserAdmin,
     );
 
     // Sync OneSignal user ID & segment tags
     OneSignalService().loginUser(uid);
-    OneSignalService().setUserTags({
+    final oneSignalTags = <String, String>{
       'role': session.role,
       if (isUserAdmin) 'isAdmin': 'true',
-      if (session.category != null) 'category': session.category!,
-    });
+      if (session.category != null && session.category!.trim().isNotEmpty)
+        'category': session.category!.trim(),
+    };
+
+    if (session.category != null && session.category!.trim().isNotEmpty) {
+      oneSignalTags['cat_${session.category!.toLowerCase().trim()}'] = 'true';
+    }
+
+    if (session.assignedCategories != null && session.assignedCategories!.isNotEmpty) {
+      oneSignalTags['categories'] = session.assignedCategories!.join(',');
+      for (final cat in session.assignedCategories!) {
+        final cleanCat = cat.toLowerCase().trim();
+        if (cleanCat.isNotEmpty) {
+          oneSignalTags['cat_$cleanCat'] = 'true';
+        }
+      }
+    }
+    OneSignalService().setUserTags(oneSignalTags);
 
     return session;
   }

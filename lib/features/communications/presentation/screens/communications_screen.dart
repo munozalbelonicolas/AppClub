@@ -468,11 +468,14 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
 
                         // Disparar Notificación Push vía OneSignal
                         try {
+                          final notifTargetCat = (eventType != 'ninguno' && selectedEventCategory != null && selectedEventCategory!.isNotEmpty)
+                              ? selectedEventCategory!
+                              : selectedCategory;
                           await NotificationService().sendNotification(
                             title: '📢 Nuevo Comunicado: ${titleController.text.trim()}',
                             body: bodyController.text.trim(),
                             authorId: sessionUser.id,
-                            targetCategory: selectedCategory,
+                            targetCategory: notifTargetCat,
                           );
                         } catch (_) {}
 

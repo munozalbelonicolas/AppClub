@@ -285,46 +285,95 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
             final sUser = widget.sessionUser;
             final uid = sUser?.id?.toString();
 
-            // Filtrar notificaciones para la vista de Administración
+            // Filtrar notificaciones según el rol y categorías del usuario
             final allDocs = rawDocs.where((doc) {
-              if (sUser?.isAdmin != true) return true;
               final data = doc.data() as Map<String, dynamic>;
               final type = data['type']?.toString().toLowerCase().trim() ?? '';
               final targetCat = data['targetCategory']?.toString().toLowerCase().trim() ?? '';
               final targetRole = data['targetRole']?.toString().toLowerCase().trim() ?? '';
               final targetUserId = data['targetUserId']?.toString().trim() ?? '';
               final targetUserIds = data['targetUserIds'] as List<dynamic>?;
+              final authorId = data['authorId']?.toString().trim() ?? '';
 
-              // Excluir convocatorias a partidos
-              if (type == 'convocatoria' || type == 'partido') return false;
+              // ─── REGLAS PARA ADMINISTRADORES / DIRECTIVOS ───
+              if (sUser?.isAdmin == true) {
+                // Excluir convocatorias a partidos
+                if (type == 'convocatoria' || type == 'partido') return false;
 
-              // Excluir mensajes privados entre otros usuarios
-              if (targetCat == 'private' || type == 'private_chat') {
+                // Excluir mensajes privados entre otros usuarios
+                if (targetCat == 'private' || type == 'private_chat' || type == 'chat') {
+                  return (uid != null && uid.isNotEmpty && targetUserId == uid) ||
+                      (targetUserIds != null && uid != null && targetUserIds.map((e) => e.toString()).contains(uid));
+                }
+
+                // 1. Solicitudes de aprobación de usuarios nuevos
+                if (type == 'new_user_pending' || type == 'pending_approval') return true;
+
+                // 2. Notas o informes que envíen DTs o familias
+                if (type == 'coach_report' || type == 'family_note' || type == 'informe') return true;
+
+                // 3. Mensajes enviados directamente hacia la administración
+                if (targetRole == 'directivo' ||
+                    targetRole == 'admin' ||
+                    targetRole == 'secretario' ||
+                    targetCat == 'admin' ||
+                    targetCat == 'directivo') {
+                  return true;
+                }
+                if (uid != null && uid.isNotEmpty && targetUserId == uid) return true;
+                if (targetUserIds != null && uid != null && targetUserIds.map((e) => e.toString()).contains(uid)) return true;
+
+                // Pedidos de tienda para administradores
+                if (type == 'new_order') return true;
+
+                return false;
+              }
+
+              // ─── REGLAS PARA USUARIOS NO-ADMIN (DT, TUTOR, JUGADOR, SOCIO) ───
+              // 1. Excluir avisos administrativos internos
+              if (type == 'new_user_pending' || type == 'pending_approval') return false;
+              if (type == 'coach_report' && authorId != uid && targetUserId != uid) return false;
+
+              // 2. Mensajes privados / chats directos
+              if (targetCat == 'private' || type == 'private_chat' || type == 'chat') {
                 return (uid != null && uid.isNotEmpty && targetUserId == uid) ||
                     (targetUserIds != null && uid != null && targetUserIds.map((e) => e.toString()).contains(uid));
               }
 
-              // 1. Solicitudes de aprobación de usuarios nuevos
-              if (type == 'new_user_pending' || type == 'pending_approval') return true;
-
-              // 2. Notas o informes que envíen DTs o familias
-              if (type == 'coach_report' || type == 'family_note' || type == 'informe') return true;
-
-              // 3. Mensajes enviados directamente hacia la administración
-              if (targetRole == 'directivo' ||
-                  targetRole == 'admin' ||
-                  targetRole == 'secretario' ||
-                  targetCat == 'admin' ||
-                  targetCat == 'directivo') {
-                return true;
+              // 3. Destinatario de usuario directo
+              if (targetUserIds != null && targetUserIds.isNotEmpty) {
+                return uid != null && targetUserIds.map((e) => e.toString()).contains(uid);
               }
-              if (uid != null && uid.isNotEmpty && targetUserId == uid) return true;
-              if (targetUserIds != null && uid != null && targetUserIds.map((e) => e.toString()).contains(uid)) return true;
+              if (targetUserId.isNotEmpty && targetUserId != 'all' && targetUserId != 'todos') {
+                return targetUserId == uid;
+              }
 
-              // Pedidos de tienda para administradores
-              if (type == 'new_order') return true;
+              // 4. Filtrado por rol de destino
+              if (targetRole.isNotEmpty && targetRole != 'all' && targetRole != 'todos') {
+                return targetRole == (sUser?.role ?? '').toLowerCase().trim();
+              }
 
-              return false;
+              // 5. Filtrado por categoría de destino
+              if (targetCat.isNotEmpty &&
+                  targetCat != 'all' &&
+                  targetCat != 'todos' &&
+                  targetCat != 'general') {
+                // Coincidencia con categoría principal
+                if (sUser?.category != null &&
+                    targetCat == sUser!.category!.toLowerCase().trim()) {
+                  return true;
+                }
+                // Coincidencia con categorías asignadas (Perfil DT)
+                if (sUser?.assignedCategories != null) {
+                  return (sUser!.assignedCategories as List).any(
+                    (c) => c.toString().toLowerCase().trim() == targetCat,
+                  );
+                }
+                return false;
+              }
+
+              // Avisos globales institucionales
+              return true;
             }).toList();
 
             final unreadDocs = allDocs.where((doc) {

@@ -46,6 +46,17 @@ class AnnouncementRepository {
         final cat = ann['category']?.toString().toLowerCase().trim();
         final eventCat = ann['eventCategory']?.toString().toLowerCase().trim();
 
+        // Si el comunicado está asociado a un evento/partido con categoría específica, se prioriza esa categoría
+        if (eventCat != null &&
+            eventCat.isNotEmpty &&
+            eventCat != 'all' &&
+            eventCat != 'todos' &&
+            eventCat != 'general' &&
+            eventCat != 'sin categoría' &&
+            eventCat != 'sin categoria') {
+          return lowerCategories.contains(eventCat);
+        }
+
         if (cat == null ||
             cat.isEmpty ||
             cat == 'todos' ||
@@ -57,10 +68,6 @@ class AnnouncementRepository {
         }
 
         if (lowerCategories.contains(cat)) {
-          return true;
-        }
-
-        if (eventCat != null && lowerCategories.contains(eventCat)) {
           return true;
         }
 
