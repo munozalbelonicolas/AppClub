@@ -28,6 +28,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   String _searchQuery = '';
   String _selectedCategoryFilter = 'Todas';
 
+  Stream<QuerySnapshot>? _threadsStream;
+  String? _cachedUserId;
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -268,19 +271,23 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   }
 
   Widget _buildThreadsStream(dynamic currentUser) {
-    final query = FirebaseFirestore.instance.collection('inbox_threads');
+    if (_threadsStream == null || _cachedUserId != currentUser.id) {
+      _cachedUserId = currentUser.id;
+      final query = FirebaseFirestore.instance.collection('inbox_threads');
 
-    // Auditors (admin/directivo/secretario) see ALL threads for institutional oversight.
-    // DTs, coaches and normal users only see their own threads.
-    Query filteredQuery;
-    if (_isAuditor(currentUser)) {
-      filteredQuery = query; // all threads – sorted in-memory below
-    } else {
-      // Normal users, DTs, coaches, tutors, socios, jugadores – only own threads
-      filteredQuery = query.where(
-        'participants',
-        arrayContains: currentUser.id,
-      );
+      // Auditors (admin/directivo/secretario) see ALL threads for institutional oversight.
+      // DTs, coaches and normal users only see their own threads.
+      Query filteredQuery;
+      if (_isAuditor(currentUser)) {
+        filteredQuery = query; // all threads – sorted in-memory below
+      } else {
+        // Normal users, DTs, coaches, tutors, socios, jugadores – only own threads
+        filteredQuery = query.where(
+          'participants',
+          arrayContains: currentUser.id,
+        );
+      }
+      _threadsStream = filteredQuery.snapshots();
     }
 
     // NOTE: We do NOT use .orderBy('lastMessageTime') here because
@@ -288,7 +295,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     // Instead we sort in-memory after fetching the documents.
 
     return StreamBuilder<QuerySnapshot>(
-      stream: filteredQuery.snapshots(),
+      stream: _threadsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return ListView.builder(
@@ -811,6 +818,16 @@ class _NewChatUserSelectorState extends State<_NewChatUserSelector> {
   String _searchQuery = '';
   String _selectedRoleFilter = 'Todos';
 
+  late final Stream<QuerySnapshot> _linksStream;
+  late final Stream<QuerySnapshot> _usersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _linksStream = FirebaseFirestore.instance.collection('player_tutor_links').snapshots();
+    _usersStream = FirebaseFirestore.instance.collection('users').snapshots();
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -1017,10 +1034,10 @@ class _NewChatUserSelectorState extends State<_NewChatUserSelector> {
           const SizedBox(height: 8),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('player_tutor_links').snapshots(),
+              stream: _linksStream,
               builder: (context, linksSnapshot) {
                 return StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                  stream: _usersStream,
                   builder: (context, usersSnapshot) {
                     if (usersSnapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());

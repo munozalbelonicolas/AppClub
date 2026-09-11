@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/models/user_session.dart';
 import '../../../../core/providers/convocatoria_provider.dart';
+import '../../../../core/providers/notifications_provider.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/birthday_service.dart';
 import '../../../../core/services/firestore_service.dart';
@@ -490,68 +491,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
       }
     });
-  }
-
-  Stream<int> _unreadMessagesCountStream(dynamic sessionUser) {
-    final db = FirebaseFirestore.instance;
-    if (sessionUser.isNormalUser) {
-      return db
-          .collection('inbox_threads')
-          .where('participants', arrayContains: sessionUser.id)
-          .snapshots()
-          .map(
-            (snap) => snap.docs.where((doc) {
-              final data = doc.data();
-              if (data.containsKey('unreadBy')) {
-                return (data['unreadBy'] as List?)?.contains(sessionUser.id) ??
-                    false;
-              }
-              return (data['unreadByUser'] ?? false) == true;
-            }).length,
-          );
-    } else {
-      return db.collection('inbox_threads').snapshots().map((snap) {
-        var docs = snap.docs;
-        if (sessionUser.role == 'dt') {
-          final assignedCats =
-              sessionUser.assignedCategories
-                  ?.map((c) => c.toLowerCase())
-                  .toList() ??
-              [];
-          if (assignedCats.isEmpty && sessionUser.category != null) {
-            assignedCats.add(sessionUser.category!.toLowerCase());
-          }
-          docs = docs.where((doc) {
-            final data = doc.data();
-            final categoriesMap =
-                data['userCategories'] as Map<String, dynamic>? ?? {};
-            String otherUserId = '';
-            for (final pId in data['participants'] ?? []) {
-              if (pId != sessionUser.id) {
-                otherUserId = pId;
-                break;
-              }
-            }
-            final otherCategory = (categoriesMap[otherUserId] ?? '')
-                .toString()
-                .toLowerCase();
-            final isParticipant =
-                (data['participants'] as List?)?.contains(sessionUser.id) ??
-                false;
-            return assignedCats.contains(otherCategory) || isParticipant;
-          }).toList();
-        }
-        return docs.where((doc) {
-          final data = doc.data();
-          bool isUnread =
-              (data['unreadBy'] as List?)?.contains(sessionUser.id) ?? false;
-          if (!isUnread) {
-            isUnread = (data['unreadByAdmin'] == true);
-          }
-          return isUnread;
-        }).length;
-      });
-    }
   }
 
   @override
@@ -1231,6 +1170,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
+    final unreadMessagesCount = ref.watch(unreadMessagesCountProvider).value ?? 0;
+    final unreadNotificationsCount = ref.watch(unreadNotificationsCountProvider).value ?? 0;
     final isNormalUser = sessionUser.isNormalUser;
     final clubs = ref.watch(clubsStreamProvider).value ?? [];
     final hasPlayer =
@@ -1517,186 +1458,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ],
                       ),
                     ),
-                    StreamBuilder<int>(
-                      stream: _unreadMessagesCountStream(sessionUser),
-                      builder: (context, snapshot) {
-                        final count = snapshot.data ?? 0;
-                        return Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.mail_outline,
-                                color: context.colors.textPrimary,
-                                size: 26,
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.mail_outline,
+                            color: context.colors.textPrimary,
+                            size: 26,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const InboxScreen(),
                               ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const InboxScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                            if (count > 0)
-                              Positioned(
-                                top: 4,
-                                right: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: context.colors.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 16,
-                                    minHeight: 16,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '$count',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                            );
+                          },
+                        ),
+                        if (unreadMessagesCount > 0)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: context.colors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$unreadMessagesCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-                          ],
-                        );
-                      },
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(width: 8),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('notifications')
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        int unreadCount = 0;
-                        if (snapshot.hasData) {
-                          bool isDocRead(Map<String, dynamic> data) {
-                            if (data['read'] == true) return true;
-                            if (sessionUser.id.isNotEmpty) {
-                              if (data['readBy'] is List &&
-                                  (data['readBy'] as List).contains(sessionUser.id)) {
-                                return true;
-                              }
-                            }
-                            return false;
-                          }
-
-                          unreadCount = snapshot.data!.docs.where((d) {
-                            final data = d.data() as Map<String, dynamic>;
-                            if (isDocRead(data)) return false;
-
-                            final type = data['type']?.toString().toLowerCase().trim() ?? '';
-                            final targetCat = data['targetCategory']?.toString().toLowerCase().trim() ?? '';
-                            final targetRole = data['targetRole']?.toString().toLowerCase().trim() ?? '';
-                            final targetUserId = data['targetUserId']?.toString().trim() ?? '';
-                            final targetUserIds = data['targetUserIds'] as List<dynamic>?;
-
-                            // ─── REGLAS PARA ADMINISTRADORES ───
-                            if (sessionUser.isAdmin) {
-                              // Exclusión explícita: Convocatorias a partidos
-                              if (type == 'convocatoria' || type == 'partido') return false;
-
-                              // Exclusión explícita: Mensajes privados entre otros usuarios
-                              if (targetCat == 'private' || type == 'private_chat') {
-                                return targetUserId == sessionUser.id ||
-                                    (targetUserIds != null && targetUserIds.map((e) => e.toString()).contains(sessionUser.id));
-                              }
-
-                              // 1. Solicitud de usuarios nuevos para aprobación
-                              if (type == 'new_user_pending' || type == 'pending_approval') return true;
-
-                              // 2. Notas o informes que envíen DTs o familias
-                              if (type == 'coach_report' || type == 'family_note' || type == 'informe') return true;
-
-                              // 3. Mensajes enviados directamente hacia los administradores
-                              if (targetRole == 'directivo' ||
-                                  targetRole == 'admin' ||
-                                  targetRole == 'secretario' ||
-                                  targetCat == 'admin' ||
-                                  targetCat == 'directivo') {
-                                return true;
-                              }
-                              if (targetUserId == sessionUser.id) return true;
-                              if (targetUserIds != null && targetUserIds.map((e) => e.toString()).contains(sessionUser.id)) return true;
-
-                              // Pedidos de tienda para administradores
-                              if (type == 'new_order') return true;
-
-                              return false;
-                            }
-
-                            // ─── REGLAS PARA USUARIOS GENERALES ───
-                            if (type == 'new_user_pending' || type == 'coach_report') return false;
-
-                            if (targetUserIds != null && targetUserIds.isNotEmpty) {
-                              return targetUserIds.map((e) => e.toString()).contains(sessionUser.id);
-                            }
-                            if (targetUserId.isNotEmpty && targetUserId != 'all' && targetUserId != 'todos') {
-                              return targetUserId == sessionUser.id;
-                            }
-                            if (targetRole.isNotEmpty && targetRole != 'all' && targetRole != 'todos') {
-                              return targetRole == sessionUser.role;
-                            }
-                            if (targetCat.isNotEmpty && targetCat != 'all' && targetCat != 'todos') {
-                              if (sessionUser.category != null &&
-                                  targetCat == sessionUser.category!.toLowerCase().trim()) {
-                                return true;
-                              }
-                              if (sessionUser.assignedCategories != null) {
-                                return (sessionUser.assignedCategories as List)
-                                    .any((c) => c.toString().toLowerCase().trim() == targetCat);
-                              }
-                              return false;
-                            }
-                            return targetCat == 'all' || targetCat == 'todos' || targetUserId == 'all';
-                          }).length;
-                        }
-                        return Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.notifications_outlined,
-                                color: context.colors.textPrimary,
-                                size: 26,
-                              ),
-                              onPressed: () =>
-                                  showAdminNotificationsDialog(context, sessionUser: sessionUser),
-                            ),
-                            if (unreadCount > 0)
-                              Positioned(
-                                right: 4,
-                                top: 4,
-                                child: IgnorePointer(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                                    decoration: BoxDecoration(
-                                      color: context.colors.error,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      unreadCount > 99 ? '99+' : '$unreadCount',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.notifications_outlined,
+                            color: context.colors.textPrimary,
+                            size: 26,
+                          ),
+                          onPressed: () =>
+                              showAdminNotificationsDialog(context, sessionUser: sessionUser),
+                        ),
+                        if (unreadNotificationsCount > 0)
+                          Positioned(
+                            right: 4,
+                            top: 4,
+                            child: IgnorePointer(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                decoration: BoxDecoration(
+                                  color: context.colors.error,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  unreadNotificationsCount > 99 ? '99+' : '$unreadNotificationsCount',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-                          ],
-                        );
-                      },
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
