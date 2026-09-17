@@ -124,28 +124,48 @@ class NotificationService {
     }
   }
 
-  /// Save or update user FCM Token in Firestore profile
+  /// Save or update user FCM Token in Firestore profile (idempotent: avoids redundant writes)
   Future<void> saveTokenUser(String userId) async {
     try {
       if (userId.isEmpty) return;
       final token = await _messaging.getToken();
       if (token != null && token.isNotEmpty) {
-        await FirebaseFirestore.instance.collection('users').doc(userId).set({
-          'fcmToken': token,
-          'fcmTokens': FieldValue.arrayUnion([token]),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        AppLogger.debug('FCM Token successfully registered for user $userId', tag: 'FCM');
+        final userDocSnap = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+        if (userDocSnap.exists) {
+          final data = userDocSnap.data();
+          final currentFcmToken = data?['fcmToken']?.toString();
+          final currentTokens = (data?['fcmTokens'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+          if (currentFcmToken == token && currentTokens.contains(token)) {
+            AppLogger.debug('FCM Token already up to date for user $userId, write avoided', tag: 'FCM');
+          } else {
+            await FirebaseFirestore.instance.collection('users').doc(userId).set({
+              'fcmToken': token,
+              'fcmTokens': FieldValue.arrayUnion([token]),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+            AppLogger.debug('FCM Token successfully updated for user $userId', tag: 'FCM');
+          }
+        } else {
+          await FirebaseFirestore.instance.collection('users').doc(userId).set({
+            'fcmToken': token,
+            'fcmTokens': FieldValue.arrayUnion([token]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
       }
 
       // Listen for token updates
       _messaging.onTokenRefresh.listen((newToken) async {
-        await FirebaseFirestore.instance.collection('users').doc(userId).set({
-          'fcmToken': newToken,
-          'fcmTokens': FieldValue.arrayUnion([newToken]),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        if (newToken.isEmpty) return;
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(userId).set({
+            'fcmToken': newToken,
+            'fcmTokens': FieldValue.arrayUnion([newToken]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (e) {
+          AppLogger.error('Error updating refreshed FCM Token for user $userId', error: e, tag: 'FCM');
+        }
       });
     } catch (e) {
       AppLogger.error('Error saving FCM Token for user $userId', error: e, tag: 'FCM');
@@ -263,6 +283,10 @@ class NotificationService {
     );
   }
 
+  /// Motivo del último push que no salió. Lo usa la UI para mostrarle al
+  /// usuario qué falló, en vez de fallar en silencio.
+  static String? lastPushError;
+
   static final Map<String, DateTime> _recentlyHandledNotifications = {};
   static final Map<String, DateTime> _recentlySentNotifications = {};
 
@@ -312,8 +336,12 @@ class NotificationService {
     );
   }
 
-  /// Helper to push a new notification document to Firestore and trigger OneSignal Push
-  Future<void> sendNotification({
+  /// Helper to push a new notification document to Firestore and trigger OneSignal Push.
+  ///
+  /// Devuelve `true` si OneSignal aceptó el envío del push (no sólo si se
+  /// guardó el documento en Firestore), para que la pantalla que la dispara
+  /// pueda avisarle al usuario cuando el push no sale.
+  Future<bool> sendNotification({
     required String title,
     required String body,
     required String authorId,
@@ -321,13 +349,14 @@ class NotificationService {
     String? targetCategory,
     Map<String, dynamic>? data,
   }) async {
+    lastPushError = null;
     try {
       final now = DateTime.now();
       _recentlySentNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 10);
       final sendKey = '${title.trim().toLowerCase()}:${body.trim().toLowerCase()}:${targetUserId ?? ''}:${targetCategory ?? ''}';
       if (_recentlySentNotifications.containsKey(sendKey)) {
         AppLogger.warning('🛑 Notificación saliente duplicada prevenida: $title', tag: 'NotificationService');
-        return;
+        return true;
       }
       _recentlySentNotifications[sendKey] = now;
 
@@ -350,7 +379,7 @@ class NotificationService {
       });
 
       // 2. Enviar notificación Push real a los dispositivos vía OneSignal
-      await OneSignalService().sendPushNotification(
+      final pushSent = await OneSignalService().sendPushNotification(
         title: title,
         body: body,
         targetUserId: effectiveTargetUser,
@@ -360,13 +389,29 @@ class NotificationService {
           ...?data,
         },
       );
+
+      if (!pushSent) {
+        // Se permite reenviar enseguida: el push no llegó a destino.
+        _recentlySentNotifications.remove(sendKey);
+        lastPushError = OneSignalService.lastErrorDetail ?? 'OneSignal no aceptó el envío.';
+        AppLogger.error(
+          '❌ El push de OneSignal no pudo enviarse: $title ($lastPushError)',
+          tag: 'NotificationService',
+        );
+      }
+
+      return pushSent;
     } catch (e) {
+      // Ojo: si esto salta antes del envío (por ejemplo al escribir en
+      // Firestore), el push nunca se intenta. Por eso se distingue el motivo.
+      lastPushError = 'Falló antes de llegar a OneSignal: $e';
       AppLogger.error('Error sending notification doc', error: e, tag: 'FCM');
+      return false;
     }
   }
 
   /// Envia una notificación push inmediata y registra el evento para administradores y directivos
-  Future<void> notifyAdmins({
+  Future<bool> notifyAdmins({
     required String title,
     required String body,
     String? authorId,
@@ -379,7 +424,7 @@ class NotificationService {
       final sendKey = 'admin:${title.trim().toLowerCase()}:${body.trim().toLowerCase()}';
       if (_recentlySentNotifications.containsKey(sendKey)) {
         AppLogger.warning('🛑 Notificación a administradores duplicada prevenida: $title', tag: 'NotificationService');
-        return;
+        return true;
       }
       _recentlySentNotifications[sendKey] = now;
 
@@ -398,7 +443,7 @@ class NotificationService {
       });
 
       // 2. Enviar Push real vía OneSignal para administradores
-      await OneSignalService().sendPushNotification(
+      final pushSent = await OneSignalService().sendPushNotification(
         title: title,
         body: body,
         targetCategory: 'admin',
@@ -408,10 +453,17 @@ class NotificationService {
           ...?extraData,
         },
       );
+
+      if (!pushSent) {
+        _recentlySentNotifications.remove(sendKey);
+      }
+
+      return pushSent;
     } catch (e) {
       if (kDebugMode) {
         print('Error notifying admins: $e');
       }
+      return false;
     }
   }
 }

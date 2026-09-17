@@ -57,11 +57,17 @@ final tutorConvocatoriasProvider =
           tutorIds.contains(userId);
       final status = d['status']?.toString();
       final isPending = status == 'pending' || status == null || status.isEmpty;
+      final matchId = d['matchId']?.toString() ?? doc.id;
+      final pId = playerId ?? userId;
+
+      // Importante: Marcar como manejada cualquier convocatoria ya procesada por este usuario
+      // para que el fallback de matches no la vuelva a agregar como pendiente.
+      if (isForUser) {
+        handledPlayerMatchKeys.add('${matchId}_$pId');
+        handledPlayerMatchKeys.add(doc.id);
+      }
 
       if (isForUser && isPending) {
-        final matchId = d['matchId']?.toString() ?? doc.id;
-        final pId = playerId ?? userId;
-        handledPlayerMatchKeys.add('${matchId}_$pId');
         result.add({'id': doc.id, ...d});
       }
     }
@@ -170,6 +176,7 @@ Future<void> updateConvocatoriaStatus({
   required String status, // 'confirmed' or 'rejected'
   String? tutorId,
   String? rejectionReason,
+  String? docId,
 }) async {
   final db = FirebaseFirestore.instance;
   final updateData = <String, dynamic>{
@@ -180,26 +187,48 @@ Future<void> updateConvocatoriaStatus({
     updateData['rejectionReason'] = rejectionReason;
   }
 
-  // 1. Update in matches/{matchId}/convocatoria/{playerId}
-  try {
-    await db
-        .collection('matches')
-        .doc(matchId)
-        .collection('convocatoria')
-        .doc(playerId)
-        .set(updateData, SetOptions(merge: true));
-  } catch (_) {}
+  // 1. Actualización directa por ID de documento en tutor_convocatorias si se proporcionó
+  if (docId != null && docId.isNotEmpty) {
+    try {
+      await db.collection('tutor_convocatorias').doc(docId).set(updateData, SetOptions(merge: true));
+    } catch (_) {}
+  }
 
-  // 2. Update matching documents in tutor_convocatorias collection
-  try {
-    final query1 = await db
-        .collection('tutor_convocatorias')
-        .where('playerId', isEqualTo: playerId)
-        .get();
+  // 2. Actualización en matches/{matchId}/convocatoria/{playerId}
+  if (matchId.isNotEmpty && playerId.isNotEmpty) {
+    try {
+      await db
+          .collection('matches')
+          .doc(matchId)
+          .collection('convocatoria')
+          .doc(playerId)
+          .set(updateData, SetOptions(merge: true));
+    } catch (_) {}
+  }
 
-    for (final doc in query1.docs) {
-      final docMatchId = doc.data()['matchId']?.toString();
-      if (docMatchId == null || docMatchId == matchId || doc.id.contains(matchId)) {
+  // 3. Actualizar documentos en tutor_convocatorias por clave directa y búsqueda
+  try {
+    if (matchId.isNotEmpty && playerId.isNotEmpty) {
+      if (tutorId != null && tutorId.isNotEmpty) {
+        await db
+            .collection('tutor_convocatorias')
+            .doc('${matchId}_${tutorId}_$playerId')
+            .set(updateData, SetOptions(merge: true));
+      }
+      await db
+          .collection('tutor_convocatorias')
+          .doc('${matchId}_$playerId')
+          .set(updateData, SetOptions(merge: true));
+    }
+
+    if (playerId.isNotEmpty && matchId.isNotEmpty) {
+      final query1 = await db
+          .collection('tutor_convocatorias')
+          .where('playerId', isEqualTo: playerId)
+          .where('matchId', isEqualTo: matchId)
+          .get();
+
+      for (final doc in query1.docs) {
         await doc.reference.set(updateData, SetOptions(merge: true));
       }
     }

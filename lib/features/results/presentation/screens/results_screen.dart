@@ -339,7 +339,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                           ],
                         ),
 
-                        // Botón de Cargar Jornada Completa (Solo Admin)
+                        // Botón de Cargar Jornada Completa (Solo Directivos/Admin)
                         if (isAdmin && allMatches.isNotEmpty)
                           InkWell(
                             onTap: () => _showFullMatchdayResultsModal(
@@ -870,7 +870,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                                             ),
                                           ),
 
-                                          // Botón Resultado (Solo Admin)
+                                          // Botón Resultado (Solo Directivos/Admin)
                                           if (isAdmin) ...[
                                             const SizedBox(width: 5),
                                             InkWell(
@@ -1284,12 +1284,38 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       'matches': updatedMatches,
                     });
 
+                    // Notificación push a todos los perfiles de la jornada cargada
+                    final sUser = ref.read(currentUserProvider);
+                    final hName = homeClub?['name'] ?? 'Jorge Newbery';
+                    final aName = awayClub?['name'] ?? 'Rival';
+                    int totH = 0;
+                    int totA = 0;
+                    for (final m in updatedMatches) {
+                      totH += (m['homeScore'] as int? ?? 0);
+                      totA += (m['awayScore'] as int? ?? 0);
+                    }
+                    final pushSent = await NotificationService().sendNotification(
+                      title: '⚽ ¡Resultados de la fecha vs $aName!',
+                      body: 'Se actualizaron los resultados de la jornada ($hName $totH - $totA $aName). ¡Mirá todos los partidos en la app!',
+                      authorId: sUser?.id ?? '',
+                      targetCategory: 'all',
+                      data: {
+                        'type': 'matchday_results',
+                        'fixtureId': fixture['id'],
+                      },
+                    );
+
                     if (ctx.mounted) {
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Resultados de la jornada guardados exitosamente!'),
-                          backgroundColor: Colors.green,
+                        SnackBar(
+                          content: Text(
+                            pushSent
+                                ? 'Resultados guardados. Notificación push enviada a todos los usuarios.'
+                                : 'Resultados guardados. El push NO salió: ${NotificationService.lastPushError ?? "motivo desconocido"}',
+                          ),
+                          backgroundColor: pushSent ? Colors.green : Colors.orange.shade800,
+                          duration: Duration(seconds: pushSent ? 3 : 12),
                         ),
                       );
                     }
@@ -1550,65 +1576,82 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       'matches': currentMatches,
                     });
 
-                    // ─── Notificación Push de Resultado ───
-                    final isFinished = status.toLowerCase().contains('final');
-                    if (isFinished) {
-                      final sUser = ref.read(currentUserProvider);
-                      final matchCat = match['category']?.toString() ?? category;
-                      final hName = match['homeTeam'] ?? match['homeClubName'] ?? 'Jorge Newbery';
-                      final aName = match['awayTeam'] ?? match['awayClubName'] ?? 'Rival';
+                    // ─── Notificación Push de Resultado a Todos los Perfiles ───
+                    final sUser = ref.read(currentUserProvider);
+                    final cleanCat = (match['category']?.toString() ?? category)
+                        .replaceAll('Categoría', '')
+                        .replaceAll('Cat.', '')
+                        .replaceAll('Cat', '')
+                        .trim();
+                    final catDisplay = cleanCat.startsWith('20') ? 'Cat. $cleanCat' : cleanCat;
+                    final hName = homeClub?['name'] ?? match['homeTeam'] ?? match['homeClubName'] ?? 'Jorge Newbery';
+                    final aName = awayClub?['name'] ?? match['awayTeam'] ?? match['awayClubName'] ?? 'Rival';
 
-                      // 1. Notificación push por partido finalizado a la categoría específica
-                      NotificationService().sendNotification(
-                        title: '⚽ ¡Final del partido! Cat. $matchCat',
-                        body: '$hName $hScore - $aScore $aName',
+                    final isLive = status.toLowerCase().contains('live') || status.toLowerCase().contains('vivo');
+                    final title = isLive
+                        ? '⚽ ¡Resultado en vivo! $catDisplay'
+                        : '⚽ ¡Resultado final! $catDisplay';
+                    final body = '$hName $hScore - $aScore $aName';
+
+                    // 1. Notificación push a TODOS LOS PERFILES ('all')
+                    bool pushSent = await NotificationService().sendNotification(
+                      title: title,
+                      body: body,
+                      authorId: sUser?.id ?? '',
+                      targetCategory: 'all',
+                      data: {
+                        'type': 'match_result',
+                        'fixtureId': fixture['id'],
+                        'category': cleanCat,
+                      },
+                    );
+
+                    // 2. Comprobar si concluyó toda la jornada/fecha
+                    final allFinished = currentMatches.isNotEmpty &&
+                        currentMatches.every((m) {
+                          final st = (m['status']?.toString() ?? '').toLowerCase();
+                          return st == 'finished' ||
+                              st.contains('final') ||
+                              st.contains('fin') ||
+                              st.contains('susp');
+                        });
+
+                    if (allFinished) {
+                      int totH = 0;
+                      int totA = 0;
+                      for (final m in currentMatches) {
+                        totH += (m['homeScore'] as int? ?? 0);
+                        totA += (m['awayScore'] as int? ?? 0);
+                      }
+                      final jornadaPushSent = await NotificationService().sendNotification(
+                        title: '🏆 ¡Finalizó la fecha vs $aName!',
+                        body: 'Se completaron todos los partidos. Total de la jornada: $hName $totH - $totA $aName. ¡Consultá la tabla en la app!',
                         authorId: sUser?.id ?? '',
-                        targetCategory: matchCat,
+                        targetCategory: 'all',
                         data: {
-                          'type': 'match_result',
+                          'type': 'jornada_finished',
                           'fixtureId': fixture['id'],
-                          'category': matchCat,
                         },
                       );
-
-                      // 2. Comprobar si concluyó toda la jornada/fecha
-                      final allFinished = currentMatches.isNotEmpty &&
-                          currentMatches.every((m) {
-                            final st = (m['status']?.toString() ?? '').toLowerCase();
-                            return st.contains('final') || st.contains('susp');
-                          });
-
-                      if (allFinished) {
-                        int totH = 0;
-                        int totA = 0;
-                        for (final m in currentMatches) {
-                          totH += (m['homeScore'] as int? ?? 0);
-                          totA += (m['awayScore'] as int? ?? 0);
-                        }
-                        NotificationService().sendNotification(
-                          title: '🏆 ¡Finalizó la fecha vs $aName!',
-                          body: 'Se completaron todos los partidos. Total de la jornada: $hName $totH - $totA $aName. ¡Consultá la tabla en la app!',
-                          authorId: sUser?.id ?? '',
-                          targetCategory: 'all',
-                          data: {
-                            'type': 'jornada_finished',
-                            'fixtureId': fixture['id'],
-                          },
-                        );
-                      }
+                      pushSent = pushSent && jornadaPushSent;
                     }
 
                     if (ctx.mounted) {
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Resultado actualizado con éxito!'),
-                          backgroundColor: Colors.green,
+                        SnackBar(
+                          content: Text(
+                            pushSent
+                                ? 'Resultado actualizado y notificado a todos los usuarios.'
+                                : 'Resultado actualizado. El push NO salió: ${NotificationService.lastPushError ?? "motivo desconocido"}',
+                          ),
+                          backgroundColor: pushSent ? Colors.green : Colors.orange.shade800,
+                          duration: Duration(seconds: pushSent ? 3 : 12),
                         ),
                       );
                     }
                   },
-                  child: const Text('Guardar Resultado', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  child: const Text('Guardar Resultado', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -2704,7 +2747,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
 
     if (confirm == true && context.mounted) {
-      await NotificationService().sendNotification(
+      final pushSent = await NotificationService().sendNotification(
         title: '📊 Tablas y Planillas Actualizadas',
         body: 'Se actualizaron las planillas oficiales y la tabla de posiciones de la liga. ¡Revisalas en la app!',
         authorId: sUser?.id ?? '',
@@ -2715,9 +2758,14 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Notificación push enviada a todos los usuarios.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              pushSent
+                  ? 'Notificación push enviada a todos los usuarios.'
+                  : 'El push NO salió: ${NotificationService.lastPushError ?? "motivo desconocido"}',
+            ),
+            backgroundColor: pushSent ? Colors.green : Colors.orange.shade800,
+            duration: Duration(seconds: pushSent ? 3 : 12),
           ),
         );
       }

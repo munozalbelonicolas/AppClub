@@ -9,10 +9,11 @@ class AnnouncementRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   /// Stream of all announcements ordered by date
-  Stream<List<Map<String, dynamic>>> getAnnouncements() {
+  Stream<List<Map<String, dynamic>>> getAnnouncements({int limit = 40}) {
     return _db
         .collection('announcements')
         .orderBy('date', descending: true)
+        .limit(limit)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
@@ -25,8 +26,14 @@ class AnnouncementRepository {
   Stream<List<Map<String, dynamic>>> getAnnouncementsForUser({
     required List<String> categories,
     required bool isAdmin,
+    int limit = 40,
   }) {
-    return _db.collection('announcements').snapshots().map((snapshot) {
+    return _db
+        .collection('announcements')
+        .orderBy('date', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
       final list = snapshot.docs
           .map((doc) => {'id': doc.id, ...doc.data()})
           .toList();

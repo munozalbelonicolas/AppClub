@@ -20,6 +20,16 @@ class ManageQuotasScreen extends ConsumerStatefulWidget {
 class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
   String _selectedCategory = 'Todas';
   String _selectedStatus = 'Todos';
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _quotaOrdersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _quotaOrdersStream = FirebaseFirestore.instance
+        .collection('store_orders')
+        .where('isQuotaPayment', isEqualTo: true)
+        .snapshots();
+  }
 
   String _getPlayerFullName(Map<String, dynamic> player) {
     final name = player['name']?.toString().trim() ?? '';
@@ -321,6 +331,7 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('store_orders')
+              .where('isQuotaPayment', isEqualTo: true)
               .snapshots(),
           builder: (context, snapshot) {
             final allOrders = (snapshot.data?.docs ?? []).map((d) {
@@ -790,10 +801,7 @@ class _ManageQuotasScreenState extends ConsumerState<ManageQuotasScreen> {
 
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('store_orders')
-                  .where('isQuotaPayment', isEqualTo: true)
-                  .snapshots(),
+              stream: _quotaOrdersStream,
               builder: (context, ordersSnap) {
                 final quotaOrders = (ordersSnap.data?.docs ?? []).map((d) => d.data()).toList();
                 // Build a set of playerIds that have uploaded receipts

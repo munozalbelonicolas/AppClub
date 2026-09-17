@@ -19,11 +19,21 @@ class _BirthdaysOfMonthScreenState extends ConsumerState<BirthdaysOfMonthScreen>
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
   late int _selectedMonth;
+  late Stream<QuerySnapshot> _playersStream;
 
   @override
   void initState() {
     super.initState();
     _selectedMonth = DateTime.now().month;
+    _loadPlayers();
+  }
+
+  void _loadPlayers() {
+    _playersStream = FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'jugador')
+        .where('status', isEqualTo: 'active')
+        .snapshots();
   }
 
   @override
@@ -57,12 +67,14 @@ class _BirthdaysOfMonthScreenState extends ConsumerState<BirthdaysOfMonthScreen>
             ),
           ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .where('role', isEqualTo: 'jugador')
-                  .where('status', isEqualTo: 'active')
-                  .snapshots(),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                setState(() {
+                  _loadPlayers();
+                });
+              },
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _playersStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -86,15 +98,22 @@ class _BirthdaysOfMonthScreenState extends ConsumerState<BirthdaysOfMonthScreen>
                 });
 
                 if (birthdayDocs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No hay cumpleaños registrados este mes.',
-                      style: context.typography.bodyLarge.copyWith(color: context.colors.textSecondary),
-                    ),
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                      Center(
+                        child: Text(
+                          'No hay cumpleaños registrados este mes.',
+                          style: context.typography.bodyLarge.copyWith(color: context.colors.textSecondary),
+                        ),
+                      ),
+                    ],
                   );
                 }
 
                 return ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: birthdayDocs.length,
                   separatorBuilder: (context, index) => const Divider(height: 1),
                   itemBuilder: (context, index) {
@@ -119,6 +138,7 @@ class _BirthdaysOfMonthScreenState extends ConsumerState<BirthdaysOfMonthScreen>
                 );
               },
             ),
+          ),
           ),
         ],
       ),

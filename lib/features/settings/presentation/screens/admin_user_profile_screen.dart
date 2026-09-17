@@ -24,6 +24,32 @@ class AdminUserProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen> {
+  late Stream<DocumentSnapshot> _userStream;
+  late Stream<List<Map<String, dynamic>>> _playerTutorsStream;
+  late Stream<List<Map<String, dynamic>>> _tutorPlayersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _initStreams();
+  }
+
+  void _initStreams() {
+    _userStream = FirebaseFirestore.instance.collection('users').doc(widget.userId).snapshots();
+    _playerTutorsStream = _fetchPlayerTutors(widget.userId);
+    _tutorPlayersStream = _fetchTutorPlayers(widget.userId);
+  }
+
+  @override
+  void didUpdateWidget(AdminUserProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      setState(() {
+        _initStreams();
+      });
+    }
+  }
+
   Future<void> _updateStatus(String status, String userName) async {
     try {
       await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({
@@ -442,7 +468,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
         title: const Text('Perfil de Usuario'),
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').doc(widget.userId).snapshots(),
+        stream: _userStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -660,7 +686,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                 Text('Jugadores a cargo', style: context.typography.titleLarge),
                 const SizedBox(height: 12),
                 StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _fetchTutorPlayers(widget.userId),
+                  stream: _tutorPlayersStream,
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                     final players = snapshot.data!;
@@ -713,7 +739,7 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                 Text('Tutores y Co-tutores', style: context.typography.titleLarge),
                 const SizedBox(height: 12),
                 StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _fetchPlayerTutors(widget.userId),
+                  stream: _playerTutorsStream,
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                     final tutors = snapshot.data!;

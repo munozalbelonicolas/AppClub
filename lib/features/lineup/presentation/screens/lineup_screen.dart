@@ -520,10 +520,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
       backgroundColor: context.colors.background,
       appBar: AppBar(title: const Text('Formación del Equipo'), elevation: 0),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('match_lineups')
-            .doc(docId)
-            .snapshots(),
+        stream: ref.watch(matchLineupDocStreamProvider(docId).stream),
         builder: (context, snapshot) {
           Map<String, dynamic>? formationData;
           if (snapshot.hasData && snapshot.data!.exists) {

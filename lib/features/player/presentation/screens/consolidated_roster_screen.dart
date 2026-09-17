@@ -26,6 +26,16 @@ class ConsolidatedRosterScreen extends ConsumerStatefulWidget {
 class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScreen> {
   String? _selectedCategory;
   bool _isExporting = false;
+  late final Stream<QuerySnapshot> _playersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _playersStream = FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'jugador')
+        .snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,10 +122,7 @@ class _ConsolidatedRosterScreenState extends ConsumerState<ConsolidatedRosterScr
 
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .where('role', isEqualTo: 'jugador')
-                  .snapshots(),
+              stream: _playersStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());

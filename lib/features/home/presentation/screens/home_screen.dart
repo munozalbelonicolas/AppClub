@@ -14,6 +14,7 @@ import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/birthday_service.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/services/image_upload_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -42,18 +43,27 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Set<String> _expandedPostIds = {};
   final Set<String> _markedSeenPostIds = {};
+  final Set<String> _handledConvocatoriaIds = {};
   final Map<String, TextEditingController> _commentControllers = {};
 
-  void _confirmAttendance(
-    String matchId,
-    String playerId,
-    String playerName,
-  ) async {
+  void _confirmAttendance({
+    required String matchId,
+    required String playerId,
+    required String playerName,
+    String? docId,
+  }) async {
+    setState(() {
+      if (docId != null && docId.isNotEmpty) _handledConvocatoriaIds.add(docId);
+      if (matchId.isNotEmpty && playerId.isNotEmpty) {
+        _handledConvocatoriaIds.add('${matchId}_$playerId');
+      }
+    });
     try {
       await updateConvocatoriaStatus(
         matchId: matchId,
         playerId: playerId,
         status: 'confirmed',
+        docId: docId,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -76,7 +86,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _rejectAttendance(String matchId, String playerId, String playerName) {
+  void _rejectAttendance({
+    required String matchId,
+    required String playerId,
+    required String playerName,
+    String? docId,
+    String? category,
+  }) {
     final reasonController = TextEditingController();
     showDialog(
       context: context,
@@ -131,13 +147,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             onPressed: () async {
               Navigator.pop(ctx);
+              setState(() {
+                if (docId != null && docId.isNotEmpty) _handledConvocatoriaIds.add(docId);
+                if (matchId.isNotEmpty && playerId.isNotEmpty) {
+                  _handledConvocatoriaIds.add('${matchId}_$playerId');
+                }
+              });
               try {
                 await updateConvocatoriaStatus(
                   matchId: matchId,
                   playerId: playerId,
                   status: 'rejected',
                   rejectionReason: reasonController.text.trim(),
+                  docId: docId,
                 );
+                final sUser = ref.read(currentUserProvider);
+                if (category != null && category.isNotEmpty) {
+                  NotificationService().sendNotification(
+                    title: '⚠️ Convocatoria: $playerName no asiste',
+                    body: 'El tutor de $playerName informó que no asistirá${reasonController.text.trim().isNotEmpty ? ": ${reasonController.text.trim()}" : "."}',
+                    authorId: sUser?.id ?? '',
+                    targetCategory: category,
+                    data: {
+                      'type': 'convocatoria_rejection',
+                      'matchId': matchId,
+                      'playerId': playerId,
+                      'category': category,
+                    },
+                  );
+                }
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -435,8 +473,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       elevation: 2,
                     ),
-                    onPressed: () =>
-                        _confirmAttendance(matchId, playerId, playerName),
+                    onPressed: () => _confirmAttendance(
+                      matchId: matchId,
+                      playerId: playerId,
+                      playerName: playerName,
+                      docId: item['id']?.toString(),
+                    ),
                     icon: const Icon(Icons.check_circle_outline, size: 18),
                     label: const Text(
                       'Confirmar',
@@ -458,8 +500,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: () =>
-                        _rejectAttendance(matchId, playerId, playerName),
+                    onPressed: () => _rejectAttendance(
+                      matchId: matchId,
+                      playerId: playerId,
+                      playerName: playerName,
+                      docId: item['id']?.toString(),
+                      category: category,
+                    ),
                     icon: const Icon(Icons.cancel_outlined, size: 18),
                     label: const Text(
                       'No puede ir',
@@ -1286,7 +1333,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? ref.watch(tutorConvocatoriasProvider(sessionUser.id))
         : null;
     final List<Map<String, dynamic>> pendingConvocatorias =
-        tutorConvocatoriasAsync?.valueOrNull ?? [];
+        (tutorConvocatoriasAsync?.valueOrNull ?? [])
+            .where((c) {
+              final id = c['id']?.toString() ?? '';
+              final mId = c['matchId']?.toString() ?? '';
+              final pId = c['playerId']?.toString() ?? '';
+              final key = '${mId}_$pId';
+              return !_handledConvocatoriaIds.contains(id) &&
+                     !_handledConvocatoriaIds.contains(key);
+            })
+            .toList();
 
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin

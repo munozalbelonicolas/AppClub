@@ -132,9 +132,62 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _messageController = EmojiRichTextEditingController();
   final _scrollController = ScrollController();
+  late Stream<QuerySnapshot> _messagesStream;
+  int _messagesLimit = 50;
+  bool _isLoadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initMessagesStream();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _initMessagesStream() {
+    _messagesStream = FirebaseFirestore.instance
+        .collection('inbox_threads')
+        .doc(widget.threadId)
+        .collection('messages')
+        .orderBy('createdAt', descending: true)
+        .limit(_messagesLimit)
+        .snapshots();
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 100 &&
+        !_isLoadingMore) {
+      _loadMoreMessages();
+    }
+  }
+
+  void _loadMoreMessages() {
+    setState(() {
+      _isLoadingMore = true;
+      _messagesLimit += 50;
+      _initMessagesStream();
+    });
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(ChatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.threadId != widget.threadId) {
+      _messagesLimit = 50;
+      setState(() {
+        _initMessagesStream();
+      });
+    }
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -357,12 +410,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('inbox_threads')
-                  .doc(widget.threadId)
-                  .collection('messages')
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
+              stream: _messagesStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import '../../features/communications/presentation/screens/communications_screen.dart';
@@ -20,6 +21,64 @@ class OneSignalService {
 
   /// Retorna el ID del usuario actualmente autenticado en OneSignal
   String? get currentUserId => _currentUserId;
+
+  /// Endpoint REST de OneSignal para crear notificaciones.
+  static const String notificationsEndpoint =
+      'https://onesignal.com/api/v1/notifications';
+
+  /// Segmentos que OneSignal crea automáticamente en cada app.
+  /// El nombre depende de la antigüedad de la app: las creadas desde 2022 usan
+  /// "Total Subscriptions" y las anteriores "Subscribed Users".
+  ///
+  /// IMPORTANTE: si en `included_segments` se manda UN SOLO nombre que no
+  /// existe en la app, OneSignal rechaza el envío COMPLETO y nadie recibe la
+  /// notificación. Por eso se prueban de a uno y se recuerda el que funcionó.
+  static const List<String> broadcastSegmentCandidates = <String>[
+    'Total Subscriptions',
+    'Subscribed Users',
+    'Active Subscriptions',
+    'Active Users',
+  ];
+
+  static String? _cachedBroadcastSegment;
+
+  /// Último error devuelto por OneSignal (código HTTP + cuerpo recortado).
+  /// Se muestra en pantalla para no depender de los logs, que en una build
+  /// de release están silenciados.
+  static String? lastErrorDetail;
+
+  /// Cliente HTTP inyectable (solo para pruebas unitarias).
+  http.Client? _httpClientOverride;
+
+  @visibleForTesting
+  // ignore: avoid_setters_without_getters
+  set httpClientForTesting(http.Client? client) => _httpClientOverride = client;
+
+  @visibleForTesting
+  static void resetBroadcastSegmentCache() => _cachedBroadcastSegment = null;
+
+  /// Orden en que se prueban los segmentos: primero el último que funcionó.
+  @visibleForTesting
+  static List<String> broadcastSegmentsToTry() {
+    final cached = _cachedBroadcastSegment;
+    if (cached == null) return List<String>.from(broadcastSegmentCandidates);
+    return <String>[
+      cached,
+      ...broadcastSegmentCandidates.where((s) => s != cached),
+    ];
+  }
+
+  Future<http.Response> _post(
+    Uri url,
+    Map<String, String> headers,
+    String body,
+  ) {
+    final override = _httpClientOverride;
+    if (override != null) {
+      return override.post(url, headers: headers, body: body);
+    }
+    return http.post(url, headers: headers, body: body);
+  }
 
   /// Inicializa el SDK de OneSignal si el App ID está configurado.
   Future<void> initialize() async {
@@ -142,9 +201,147 @@ class OneSignalService {
     await setUserTags({'category': category});
   }
 
+  /// Construye el cuerpo que se envía a la API REST de OneSignal.
+  ///
+  /// Se expone para poder validarlo en pruebas unitarias sin tocar la red.
+  @visibleForTesting
+  static Map<String, dynamic> buildPushPayload({
+    required String title,
+    required String body,
+    String? targetUserId,
+    String? targetCategory,
+    Map<String, dynamic>? data,
+    String broadcastSegment = 'Total Subscriptions',
+  }) {
+    final Map<String, dynamic> payload = {
+      'app_id': OneSignalConfig.appId,
+      'headings': {'es': title, 'en': title},
+      'contents': {'es': body, 'en': body},
+      'small_icon': 'ic_stat_onesignal_default',
+      // 'android_channel_id' espera el UUID de una categoría creada en el panel
+      // de OneSignal. Para un canal creado por la propia app (Flutter Local
+      // Notifications) el campo correcto es 'existing_android_channel_id'.
+      'existing_android_channel_id': 'high_importance_channel',
+      'priority': 10,
+      if (data != null) 'data': data,
+    };
+
+    if (targetUserId != null &&
+        targetUserId.isNotEmpty &&
+        targetUserId != 'all') {
+      payload['include_aliases'] = {
+        'external_id': [targetUserId]
+      };
+      payload['target_channel'] = 'push';
+    } else if (targetCategory == 'admin' || targetCategory == 'directivo') {
+      payload['filters'] = [
+        {
+          'field': 'tag',
+          'key': 'role',
+          'relation': '=',
+          'value': 'directivo',
+        },
+        {
+          'operator': 'OR',
+        },
+        {
+          'field': 'tag',
+          'key': 'role',
+          'relation': '=',
+          'value': 'secretario',
+        },
+        {
+          'operator': 'OR',
+        },
+        {
+          'field': 'tag',
+          'key': 'role',
+          'relation': '=',
+          'value': 'admin',
+        },
+        {
+          'operator': 'OR',
+        },
+        {
+          'field': 'tag',
+          'key': 'isAdmin',
+          'relation': '=',
+          'value': 'true',
+        }
+      ];
+    } else if (targetCategory != null &&
+        targetCategory.isNotEmpty &&
+        targetCategory != 'all' &&
+        targetCategory != 'todos' &&
+        targetCategory != 'general') {
+      final catClean = targetCategory.toLowerCase().trim();
+      payload['filters'] = [
+        {
+          'field': 'tag',
+          'key': 'category',
+          'relation': '=',
+          'value': targetCategory,
+        },
+        {
+          'operator': 'OR',
+        },
+        {
+          'field': 'tag',
+          'key': 'cat_$catClean',
+          'relation': '=',
+          'value': 'true',
+        }
+      ];
+    } else {
+      // Envío masivo: UN solo segmento por request (ver broadcastSegmentCandidates).
+      payload['included_segments'] = <String>[broadcastSegment];
+    }
+
+    return payload;
+  }
+
+  /// Un 2xx de OneSignal no garantiza entrega: el cuerpo puede traer `errors`
+  /// o `recipients: 0`. Esta función decide si el envío realmente salió.
+  @visibleForTesting
+  static bool isSuccessfulResponse(int statusCode, String rawBody) {
+    if (statusCode != 200 && statusCode != 201) return false;
+    try {
+      final decoded = jsonDecode(rawBody);
+      if (decoded is Map) {
+        final errors = decoded['errors'];
+        if (errors is List && errors.isNotEmpty) return false;
+        if (errors is Map && errors.isNotEmpty) return false;
+
+        final recipients = decoded['recipients'];
+        if (recipients is num && recipients <= 0) return false;
+
+        final id = decoded['id'];
+        if (id != null && id.toString().trim().isEmpty) return false;
+      }
+    } catch (_) {
+      // Cuerpo no JSON con status 2xx: se asume enviado.
+    }
+    return true;
+  }
+
+  /// Indica si conviene reintentar el envío masivo con otro nombre de segmento.
+  @visibleForTesting
+  static bool isRetryableSegmentFailure(int statusCode, String rawBody) {
+    final lower = rawBody.toLowerCase();
+    if (lower.contains('segment')) return true;
+    if (lower.contains('not subscribed')) return true;
+    if (lower.contains('"recipients":0') || lower.contains('"recipients": 0')) {
+      return true;
+    }
+    if (statusCode == 400 || statusCode == 404 || statusCode == 422) return true;
+    return false;
+  }
+
   /// Envía una notificación Push vía OneSignal REST API.
   /// Se puede enviar a un usuario específico (targetUserId),
   /// a una categoría específica (targetCategory) o a todos los usuarios ('all').
+  ///
+  /// Devuelve `true` sólo si OneSignal aceptó el envío y hubo destinatarios.
   Future<bool> sendPushNotification({
     required String title,
     required String body,
@@ -152,110 +349,89 @@ class OneSignalService {
     String? targetCategory,
     Map<String, dynamic>? data,
   }) async {
-    try {
-      final url = Uri.parse('https://onesignal.com/api/v1/notifications');
+    lastErrorDetail = null;
 
-      final Map<String, dynamic> payload = {
-        'app_id': OneSignalConfig.appId,
-        'headings': {'es': title, 'en': title},
-        'contents': {'es': body, 'en': body},
-        'small_icon': 'ic_stat_onesignal_default',
-        'target_channel': 'push',
-        'data': ?data,
-      };
-
-      if (targetUserId != null &&
-          targetUserId.isNotEmpty &&
-          targetUserId != 'all') {
-        payload['include_aliases'] = {
-          'external_id': [targetUserId]
-        };
-      } else if (targetCategory == 'admin' || targetCategory == 'directivo') {
-        payload['filters'] = [
-          {
-            'field': 'tag',
-            'key': 'role',
-            'relation': '=',
-            'value': 'directivo',
-          },
-          {
-            'operator': 'OR',
-          },
-          {
-            'field': 'tag',
-            'key': 'role',
-            'relation': '=',
-            'value': 'secretario',
-          },
-          {
-            'operator': 'OR',
-          },
-          {
-            'field': 'tag',
-            'key': 'role',
-            'relation': '=',
-            'value': 'admin',
-          },
-          {
-            'operator': 'OR',
-          },
-          {
-            'field': 'tag',
-            'key': 'isAdmin',
-            'relation': '=',
-            'value': 'true',
-          }
-        ];
-      } else if (targetCategory != null &&
-          targetCategory.isNotEmpty &&
-          targetCategory != 'all' &&
-          targetCategory != 'todos' &&
-          targetCategory != 'general') {
-        final catClean = targetCategory.toLowerCase().trim();
-        payload['filters'] = [
-          {
-            'field': 'tag',
-            'key': 'category',
-            'relation': '=',
-            'value': targetCategory,
-          },
-          {
-            'operator': 'OR',
-          },
-          {
-            'field': 'tag',
-            'key': 'cat_$catClean',
-            'relation': '=',
-            'value': 'true',
-          }
-        ];
-      } else {
-        payload['included_segments'] = ['Subscribed Users'];
-      }
-
-      final Map<String, String> headers = {
-        'Content-Type': 'application/json; charset=utf-8',
-      };
-      if (OneSignalConfig.restApiKey.isNotEmpty) {
-        headers['Authorization'] = 'Basic ${OneSignalConfig.restApiKey}';
-      }
-
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: jsonEncode(payload),
-      );
-
-      AppLogger.debug(
-        '📡 OneSignal Push Response [${response.statusCode}]: ${response.body}',
+    final key = OneSignalConfig.restApiKey;
+    if (key.isEmpty) {
+      lastErrorDetail = 'Falta la REST API Key de OneSignal.';
+      AppLogger.error(
+        '❌ OneSignal: falta la REST API Key, no se puede enviar el push.',
         tag: 'OneSignal',
       );
-
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (e) {
-      AppLogger.error('❌ Error enviando Push por OneSignal', error: e, tag: 'OneSignal');
       return false;
     }
+
+    // v2 keys (os_v2_app_*) usan el prefijo 'Key'; las legacy usan 'Basic'.
+    final prefix = key.startsWith('os_v2_') ? 'Key' : 'Basic';
+    final Map<String, String> headers = {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Authorization': '$prefix $key',
+    };
+
+    final url = Uri.parse(notificationsEndpoint);
+
+    final basePayload = buildPushPayload(
+      title: title,
+      body: body,
+      targetUserId: targetUserId,
+      targetCategory: targetCategory,
+      data: data,
+    );
+    final bool isBroadcast = basePayload.containsKey('included_segments');
+    final List<String> segments =
+        isBroadcast ? broadcastSegmentsToTry() : <String>[''];
+
+    String lastResponse = '';
+
+    for (final segment in segments) {
+      final payload = isBroadcast
+          ? buildPushPayload(
+              title: title,
+              body: body,
+              targetUserId: targetUserId,
+              targetCategory: targetCategory,
+              data: data,
+              broadcastSegment: segment,
+            )
+          : basePayload;
+
+      try {
+        final response = await _post(url, headers, jsonEncode(payload));
+        lastResponse = response.body;
+
+        final segmentInfo = isBroadcast ? ' segmento "$segment"' : '';
+        AppLogger.debug(
+          '📡 OneSignal Push [${response.statusCode}]$segmentInfo: ${response.body}',
+          tag: 'OneSignal',
+        );
+
+        if (isSuccessfulResponse(response.statusCode, response.body)) {
+          if (isBroadcast) _cachedBroadcastSegment = segment;
+          lastErrorDetail = null;
+          return true;
+        }
+
+        lastErrorDetail = 'HTTP ${response.statusCode}: '
+            '${response.body.length > 180 ? response.body.substring(0, 180) : response.body}';
+
+        if (!isBroadcast) return false;
+        if (!isRetryableSegmentFailure(response.statusCode, response.body)) {
+          return false;
+        }
+      } catch (e) {
+        lastErrorDetail = 'Sin respuesta de OneSignal: $e';
+        AppLogger.error('❌ Error enviando Push por OneSignal', error: e, tag: 'OneSignal');
+        return false;
+      }
+    }
+
+    lastErrorDetail ??= 'OneSignal rechazó todos los segmentos. $lastResponse';
+    AppLogger.error(
+      '❌ OneSignal rechazó el envío masivo con todos los segmentos conocidos. '
+      'Última respuesta: $lastResponse',
+      tag: 'OneSignal',
+    );
+    return false;
   }
 
   /// Procesa los datos adjuntos de la notificación para navegación interna.

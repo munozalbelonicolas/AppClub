@@ -173,9 +173,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
   Stream<QuerySnapshot> _buildQuery(String filter) {
     final base = FirebaseFirestore.instance.collection('store_orders');
     if (filter == 'all') {
-      return base.orderBy('createdAt', descending: true).snapshots();
+      return base.orderBy('createdAt', descending: true).limit(50).snapshots();
     }
-    return base.where('status', isEqualTo: filter).snapshots();
+    return base.where('status', isEqualTo: filter).limit(50).snapshots();
   }
 
   String _formatDate(DateTime dt) {
