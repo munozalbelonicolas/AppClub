@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,98 +6,8 @@ import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_avatar.dart';
-
-class EmojiRichTextEditingController extends TextEditingController {
-  EmojiRichTextEditingController({super.text});
-
-  @override
-  TextSpan buildTextSpan({
-    required BuildContext context,
-    TextStyle? style,
-    required bool withComposing,
-  }) {
-    final text = value.text;
-    if (text.isEmpty) {
-      return TextSpan(style: style, text: '');
-    }
-
-    final baseStyle = style ?? const TextStyle();
-    final regex = RegExp(r'(❤️|❤|🖤|🤍|💚|💛|🧡|💙|💜|💔|💖|💗)');
-    final spans = <InlineSpan>[];
-
-    int lastMatchEnd = 0;
-    for (final match in regex.allMatches(text)) {
-      if (match.start > lastMatchEnd) {
-        spans.add(TextSpan(
-          text: text.substring(lastMatchEnd, match.start),
-          style: baseStyle,
-        ));
-      }
-
-      final matchedEmoji = match.group(0)!;
-      switch (matchedEmoji) {
-        case '❤️':
-        case '❤':
-        case '💖':
-        case '💗':
-          spans.add(
-            TextSpan(
-              text: matchedEmoji,
-              style: baseStyle.copyWith(
-                color: const Color(0xFFE53935),
-                fontFamilyFallback: const [
-                  'Noto Color Emoji',
-                  'Apple Color Emoji',
-                  'Segoe UI Emoji',
-                ],
-              ),
-            ),
-          );
-          break;
-        case '🖤':
-          spans.add(
-            TextSpan(
-              text: matchedEmoji,
-              style: baseStyle.copyWith(
-                color: const Color(0xFF1E1E1E),
-                fontFamilyFallback: const [
-                  'Noto Color Emoji',
-                  'Apple Color Emoji',
-                  'Segoe UI Emoji',
-                ],
-              ),
-            ),
-          );
-          break;
-        default:
-          spans.add(
-            TextSpan(
-              text: matchedEmoji,
-              style: baseStyle.copyWith(
-                fontFamilyFallback: const [
-                  'Noto Color Emoji',
-                  'Apple Color Emoji',
-                  'Segoe UI Emoji',
-                ],
-              ),
-            ),
-          );
-      }
-
-      lastMatchEnd = match.end;
-    }
-
-    if (lastMatchEnd < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastMatchEnd),
-        style: baseStyle,
-      ));
-    }
-
-    return TextSpan(children: spans, style: baseStyle);
-  }
-}
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;

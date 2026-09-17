@@ -1,10 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
 
 import '../../../../core/services/app_logger.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_button.dart';
 
 class BirthdayConfigScreen extends StatefulWidget {
@@ -23,7 +25,7 @@ class _BirthdayConfigScreenState extends State<BirthdayConfigScreen> {
   bool _enablePosts = true;
   bool _enableNotifications = true;
   int _daysPriorToNotify = 1;
-  final _templateController = TextEditingController(
+  final _templateController = EmojiRichTextEditingController(
     text:
         'En este día tan especial el CLUB JORGE NEWBERY te desea lo mejor junto a tu familia y amigos!! FELIZ CUMPLEAÑOS!! 🎁🎂🥳🎈❤️🖤😘',
   );

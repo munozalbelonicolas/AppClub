@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 
@@ -26,8 +27,8 @@ class _SupportFormScreenState extends ConsumerState<SupportFormScreen> {
   }
 
   final _formKey = GlobalKey<FormState>();
-  final _subjectController = TextEditingController();
-  final _messageController = TextEditingController();
+  final _subjectController = EmojiRichTextEditingController();
+  final _messageController = EmojiRichTextEditingController();
 
   String _selectedCategory = 'Consulta General';
   bool _isLoading = false;
