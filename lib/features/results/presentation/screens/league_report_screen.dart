@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
@@ -13,6 +13,7 @@ import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_card.dart';
 import 'document_viewer_screen.dart';
 
@@ -177,8 +178,8 @@ class _LeagueReportScreenState extends ConsumerState<LeagueReportScreen> {
   }
 
   void _showAddReportDialog(BuildContext context) {
-    final titleController = TextEditingController();
-    final descController = TextEditingController();
+    final titleController = EmojiRichTextEditingController();
+    final descController = EmojiRichTextEditingController();
     PlatformFile? selectedFile;
     bool isUploading = false;
 

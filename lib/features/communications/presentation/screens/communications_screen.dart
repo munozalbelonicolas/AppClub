@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +10,7 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
 import '../../../../core/widgets/jn_card.dart';
@@ -56,8 +57,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
   }
 
   void _showCreateAnnouncementDialog(BuildContext context, dynamic sessionUser, List<Map<String, dynamic>> clubs) {
-    final titleController = TextEditingController();
-    final bodyController = TextEditingController();
+    final titleController = EmojiRichTextEditingController();
+    final bodyController = EmojiRichTextEditingController();
     final formKey = GlobalKey<FormState>();
 
     final bool isDT = sessionUser.role == 'dt';

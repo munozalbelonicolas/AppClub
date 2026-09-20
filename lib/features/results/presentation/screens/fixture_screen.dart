@@ -1,11 +1,13 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../utils/league_jornada_utils.dart';
 
@@ -78,8 +80,8 @@ class _FixtureScreenState extends ConsumerState<FixtureScreen> {
   Future<void> _showSuspendByRainDialog(BuildContext context, Map<String, dynamic> fixture) async {
     final sessionUser = ref.read(currentUserProvider);
     final name = fixture['name'] ?? 'la jornada';
-    final titleController = TextEditingController(text: '🌧️ Jornada Suspendida por Lluvia');
-    final bodyController = TextEditingController(
+    final titleController = EmojiRichTextEditingController(text: '🌧️ Jornada Suspendida por Lluvia');
+    final bodyController = EmojiRichTextEditingController(
       text: 'Atención: Por inclemencias climáticas, se suspenden los partidos de $name. Informaremos la reprogramación a la brevedad.',
     );
     bool sendPush = true;

@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +10,7 @@ import '../../../../core/services/firestore_service.dart';
 import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_button.dart';
 import '../../../../core/widgets/jn_card.dart';
 
@@ -21,8 +22,8 @@ class CreateCoachReportScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateCoachReportScreenState extends ConsumerState<CreateCoachReportScreen> {
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final _titleController = EmojiRichTextEditingController();
+  final _descriptionController = EmojiRichTextEditingController();
   File? _selectedImage;
   bool _isLoading = false;
 
