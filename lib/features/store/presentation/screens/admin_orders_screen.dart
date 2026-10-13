@@ -80,15 +80,24 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
         if (snapshot.hasError) {
           return Center(child: Text('Error al cargar pedidos: ${snapshot.error}'));
         }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+
+        // Exclude monthly quotas from the store order management panel
+        final docs = (snapshot.data?.docs ?? []).where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final isQuota = data['isQuotaPayment'] == true ||
+              data['productId'] == 'cuota_cooperadora' ||
+              (data['productName']?.toString().toLowerCase().contains('cuota') ?? false);
+          return !isQuota;
+        }).toList();
+
+        if (docs.isEmpty) {
           return const JNEmptyState(
             icon: Icons.inbox_outlined,
             title: 'No hay pedidos',
-            message: 'No se encontraron pedidos en esta categoría.',
+            message: 'No se encontraron pedidos de tienda en esta categoría.',
           );
         }
 
-        final docs = snapshot.data!.docs.toList();
         docs.sort((a, b) {
           final aData = a.data() as Map<String, dynamic>;
           final bData = b.data() as Map<String, dynamic>;
@@ -152,7 +161,6 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> with Sing
                     children: [
                       OrderStatusBadge(
                         status: data['status'] ?? 'pending_payment',
-                        isQuota: data['isQuotaPayment'] == true,
                       ),
                       if (createdAt != null)
                         Text(

@@ -7,6 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../coach_panel/presentation/screens/coach_reports_admin_screen.dart';
 import '../../../store/presentation/screens/admin_order_detail_screen.dart';
 import '../screens/admin_user_profile_screen.dart';
+import '../screens/director_console_screen.dart';
 
 void showAdminNotificationsDialog(BuildContext context, {dynamic sessionUser}) {
   showDialog(
@@ -665,12 +666,22 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
                                 onTap: () {
                                   _markDocAsRead(doc.reference, data);
                                   Navigator.pop(context);
-                                  final userId = data['userId'];
-                                  if (userId != null) {
+                                  final targetUserId = data['userId']?.toString() ??
+                                      data['tutorId']?.toString() ??
+                                      data['authorId']?.toString() ??
+                                      data['playerId']?.toString();
+                                  if (targetUserId != null && targetUserId.isNotEmpty && targetUserId != 'system') {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => AdminUserProfileScreen(userId: userId),
+                                        builder: (context) => AdminUserProfileScreen(userId: targetUserId),
+                                      ),
+                                    );
+                                  } else {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const DirectorConsoleScreen(),
                                       ),
                                     );
                                   }

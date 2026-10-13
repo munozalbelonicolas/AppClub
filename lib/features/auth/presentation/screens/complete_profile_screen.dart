@@ -27,11 +27,32 @@ class CompleteProfileScreen extends ConsumerStatefulWidget {
 
 class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _lastNameController;
   final _phone1Controller = TextEditingController();
   final _phone2Controller = TextEditingController();
 
   bool _termsAccepted = false;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final session = ref.read(currentUserProvider);
+    _nameController = TextEditingController(text: session?.name ?? '');
+    _lastNameController = TextEditingController(text: session?.lastName ?? '');
+    _phone1Controller.text = session?.phone1 ?? '';
+    _phone2Controller.text = session?.phone2 ?? '';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _lastNameController.dispose();
+    _phone1Controller.dispose();
+    _phone2Controller.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleComplete() async {
     if (!_formKey.currentState!.validate()) return;
@@ -54,6 +75,8 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
       final session = ref.read(currentUserProvider);
       
       await authService.completeRegistration(
+        name: _nameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
         phone1: session?.role == 'jugador' ? null : _phone1Controller.text.trim(),
         phone2: session?.role == 'jugador' || _phone2Controller.text.trim().isEmpty
             ? null
@@ -117,17 +140,17 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                 Text(
                   session?.role == 'jugador'
                       ? 'Debes aceptar los términos y condiciones y el reglamento del club para continuar.'
-                      : 'Faltan algunos datos para finalizar tu registro con Google.',
+                      : 'Faltan algunos datos obligatorios para finalizar tu cuenta.',
                   style: context.typography.bodyMedium,
                 ),
                 const SizedBox(height: 32),
                 
-                // Read-only fields from Google
+                // Name & Last Name (Editable & required)
                 TextFormField(
-                  initialValue: '${session?.name} ${session?.lastName}',
-                  enabled: false,
+                  controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: 'Nombre y Apellido',
+                    labelText: 'Nombre *',
+                    hintText: 'Tu nombre',
                     labelStyle: context.typography.bodyMedium.copyWith(
                         color: context.colors.textSecondary),
                     filled: true,
@@ -137,6 +160,34 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Por favor ingresa tu nombre';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _lastNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Apellido *',
+                    hintText: 'Tu apellido',
+                    labelStyle: context.typography.bodyMedium.copyWith(
+                        color: context.colors.textSecondary),
+                    filled: true,
+                    fillColor: context.colors.surfaceLight,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Por favor ingresa tu apellido';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

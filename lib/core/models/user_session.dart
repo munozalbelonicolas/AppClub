@@ -131,11 +131,12 @@ class UserSession {
     return 'Usuario';
   }
 
-  /// Check if user has not completed registration (e.g. Google Sign In missing phones)
+  /// Check if user has not completed registration (e.g. Google Sign In missing phones or name)
   bool get isRegistrationIncomplete {
     if (role == 'directivo' || role == 'secretario') return false; // Admins don't need this flow
     if (role == 'jugador') return termsAcceptedAt == null; // Players only need to accept terms
-    return phone1 == null || phone1!.isEmpty || termsAcceptedAt == null;
+    final bool missingName = name.trim().isEmpty || lastName.trim().isEmpty;
+    return missingName || phone1 == null || phone1!.isEmpty || termsAcceptedAt == null;
   }
 
   /// Check if user is the Director (directivo)

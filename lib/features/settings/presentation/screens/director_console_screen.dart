@@ -103,6 +103,177 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
     }
   }
 
+  Future<void> _showEditUserDialog(
+    BuildContext context,
+    String userId,
+    Map<String, dynamic> data,
+  ) async {
+    final nameCtrl = TextEditingController(text: data['name']?.toString() ?? '');
+    final lastNameCtrl = TextEditingController(text: data['lastName']?.toString() ?? '');
+    final dniCtrl = TextEditingController(text: data['dni']?.toString() ?? '');
+    final phone1Ctrl = TextEditingController(text: data['phone1']?.toString() ?? data['phone']?.toString() ?? '');
+    final phone2Ctrl = TextEditingController(text: data['phone2']?.toString() ?? '');
+
+    String currentRole = (data['role']?.toString().toLowerCase().trim() ?? 'tutor');
+    const validRoles = ['tutor', 'jugador', 'dt', 'socio', 'secretario', 'directivo'];
+    if (!validRoles.contains(currentRole)) currentRole = 'tutor';
+
+    String currentStatus = (data['status']?.toString().toLowerCase().trim() ?? 'active');
+    const validStatuses = ['active', 'pending_approval', 'disabled'];
+    if (!validStatuses.contains(currentStatus)) currentStatus = 'active';
+
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: context.colors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.edit_note, color: context.colors.primary, size: 28),
+                const SizedBox(width: 8),
+                const Text('Editar Usuario'),
+              ],
+            ),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(labelText: 'Nombre *'),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa el nombre' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: lastNameCtrl,
+                      decoration: const InputDecoration(labelText: 'Apellido *'),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa el apellido' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: dniCtrl,
+                      decoration: const InputDecoration(labelText: 'DNI'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phone1Ctrl,
+                      decoration: const InputDecoration(labelText: 'Teléfono Principal'),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phone2Ctrl,
+                      decoration: const InputDecoration(labelText: 'Teléfono Secundario'),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: currentRole,
+                      decoration: const InputDecoration(labelText: 'Rol'),
+                      items: const [
+                        DropdownMenuItem(value: 'tutor', child: Text('Tutor / Padre')),
+                        DropdownMenuItem(value: 'jugador', child: Text('Jugador')),
+                        DropdownMenuItem(value: 'dt', child: Text('Profesor / DT')),
+                        DropdownMenuItem(value: 'socio', child: Text('Socio')),
+                        DropdownMenuItem(value: 'secretario', child: Text('Secretario')),
+                        DropdownMenuItem(value: 'directivo', child: Text('Directivo')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() => currentRole = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: currentStatus,
+                      decoration: const InputDecoration(labelText: 'Estado'),
+                      items: const [
+                        DropdownMenuItem(value: 'active', child: Text('Activo (Aprobado)')),
+                        DropdownMenuItem(value: 'pending_approval', child: Text('Pendiente de Aprobación')),
+                        DropdownMenuItem(value: 'disabled', child: Text('Bloqueado / Inactivo')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() => currentStatus = val);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+                  try {
+                    final Map<String, dynamic> updates = {
+                      'name': nameCtrl.text.trim(),
+                      'lastName': lastNameCtrl.text.trim(),
+                      'role': currentRole,
+                      'status': currentStatus,
+                    };
+                    if (dniCtrl.text.trim().isNotEmpty) {
+                      updates['dni'] = dniCtrl.text.trim();
+                    } else {
+                      updates['dni'] = FieldValue.delete();
+                    }
+                    if (phone1Ctrl.text.trim().isNotEmpty) {
+                      updates['phone1'] = phone1Ctrl.text.trim();
+                    }
+                    if (phone2Ctrl.text.trim().isNotEmpty) {
+                      updates['phone2'] = phone2Ctrl.text.trim();
+                    } else {
+                      updates['phone2'] = FieldValue.delete();
+                    }
+                    if (currentRole == 'directivo' || currentRole == 'secretario') {
+                      updates['category'] = FieldValue.delete();
+                      updates['assignedCategories'] = FieldValue.delete();
+                    }
+
+                    await FirebaseFirestore.instance.collection('users').doc(userId).update(updates);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(
+                          content: Text('Usuario "${nameCtrl.text.trim()} ${lastNameCtrl.text.trim()}" actualizado con éxito.'),
+                          backgroundColor: this.context.colors.success,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error al actualizar usuario: $e'),
+                          backgroundColor: this.context.colors.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Guardar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sessionUser = ref.watch(currentUserProvider);
@@ -513,18 +684,25 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                                           finalDisplayName,
                                           style: context.typography.titleMedium,
                                         ),
-                                        Text(
-                                          email,
-                                          style: context.typography.bodySmall
-                                              .copyWith(
-                                                color: context.colors.textTertiary,
-                                              ),
-                                        ),
+                                        if (displayName.isNotEmpty && email.isNotEmpty)
+                                          Text(
+                                            email,
+                                            style: context.typography.bodySmall
+                                                .copyWith(
+                                                  color: context.colors.textTertiary,
+                                                ),
+                                          ),
                                         const SizedBox(height: 6),
                                         Wrap(
                                           spacing: 6,
                                           runSpacing: 4,
                                           children: [
+                                            if (displayName.isEmpty)
+                                              const JNBadge(
+                                                label: 'SIN NOMBRE',
+                                                type: JNBadgeType.warning,
+                                                small: true,
+                                              ),
                                             if (isPending)
                                               const JNBadge(
                                                 label: 'PENDIENTE',
@@ -594,6 +772,19 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
                                             finalDisplayName,
                                           ),
                                         ),
+                                      // Edit user button
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.edit_outlined,
+                                          color: context.colors.primary,
+                                        ),
+                                        tooltip: 'Editar datos',
+                                        onPressed: () => _showEditUserDialog(
+                                          context,
+                                          userId,
+                                          data,
+                                        ),
+                                      ),
                                       // Delete user button
                                   IconButton(
                                     icon: Icon(

@@ -4,6 +4,7 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 import '../../features/communications/presentation/screens/communications_screen.dart';
 import '../../features/inbox/presentation/screens/chat_screen.dart';
 import '../../features/settings/presentation/screens/admin_user_profile_screen.dart';
+import '../../features/settings/presentation/screens/director_console_screen.dart';
 import '../../features/store/presentation/screens/admin_order_detail_screen.dart';
 import '../config/onesignal_config.dart';
 import 'app_logger.dart';
@@ -301,11 +302,33 @@ class OneSignalService {
         }
       }
 
-      // 4. Usuario pendiente de aprobación
-      if (type == 'new_user_pending' || type == 'player_registration') {
-        final userId = additionalData['userId']?.toString();
-        if (userId != null && userId.isNotEmpty) {
-          NavigationService.navigateTo(AdminUserProfileScreen(userId: userId));
+      // 4. Usuario pendiente de aprobación / Registro de jugador / Co-tutor
+      final bool isPendingUserType = type == 'new_user_pending' ||
+          type == 'player_registration' ||
+          type == 'pending_approval' ||
+          type == 'co_tutor_request' ||
+          type == 'user_registration';
+
+      final title = additionalData['title']?.toString().toLowerCase() ?? '';
+      final body = additionalData['body']?.toString().toLowerCase() ?? '';
+      final bool matchesPendingKeywords = title.contains('registro') ||
+          title.contains('pendiente') ||
+          title.contains('aprobación') ||
+          title.contains('aprobacion') ||
+          body.contains('aprobación') ||
+          body.contains('aprobacion') ||
+          body.contains('registro');
+
+      if (isPendingUserType || matchesPendingKeywords) {
+        final targetId = additionalData['userId']?.toString() ??
+            additionalData['tutorId']?.toString() ??
+            additionalData['authorId']?.toString() ??
+            additionalData['playerId']?.toString();
+        if (targetId != null && targetId.isNotEmpty && targetId != 'system') {
+          NavigationService.navigateTo(AdminUserProfileScreen(userId: targetId));
+          return;
+        } else {
+          NavigationService.navigateTo(const DirectorConsoleScreen());
           return;
         }
       }

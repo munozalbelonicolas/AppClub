@@ -107,7 +107,7 @@ class NotificationService {
               presentSound: true,
             ),
           ),
-          payload: message.data.toString(),
+          payload: jsonEncode(message.data),
         );
       }
     });
@@ -115,12 +115,14 @@ class NotificationService {
     // 4. Listen for Background tap
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       AppLogger.debug('Notification clicked (App opened from background): ${message.data}', tag: 'FCM');
+      OneSignalService().handleNotificationPayload(message.data);
     });
 
     // Check if app was opened from terminated state by a notification
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
       AppLogger.debug('App launched from terminated state via notification: ${initialMessage.data}', tag: 'FCM');
+      OneSignalService().handleNotificationPayload(initialMessage.data);
     }
   }
 
@@ -247,10 +249,15 @@ class NotificationService {
             if (isForMe) {
               final title = data['title']?.toString() ?? 'Nueva Notificación';
               final body = data['body']?.toString() ?? '';
+              String? encodedPayload;
+              try {
+                encodedPayload = jsonEncode(data);
+              } catch (_) {}
               showLocalNotification(
                 id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
                 title: title,
                 body: body,
+                payload: encodedPayload,
               );
             }
           }
@@ -383,6 +390,9 @@ class NotificationService {
       }
       _recentlySentNotifications[sendKey] = now;
 
+      final String? effectiveUserId = extraData?['userId']?.toString() ??
+          (authorId != null && authorId.isNotEmpty && authorId != 'system' ? authorId : null);
+
       // 1. Guardar documento en Firestore
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': title,
@@ -391,6 +401,7 @@ class NotificationService {
         'authorId': authorId ?? 'system',
         'targetCategory': 'admin',
         'targetRole': 'directivo',
+        'userId': ?effectiveUserId,
         'read': false,
         'readBy': [],
         'createdAt': FieldValue.serverTimestamp(),
@@ -405,6 +416,7 @@ class NotificationService {
         data: {
           'type': type,
           'authorId': authorId ?? 'system',
+          'userId': ?effectiveUserId,
           ...?extraData,
         },
       );
