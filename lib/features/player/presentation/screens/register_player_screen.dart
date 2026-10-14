@@ -114,7 +114,7 @@ class _RegisterPlayerScreenState extends ConsumerState<RegisterPlayerScreen> {
                 : null,
             enableAccount: _enableLogin,
             avatarUrl: finalAvatarUrl,
-            tutorName: '${tutorSession.name} ${tutorSession.lastName}',
+            tutorName: tutorSession.fullName,
           );
 
       if (mounted) {

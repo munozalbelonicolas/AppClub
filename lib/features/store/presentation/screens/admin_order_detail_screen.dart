@@ -87,7 +87,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
 
       final currentUser = ref.read(currentUserProvider);
       await NotificationService().sendNotification(
-        title: 'Estado de Pedido / Cuota',
+        title: 'Estado de Pedido',
         body: notifMessage,
         authorId: currentUser?.id ?? 'admin',
         targetUserId: orderData['buyerId'] ?? 'all',
@@ -166,7 +166,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Status
-                Center(child: OrderStatusBadge(status: status, isQuota: data['isQuotaPayment'] == true)),
+                Center(child: OrderStatusBadge(status: status)),
                 const SizedBox(height: 20),
 
                 // Buyer info
@@ -249,7 +249,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                 // Action buttons
                 if (status == 'pending_payment' || status == 'payment_uploaded') ...[
                   JNButton(
-                    label: data['isQuotaPayment'] == true ? '✅ Confirmar Cuota' : '✅ Confirmar y Listo para Retirar',
+                    label: '✅ Confirmar y Listo para Retirar',
                     onPressed: () => _updateStatus('confirmed'),
                     variant: JNButtonVariant.success,
                   ),
@@ -261,7 +261,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                   ),
                 ],
 
-                if (status == 'confirmed' && data['isQuotaPayment'] != true) ...[
+                if (status == 'confirmed') ...[
                   JNButton(
                     label: '📦 Marcar como Entregado',
                     onPressed: () => _updateStatus('delivered'),

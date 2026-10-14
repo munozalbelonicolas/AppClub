@@ -58,19 +58,26 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
               itemBuilder: (context, index) => const JNSkeletonCard(height: 140),
             );
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error al cargar pedidos: ${snapshot.error}'));
+          }
+
+          // Exclude monthly quotas from store merchandise purchases
+          final docs = (snapshot.data?.docs ?? []).where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final isQuota = data['isQuotaPayment'] == true ||
+                data['productId'] == 'cuota_cooperadora' ||
+                (data['productName']?.toString().toLowerCase().contains('cuota') ?? false);
+            return !isQuota;
+          }).toList();
+
+          if (docs.isEmpty) {
             return const JNEmptyState(
               icon: Icons.shopping_bag_outlined,
               title: 'No tienes compras',
               message: 'Aún no has realizado ninguna compra en la tienda del club.',
             );
           }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Error al cargar pedidos: ${snapshot.error}'));
-          }
-
-          final docs = snapshot.data!.docs.toList();
           docs.sort((a, b) {
             final aData = a.data() as Map<String, dynamic>;
             final bData = b.data() as Map<String, dynamic>;
@@ -140,7 +147,6 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
                     ),
                     OrderStatusBadge(
                       status: data['status'] ?? 'pending_payment',
-                      isQuota: data['isQuotaPayment'] == true,
                     ),
                   ],
                 ),

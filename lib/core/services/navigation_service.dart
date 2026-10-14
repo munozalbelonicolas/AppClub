@@ -7,7 +7,13 @@ class NavigationService {
 
   static Future<dynamic>? navigateTo(Widget screen) {
     final state = navigatorKey.currentState;
-    if (state == null) return null;
+    if (state == null) {
+      // Si el navegador aún no está listo al abrir la app desde la notificación, programamos para el siguiente frame
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => screen));
+      });
+      return null;
+    }
     return state.push(MaterialPageRoute(builder: (_) => screen));
   }
 

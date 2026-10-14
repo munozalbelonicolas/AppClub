@@ -242,11 +242,16 @@ class _AppNavigatorState extends ConsumerState<_AppNavigator> {
                 .update({'status': 'pending_approval'});
             ref.read(currentUserProvider.notifier).state =
                 session.copyWith(status: 'pending_approval');
-            await NotificationService().sendNotification(
+            await NotificationService().notifyAdmins(
               title: '👤 Nuevo Registro Pendiente',
-              body: '${session.name} ${session.lastName} completó el registro de su jugador y aguarda aprobación.',
+              body: '${session.fullName} completó el registro de su jugador y aguarda aprobación.',
               authorId: session.id,
-              targetCategory: 'admin',
+              extraData: {
+                'userId': session.id,
+                'userName': session.fullName,
+                'userEmail': session.email,
+                'userRole': session.role,
+              },
             );
             _forceRefresh();
           },

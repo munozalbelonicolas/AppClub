@@ -146,6 +146,7 @@ class PlayerService {
         authorId: tutorId,
         type: 'player_registration',
         extraData: {
+          'userId': tutorId,
           'playerId': newPlayerRef.id,
           'playerName': '$name $lastName',
           'category': computedCategory,

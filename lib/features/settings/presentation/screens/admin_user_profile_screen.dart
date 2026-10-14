@@ -460,48 +460,167 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
     );
   }
 
+  Future<void> _showEditUserDataDialog(Map<String, dynamic> data) async {
+    final nameCtrl = TextEditingController(text: data['name']?.toString() ?? '');
+    final lastNameCtrl = TextEditingController(text: data['lastName']?.toString() ?? '');
+    final phone1Ctrl = TextEditingController(text: data['phone1']?.toString() ?? data['phone']?.toString() ?? '');
+    final phone2Ctrl = TextEditingController(text: data['phone2']?.toString() ?? '');
+    final dniCtrl = TextEditingController(text: data['dni']?.toString() ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.surface,
+        title: const Text('Editar Datos del Usuario'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Nombre *'),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: lastNameCtrl,
+                  decoration: const InputDecoration(labelText: 'Apellido *'),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: dniCtrl,
+                  decoration: const InputDecoration(labelText: 'DNI'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: phone1Ctrl,
+                  decoration: const InputDecoration(labelText: 'Teléfono Principal'),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: phone2Ctrl,
+                  decoration: const InputDecoration(labelText: 'Teléfono Secundario'),
+                  keyboardType: TextInputType.phone,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              try {
+                final Map<String, dynamic> updates = {
+                  'name': nameCtrl.text.trim(),
+                  'lastName': lastNameCtrl.text.trim(),
+                };
+                if (dniCtrl.text.trim().isNotEmpty) {
+                  updates['dni'] = dniCtrl.text.trim();
+                }
+                if (phone1Ctrl.text.trim().isNotEmpty) {
+                  updates['phone1'] = phone1Ctrl.text.trim();
+                }
+                if (phone2Ctrl.text.trim().isNotEmpty) {
+                  updates['phone2'] = phone2Ctrl.text.trim();
+                }
+                await FirebaseFirestore.instance.collection('users').doc(widget.userId).update(updates);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Datos actualizados correctamente'),
+                      backgroundColor: context.colors.success,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error al actualizar datos: $e'),
+                      backgroundColor: context.colors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.colors.background,
-      appBar: AppBar(
-        title: const Text('Perfil de Usuario'),
-      ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: _userStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Usuario no encontrado'));
-          }
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _userStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: context.colors.background,
+            appBar: AppBar(title: const Text('Perfil de Usuario')),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return Scaffold(
+            backgroundColor: context.colors.background,
+            appBar: AppBar(title: const Text('Perfil de Usuario')),
+            body: const Center(child: Text('Usuario no encontrado')),
+          );
+        }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-          final name = data['name'] ?? '';
-          final lastName = data['lastName'] ?? '';
-          final email = data['email'] ?? '';
-          final phone1 = data['phone1'] ?? 'No especificado';
-          final role = data['role'] ?? 'tutor';
-          final category = data['category'];
-          final status = data['status'] ?? 'active';
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final name = (data['name']?.toString() ?? '').trim();
+        final lastName = (data['lastName']?.toString() ?? '').trim();
+        final email = (data['email']?.toString() ?? '').trim();
+        final String rawFullName = '$name $lastName'.trim();
+        final String displayTitle = rawFullName.isNotEmpty ? rawFullName : (email.isNotEmpty ? email : 'Usuario');
+        final phone1 = data['phone1'] ?? data['phone'] ?? 'No especificado';
+        final role = data['role'] ?? 'tutor';
+        final category = data['category'];
+        final status = data['status'] ?? 'active';
 
-          final isPending = status == 'pending_approval';
-          final isDisabled = status == 'disabled';
-          
-          final hasPersonalData = data['dni'] != null || data['birthDate'] != null || data['height'] != null || data['weight'] != null;
+        final isPending = status == 'pending_approval';
+        final isDisabled = status == 'disabled';
 
-          return ListView(
+        final hasPersonalData = data['dni'] != null || data['birthDate'] != null || data['height'] != null || data['weight'] != null;
+
+        return Scaffold(
+          backgroundColor: context.colors.background,
+          appBar: AppBar(
+            title: const Text('Perfil de Usuario'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Editar datos del usuario',
+                onPressed: () => _showEditUserDataDialog(data),
+              ),
+            ],
+          ),
+          body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
               JNCard(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    JNAvatar(name: '$name $lastName', size: 80),
+                    JNAvatar(name: displayTitle, size: 80),
                     const SizedBox(height: 16),
-                    Text('$name $lastName', style: context.typography.headlineMedium),
-                    Text(email, style: context.typography.bodyLarge.copyWith(color: context.colors.textSecondary)),
+                    Text(displayTitle, style: context.typography.headlineMedium),
+                    if (email.isNotEmpty)
+                      Text(email, style: context.typography.bodyLarge.copyWith(color: context.colors.textSecondary)),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
@@ -923,9 +1042,9 @@ class _AdminUserProfileScreenState extends ConsumerState<AdminUserProfileScreen>
                 ),
               ],
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

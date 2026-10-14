@@ -24,6 +24,7 @@ class AuthService {
   );
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   StreamSubscription<DocumentSnapshot>? _userSubscription;
+  bool _isRegistering = false;
 
   AuthService(this._ref) {
     _init();
@@ -39,6 +40,10 @@ class AuthService {
           _ref.read(currentUserProvider.notifier).state = null;
         }
       } else {
+        if (_isRegistering) {
+          // Evitar que el listener en paralelo cree/sincronice un documento con datos vacíos
+          return;
+        }
         _syncUserProfile(
           firebaseUser.uid,
           firebaseUser.email ?? '',
@@ -85,12 +90,20 @@ class AuthService {
     String? dni,
     String role = 'tutor',
   }) async {
+    _isRegistering = true;
     try {
       final UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
       final User? firebaseUser = userCredential.user;
 
       if (firebaseUser != null) {
+        final fullName = '$name $lastName'.trim();
+        try {
+          await firebaseUser.updateDisplayName(fullName);
+        } catch (e) {
+          AppLogger.warning('Could not update Firebase displayName: $e', tag: 'AuthService');
+        }
+
         try {
           await firebaseUser.sendEmailVerification();
         } catch (e) {
@@ -100,8 +113,10 @@ class AuthService {
         final session = await _syncUserProfile(
           firebaseUser.uid,
           email,
-          '$name $lastName',
+          fullName,
           isNewRegistration: true,
+          nameOverride: name,
+          lastNameOverride: lastName,
           phone1: phone1,
           phone2: phone2,
           dni: dni,
@@ -116,6 +131,8 @@ class AuthService {
     } catch (e) {
       AppLogger.error('Email Registration failed (General / Firestore)', error: e, tag: 'AuthService');
       rethrow;
+    } finally {
+      _isRegistering = false;
     }
     return null;
   }
@@ -236,6 +253,8 @@ class AuthService {
     String email,
     String displayName, {
     bool isNewRegistration = false,
+    String? nameOverride,
+    String? lastNameOverride,
     String? phone1,
     String? phone2,
     String? dni,
@@ -245,10 +264,15 @@ class AuthService {
     final docRef = _db.collection('users').doc(uid);
     final docSnap = await docRef.get();
 
-    final String name = displayName.split(' ').first;
-    final String lastName = displayName.split(' ').length > 1
-        ? displayName.split(' ').sublist(1).join(' ')
-        : '';
+    final String trimmedDisp = displayName.trim();
+    final String name = (nameOverride != null && nameOverride.trim().isNotEmpty)
+        ? nameOverride.trim()
+        : (trimmedDisp.isNotEmpty ? trimmedDisp.split(' ').first : '');
+    final String lastName = (lastNameOverride != null && lastNameOverride.trim().isNotEmpty)
+        ? lastNameOverride.trim()
+        : (trimmedDisp.isNotEmpty && trimmedDisp.contains(' ')
+            ? trimmedDisp.split(' ').sublist(1).join(' ')
+            : '');
 
     UserSession session;
 
@@ -286,8 +310,6 @@ class AuthService {
           resolvedName = parts.first;
           resolvedLastName =
               parts.length > 1 ? parts.sublist(1).join(' ') : '';
-        } else {
-          resolvedName = email.split('@').first;
         }
       }
 
@@ -447,8 +469,6 @@ class AuthService {
             resolvedSnapName = parts.first;
             resolvedSnapLastName =
                 parts.length > 1 ? parts.sublist(1).join(' ') : '';
-          } else {
-            resolvedSnapName = email.split('@').first;
           }
         }
 
@@ -781,6 +801,8 @@ class AuthService {
   }
 
   Future<void> completeRegistration({
+    String? name,
+    String? lastName,
     String? phone1,
     String? phone2,
   }) async {
@@ -793,17 +815,36 @@ class AuthService {
       'termsVersion': '1.0',
     };
     
+    if (name != null && name.trim().isNotEmpty) {
+      updateData['name'] = name.trim();
+    }
+    if (lastName != null && lastName.trim().isNotEmpty) {
+      updateData['lastName'] = lastName.trim();
+    }
     if (phone1 != null) updateData['phone1'] = phone1;
     if (phone2 != null) updateData['phone2'] = phone2;
 
     await docRef.update(updateData);
+
+    final finalName = (name != null && name.trim().isNotEmpty) ? name.trim() : session.name;
+    final finalLastName = (lastName != null && lastName.trim().isNotEmpty) ? lastName.trim() : session.lastName;
+    final fullName = '$finalName $finalLastName'.trim();
+    if (fullName.isNotEmpty) {
+      try {
+        await _auth.currentUser?.updateDisplayName(fullName);
+      } catch (e) {
+        AppLogger.warning('Could not update Firebase displayName in completeRegistration: $e', tag: 'AuthService');
+      }
+    }
 
     // We can rely on the realtime listener to update the session provider, 
     // but we can also manually trigger a sync just in case.
     await _syncUserProfile(
       session.id,
       session.email,
-      '${session.name} ${session.lastName}',
+      fullName,
+      nameOverride: finalName,
+      lastNameOverride: finalLastName,
     );
   }
 
