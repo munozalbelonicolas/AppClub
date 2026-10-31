@@ -96,14 +96,15 @@ class MatchService {
         await _db.collection('match_lineups').doc(catKey).set(lineupPayload, SetOptions(merge: true));
       }
 
-      // Also ensure matches/{matchId}/convocatoria has these players marked as confirmed convocados
+      // Ensure matches/{matchId}/convocatoria has these players, without overwriting
+      // the tutor's response (status is only written by the tutor or on convocatoria creation)
       if (playerIds.isNotEmpty) {
         final batch = _db.batch();
         for (final pid in playerIds) {
           final cDoc = _db.collection('matches').doc(matchId).collection('convocatoria').doc(pid);
           batch.set(cDoc, {
             'playerId': pid,
-            'status': 'confirmed',
+            'matchId': matchId,
             'isStarter': true,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));

@@ -54,6 +54,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         matchId: matchId,
         playerId: playerId,
         status: 'confirmed',
+        tutorId: ref.read(currentUserProvider)?.id,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -136,6 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   matchId: matchId,
                   playerId: playerId,
                   status: 'rejected',
+                  tutorId: ref.read(currentUserProvider)?.id,
                   rejectionReason: reasonController.text.trim(),
                 );
                 if (mounted) {

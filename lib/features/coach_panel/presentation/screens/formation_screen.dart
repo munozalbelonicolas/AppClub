@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/convocatoria_provider.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/app_logger.dart';
 import '../../../../core/services/firestore_service.dart';
@@ -314,7 +315,11 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
     }
   }
 
-  void _showPlayerSelectionSheet(String slotId, List<Map<String, dynamic>> players) {
+  void _showPlayerSelectionSheet(
+    String slotId,
+    List<Map<String, dynamic>> players,
+    Map<String, String> statusMap,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.colors.surface,
@@ -365,7 +370,17 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                             subtitle: player['position'] != null && player['position'].toString().trim().isNotEmpty && player['position'].toString() != 'null'
                                 ? Text('${player['position']}')
                                 : null,
-                            trailing: isCurrent ? Icon(Icons.check, color: context.colors.primary) : null,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (statusMap.containsKey(player['id']))
+                                  _ConvocatoriaStatusChip(status: statusMap[player['id']]!),
+                                if (isCurrent) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(Icons.check, color: context.colors.primary),
+                                ],
+                              ],
+                            ),
                             onTap: () {
                               setState(() => _assignments[slotId] = player['id']);
                               Navigator.pop(context);
@@ -418,6 +433,11 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
     final players = _selectedCategoryFilter == 'Todas'
         ? allPlayers
         : allPlayers.where((p) => p['category'] == _selectedCategoryFilter).toList();
+
+    final statusMap = ref.watch(matchConvocatoriaStatusProvider(widget.matchId));
+    final convocadoIds = _selectedFormat == 'Solo lista'
+        ? _calledUpPlayers.toSet()
+        : _assignments.values.toSet();
 
     return Scaffold(
       backgroundColor: context.colors.background,
@@ -526,18 +546,23 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
                     ],
                   ),
                 ),
+                _ConvocatoriaSummary(playerIds: convocadoIds, statusMap: statusMap),
                 // Main Content
                 Expanded(
                   child: _selectedFormat == 'Solo lista'
-                      ? _buildListaMode(players)
-                      : _buildPitchMode(players, allPlayers),
+                      ? _buildListaMode(players, statusMap)
+                      : _buildPitchMode(players, allPlayers, statusMap),
                 ),
               ],
             ),
     );
   }
 
-  Widget _buildPitchMode(List<Map<String, dynamic>> players, List<Map<String, dynamic>> allPlayers) {
+  Widget _buildPitchMode(
+    List<Map<String, dynamic>> players,
+    List<Map<String, dynamic>> allPlayers,
+    Map<String, String> statusMap,
+  ) {
     final positions = _tactics[_selectedFormat]![_selectedTactic]!;
     
     return SingleChildScrollView(
@@ -557,18 +582,29 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
               final isAssigned = player != null && player.isNotEmpty;
 
               return GestureDetector(
-                onTap: () => _showPlayerSelectionSheet(slotId, players),
+                onTap: () => _showPlayerSelectionSheet(slotId, players, statusMap),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: isAssigned ? context.colors.primary : Colors.white.withValues(alpha: 0.5),
-                      child: isAssigned
-                          ? (player['number'] != null
-                              ? Text('${player['number']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                              : Text(player['name'].toString().substring(0, 1), style: const TextStyle(color: Colors.white)))
-                          : const Icon(Icons.add, color: Colors.black54),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: isAssigned ? context.colors.primary : Colors.white.withValues(alpha: 0.5),
+                          child: isAssigned
+                              ? (player['number'] != null
+                                  ? Text('${player['number']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                                  : Text(player['name'].toString().substring(0, 1), style: const TextStyle(color: Colors.white)))
+                              : const Icon(Icons.add, color: Colors.black54),
+                        ),
+                        if (isAssigned)
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: _ConvocatoriaStatusIcon(status: statusMap[assignedPlayerId] ?? 'pending'),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Container(
@@ -594,7 +630,7 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
     );
   }
 
-  Widget _buildListaMode(List<Map<String, dynamic>> players) {
+  Widget _buildListaMode(List<Map<String, dynamic>> players, Map<String, String> statusMap) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: players.length,
@@ -605,7 +641,20 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
         return CheckboxListTile(
           value: isSelected,
           activeColor: context.colors.primary,
-          title: Text('${player['name'] ?? ''} ${player['lastName'] ?? ''}'.trim()),
+          title: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  '${player['name'] ?? ''} ${player['lastName'] ?? ''}'.trim(),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (isSelected) ...[
+                const SizedBox(width: 8),
+                _ConvocatoriaStatusChip(status: statusMap[player['id']] ?? 'pending'),
+              ],
+            ],
+          ),
           subtitle: player['position'] != null && player['position'].toString().trim().isNotEmpty && player['position'].toString() != 'null'
               ? Text('${player['position']}')
               : null,
@@ -625,6 +674,104 @@ class _FormationScreenState extends ConsumerState<FormationScreen> {
           },
         );
       },
+    );
+  }
+}
+
+({Color color, IconData icon, String label}) _convocatoriaStatusStyle(String status) {
+  switch (status) {
+    case 'confirmed':
+      return (color: Colors.green, icon: Icons.check_circle, label: 'Confirmó');
+    case 'rejected':
+      return (color: Colors.red, icon: Icons.cancel, label: 'No puede');
+    default:
+      return (color: Colors.orange, icon: Icons.schedule, label: 'Pendiente');
+  }
+}
+
+class _ConvocatoriaStatusIcon extends StatelessWidget {
+  final String status;
+  const _ConvocatoriaStatusIcon({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _convocatoriaStatusStyle(status);
+    return Semantics(
+      label: style.label,
+      child: Container(
+        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+        child: Icon(style.icon, size: 16, color: style.color),
+      ),
+    );
+  }
+}
+
+class _ConvocatoriaStatusChip extends StatelessWidget {
+  final String status;
+  const _ConvocatoriaStatusChip({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _convocatoriaStatusStyle(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: style.color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: style.color),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(style.icon, size: 12, color: style.color),
+          const SizedBox(width: 4),
+          Text(style.label, style: TextStyle(fontSize: 10, color: style.color, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Resumen de respuestas de los tutores para los jugadores de la formación.
+class _ConvocatoriaSummary extends StatelessWidget {
+  final Set<String> playerIds;
+  final Map<String, String> statusMap;
+  const _ConvocatoriaSummary({required this.playerIds, required this.statusMap});
+
+  @override
+  Widget build(BuildContext context) {
+    if (playerIds.isEmpty) return const SizedBox.shrink();
+    var confirmed = 0, rejected = 0, pending = 0;
+    for (final id in playerIds) {
+      switch (statusMap[id]) {
+        case 'confirmed':
+          confirmed++;
+        case 'rejected':
+          rejected++;
+        default:
+          pending++;
+      }
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _summaryChip('confirmed', confirmed),
+          _summaryChip('rejected', rejected),
+          _summaryChip('pending', pending),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryChip(String status, int count) {
+    final style = _convocatoriaStatusStyle(status);
+    return Chip(
+      avatar: Icon(style.icon, size: 16, color: style.color),
+      label: Text('${style.label}: $count'),
+      visualDensity: VisualDensity.compact,
     );
   }
 }

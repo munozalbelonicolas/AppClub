@@ -69,29 +69,33 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
           .doc(effectiveMatchId)
           .collection('convocatoria');
 
-      // Read existing convocatoria to detect NEWLY added players
+      // Read existing convocatoria to detect NEWLY added players and keep tutor responses
       final existingSnap = await convocatoriaRef.get();
       final previouslyConvocadoIds = existingSnap.docs.map((d) => d.id).toSet();
+      final Map<String, String> previousStatusById = {
+        for (final d in existingSnap.docs)
+          if (d.data()['status'] != null) d.id: d.data()['status'].toString(),
+      };
 
       final batch = FirebaseFirestore.instance.batch();
+      // Solo se borran los jugadores que dejaron de estar convocados
       for (var doc in existingSnap.docs) {
-        batch.delete(doc.reference);
+        if (!_convocadosIds.contains(doc.id)) {
+          batch.delete(doc.reference);
+        }
       }
 
-      // Delete tutor_convocatorias for unconvoked players
-      try {
-        final existingTutorConvs = await FirebaseFirestore.instance
-            .collection('tutor_convocatorias')
-            .where('matchId', isEqualTo: effectiveMatchId)
-            .get();
-
-        for (final doc in existingTutorConvs.docs) {
-          final pid = doc.data()['playerId'] as String?;
-          if (pid != null && !_convocadosIds.contains(pid)) {
-            batch.delete(doc.reference);
-          }
+      final existingTutorConvs = await FirebaseFirestore.instance
+          .collection('tutor_convocatorias')
+          .where('matchId', isEqualTo: effectiveMatchId)
+          .get();
+      final existingTutorConvIds = existingTutorConvs.docs.map((d) => d.id).toSet();
+      for (final doc in existingTutorConvs.docs) {
+        final pid = doc.data()['playerId'] as String?;
+        if (pid != null && !_convocadosIds.contains(pid)) {
+          batch.delete(doc.reference);
         }
-      } catch (_) {}
+      }
 
       final playersAsync = ref.read(playersStreamProvider);
       final categoryPlayers = (playersAsync.valueOrNull ?? [])
@@ -151,18 +155,20 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
             'category': p['category'],
             'role': p['role'] ?? 'jugador',
             'isStarter': isStarter,
-            'status': 'pending',
+            // No pisar la respuesta del tutor si el jugador ya estaba convocado
+            if (!previouslyConvocadoIds.contains(playerId)) 'status': 'pending',
             'tutorId': tutorIds.isNotEmpty ? tutorIds.first : null,
-            'tutorIds': tutorIds,
+            'tutorIds': tutorIds.toList(),
             'matchId': effectiveMatchId,
             'updatedAt': FieldValue.serverTimestamp(),
-          });
+          }, SetOptions(merge: true));
 
           // Write to tutor_convocatorias collection for real-time tutor dashboard
           for (final tId in tutorIds) {
             final tDoc = FirebaseFirestore.instance
                 .collection('tutor_convocatorias')
                 .doc('${effectiveMatchId}_${tId}_$playerId');
+            final tDocExists = existingTutorConvIds.contains(tDoc.id);
 
             batch.set(tDoc, {
               'tutorId': tId,
@@ -178,9 +184,9 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
               'venue': venue,
               'date': dateStr,
               'time': timeStr,
-              'status': 'pending',
+              if (!tDocExists) 'status': previousStatusById[playerId] ?? 'pending',
               'updatedAt': FieldValue.serverTimestamp(),
-            });
+            }, SetOptions(merge: true));
           }
 
           // Send push notification ONLY to newly added players' tutors
@@ -496,25 +502,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     final docId = nextMatch?['id'] ?? 'next_match_${_selectedCategory ?? 'all'}';
 
     final convocatoriaAsync = ref.watch(convocatoriaStreamProvider(docId));
-    final tutorConvsStatusAsync = ref.watch(coachConvocatoriaStatusProvider(docId));
-
-    final Map<String, String> convocatoriaStatusMap = {};
-    if (convocatoriaAsync.valueOrNull != null) {
-      for (final doc in convocatoriaAsync.valueOrNull!) {
-        final pid = (doc['playerId'] ?? doc['id']) as String?;
-        final st = doc['status'] as String? ?? 'pending';
-        if (pid != null) {
-          convocatoriaStatusMap[pid] = st;
-        }
-      }
-    }
-    if (tutorConvsStatusAsync.valueOrNull != null) {
-      tutorConvsStatusAsync.valueOrNull!.forEach((pid, st) {
-        if (st != 'pending' || !convocatoriaStatusMap.containsKey(pid)) {
-          convocatoriaStatusMap[pid] = st;
-        }
-      });
-    }
+    final convocatoriaStatusMap = ref.watch(matchConvocatoriaStatusProvider(docId));
 
     return Scaffold(
       backgroundColor: context.colors.background,

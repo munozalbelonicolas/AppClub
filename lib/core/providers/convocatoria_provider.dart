@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/firestore_service.dart';
+
 /// Streams all pending convocatorias for a tutor.
 /// Listens in real-time to the 'tutor_convocatorias' collection.
 final tutorConvocatoriasProvider =
@@ -136,7 +138,8 @@ final tutorConvocatoriasProvider =
   });
 });
 
-/// Streams all tutor convocatorias for a specific match to show live status to the coach
+/// Streams all tutor convocatorias for a specific match to show live status to the coach.
+/// A player may have one doc per tutor: a real response always wins over 'pending'.
 final coachConvocatoriaStatusProvider =
     StreamProvider.family<Map<String, String>, String>((ref, matchId) {
   if (matchId.isEmpty) {
@@ -152,9 +155,10 @@ final coachConvocatoriaStatusProvider =
       .map((snapshot) {
     final Map<String, String> statusMap = {};
     for (final doc in snapshot.docs) {
-      final pid = doc.data()['playerId'] as String?;
-      final st = doc.data()['status'] as String? ?? 'pending';
-      if (pid != null) {
+      final pid = doc.data()['playerId']?.toString();
+      final st = _normalizeStatus(doc.data()['status']);
+      if (pid == null) continue;
+      if (st != 'pending' || !statusMap.containsKey(pid)) {
         statusMap[pid] = st;
       }
     }
@@ -162,8 +166,34 @@ final coachConvocatoriaStatusProvider =
   });
 });
 
+/// Combined convocatoria status per player for a match (playerId -> confirmed/rejected/pending).
+/// Merges matches/{matchId}/convocatoria (source of truth) with tutor_convocatorias.
+final matchConvocatoriaStatusProvider =
+    Provider.family<Map<String, String>, String>((ref, matchId) {
+  final subDocs = ref.watch(convocatoriaStreamProvider(matchId)).valueOrNull ?? [];
+  final tutorStatus = ref.watch(coachConvocatoriaStatusProvider(matchId)).valueOrNull ?? {};
+
+  final Map<String, String> statusMap = {};
+  for (final doc in subDocs) {
+    final pid = (doc['playerId'] ?? doc['id'])?.toString();
+    if (pid != null) statusMap[pid] = _normalizeStatus(doc['status']);
+  }
+  tutorStatus.forEach((pid, st) {
+    if (!statusMap.containsKey(pid) || (st != 'pending' && statusMap[pid] == 'pending')) {
+      statusMap[pid] = st;
+    }
+  });
+  return statusMap;
+});
+
+String _normalizeStatus(dynamic raw) {
+  final st = raw?.toString() ?? '';
+  return st == 'confirmed' || st == 'rejected' ? st : 'pending';
+}
+
 /// Updates the convocatoria status for a specific player in a match.
-/// Updates both 'tutor_convocatorias' and 'matches/{matchId}/convocatoria/{playerId}'.
+/// Writes atomically to 'matches/{matchId}/convocatoria/{playerId}' and every
+/// matching 'tutor_convocatorias' doc. Errors are propagated so the UI can report them.
 Future<void> updateConvocatoriaStatus({
   required String matchId,
   required String playerId,
@@ -171,38 +201,38 @@ Future<void> updateConvocatoriaStatus({
   String? tutorId,
   String? rejectionReason,
 }) async {
-  final db = FirebaseFirestore.instance;
-  final updateData = <String, dynamic>{
-    'status': status,
-    'confirmedAt': FieldValue.serverTimestamp(),
-  };
-  if (rejectionReason != null && rejectionReason.isNotEmpty) {
-    updateData['rejectionReason'] = rejectionReason;
+  if (matchId.isEmpty || playerId.isEmpty) {
+    throw ArgumentError('matchId y playerId son obligatorios');
   }
 
-  // 1. Update in matches/{matchId}/convocatoria/{playerId}
-  try {
-    await db
-        .collection('matches')
-        .doc(matchId)
-        .collection('convocatoria')
-        .doc(playerId)
-        .set(updateData, SetOptions(merge: true));
-  } catch (_) {}
+  final db = FirebaseFirestore.instance;
+  final hasReason = status == 'rejected' && rejectionReason != null && rejectionReason.isNotEmpty;
+  final updateData = <String, dynamic>{
+    'status': status,
+    'respondedAt': FieldValue.serverTimestamp(),
+    'confirmedAt': FieldValue.serverTimestamp(),
+    'rejectionReason': hasReason ? rejectionReason : FieldValue.delete(),
+    if (tutorId != null && tutorId.isNotEmpty) 'respondedBy': tutorId,
+  };
 
-  // 2. Update matching documents in tutor_convocatorias collection
-  try {
-    final query1 = await db
-        .collection('tutor_convocatorias')
-        .where('playerId', isEqualTo: playerId)
-        .get();
+  final batch = db.batch();
 
-    for (final doc in query1.docs) {
-      final docMatchId = doc.data()['matchId']?.toString();
-      if (docMatchId == null || docMatchId == matchId || doc.id.contains(matchId)) {
-        await doc.reference.set(updateData, SetOptions(merge: true));
-      }
+  batch.set(
+    db.collection('matches').doc(matchId).collection('convocatoria').doc(playerId),
+    {'playerId': playerId, 'matchId': matchId, ...updateData},
+    SetOptions(merge: true),
+  );
+
+  final tutorConvs = await db
+      .collection('tutor_convocatorias')
+      .where('playerId', isEqualTo: playerId)
+      .get();
+  for (final doc in tutorConvs.docs) {
+    final docMatchId = doc.data()['matchId']?.toString();
+    if (docMatchId == matchId || (docMatchId == null && doc.id.startsWith('${matchId}_'))) {
+      batch.set(doc.reference, updateData, SetOptions(merge: true));
     }
-  } catch (_) {}
-}
+  }
 
+  await batch.commit();
+}
