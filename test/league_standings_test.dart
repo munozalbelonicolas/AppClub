@@ -291,4 +291,17 @@ void main() {
       expect(losPibes['pts'], 0);
     });
   });
+
+  group('calculateFixturePoints', () {
+    test('suma 2 por victoria y 1 por empate, ignora promocionales y suspendidos', () {
+      final pts = calculateFixturePoints([
+        {'status': 'Finalizado', 'homeScore': 3, 'awayScore': 1}, // local +2
+        {'status': 'Finalizado', 'homeScore': '0', 'awayScore': '2'}, // visitante +2
+        {'status': 'Finalizado', 'homeScore': 1, 'awayScore': 1}, // +1 / +1
+        {'status': 'Finalizado', 'homeScore': 5, 'awayScore': 0, 'isPromotional': true},
+        {'status': 'Suspendido', 'homeScore': 0, 'awayScore': 0},
+      ]);
+      expect(pts, {'homePts': 3, 'awayPts': 3});
+    });
+  });
 }

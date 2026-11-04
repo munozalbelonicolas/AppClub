@@ -1288,15 +1288,10 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                     final sUser = ref.read(currentUserProvider);
                     final hName = homeClub?['name'] ?? 'Jorge Newbery';
                     final aName = awayClub?['name'] ?? 'Rival';
-                    int totH = 0;
-                    int totA = 0;
-                    for (final m in updatedMatches) {
-                      totH += (m['homeScore'] as int? ?? 0);
-                      totA += (m['awayScore'] as int? ?? 0);
-                    }
+                    final pts = calculateFixturePoints(updatedMatches);
                     final pushSent = await NotificationService().sendNotification(
                       title: '⚽ ¡Resultados de la fecha vs $aName!',
-                      body: 'Se actualizaron los resultados de la jornada ($hName $totH - $totA $aName). ¡Mirá todos los partidos en la app!',
+                      body: 'Se actualizaron los resultados de la jornada (puntos: $hName ${pts['homePts']} - ${pts['awayPts']} $aName). ¡Mirá todos los partidos en la app!',
                       authorId: sUser?.id ?? '',
                       targetCategory: 'all',
                       data: {
@@ -1617,15 +1612,10 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                         });
 
                     if (allFinished) {
-                      int totH = 0;
-                      int totA = 0;
-                      for (final m in currentMatches) {
-                        totH += (m['homeScore'] as int? ?? 0);
-                        totA += (m['awayScore'] as int? ?? 0);
-                      }
+                      final pts = calculateFixturePoints(currentMatches);
                       final jornadaPushSent = await NotificationService().sendNotification(
                         title: '🏆 ¡Finalizó la fecha vs $aName!',
-                        body: 'Se completaron todos los partidos. Total de la jornada: $hName $totH - $totA $aName. ¡Consultá la tabla en la app!',
+                        body: 'Se completaron todos los partidos. Puntos de la jornada: $hName ${pts['homePts']} - ${pts['awayPts']} $aName. ¡Consultá la tabla en la app!',
                         authorId: sUser?.id ?? '',
                         targetCategory: 'all',
                         data: {

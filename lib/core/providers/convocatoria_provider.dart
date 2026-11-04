@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/firestore_service.dart';
 
-/// Streams all pending convocatorias for a tutor.
+/// Streams the convocatorias of a tutor's players: pending ones plus the ones already
+/// answered (confirmed/rejected) for upcoming matches, so the tutor keeps seeing them.
 /// Listens in real-time to the 'tutor_convocatorias' collection.
 final tutorConvocatoriasProvider =
     StreamProvider.family<List<Map<String, dynamic>>, String>((ref, userId) {
@@ -44,7 +45,8 @@ final tutorConvocatoriasProvider =
       } catch (_) {}
     }
 
-    final List<Map<String, dynamic>> result = [];
+    // matchId_playerId -> convocatoria (one per player even if it has several tutor docs)
+    final Map<String, Map<String, dynamic>> resultByKey = {};
     final Set<String> handledPlayerMatchKeys = {};
 
     // 2. Check existing tutor_convocatorias docs
@@ -57,14 +59,16 @@ final tutorConvocatoriasProvider =
       final isForUser = tutorId == userId ||
           playerIds.contains(playerId) ||
           tutorIds.contains(userId);
-      final status = d['status']?.toString();
-      final isPending = status == 'pending' || status == null || status.isEmpty;
+      if (!isForUser || !_isRelevantForTutor(d)) continue;
 
-      if (isForUser && isPending) {
-        final matchId = d['matchId']?.toString() ?? doc.id;
-        final pId = playerId ?? userId;
-        handledPlayerMatchKeys.add('${matchId}_$pId');
-        result.add({'id': doc.id, ...d});
+      final matchId = d['matchId']?.toString() ?? doc.id;
+      final pId = playerId ?? userId;
+      final key = '${matchId}_$pId';
+      handledPlayerMatchKeys.add(key);
+      final existing = resultByKey[key];
+      // Si hay varios docs (uno por tutor), gana el que ya tiene respuesta
+      if (existing == null || _normalizeStatus(existing['status']) == 'pending') {
+        resultByKey[key] = {'id': doc.id, ...d, 'status': _normalizeStatus(d['status'])};
       }
     }
 
@@ -100,10 +104,10 @@ final tutorConvocatoriasProvider =
 
             if (cDoc.exists) {
               final cData = cDoc.data() ?? {};
-              final st = cData['status']?.toString();
-              if (st == 'pending' || st == null || st.isEmpty) {
+              final st = _normalizeStatus(cData['status']);
+              if (_isRelevantForTutor({...mData, ...cData, 'status': st})) {
                 handledPlayerMatchKeys.add(key);
-                result.add({
+                resultByKey[key] = {
                   'id': '${matchId}_$childId',
                   'matchId': matchId,
                   'playerId': childId,
@@ -125,8 +129,9 @@ final tutorConvocatoriasProvider =
                       mData['hora'] ??
                       mData['startTime'] ??
                       '',
-                  'status': 'pending',
-                });
+                  'status': st,
+                  if (cData['rejectionReason'] != null) 'rejectionReason': cData['rejectionReason'],
+                };
               }
             }
           }
@@ -134,9 +139,43 @@ final tutorConvocatoriasProvider =
       }
     }
 
-    return result;
+    return resultByKey.values.toList();
   });
 });
+
+/// Pending convocatorias are always shown. Answered ones only while the match is upcoming
+/// (or, if the date can't be parsed, during the week after the answer).
+bool _isRelevantForTutor(Map<String, dynamic> d) {
+  if (_normalizeStatus(d['status']) == 'pending') return true;
+
+  final today = DateTime.now();
+  final startOfToday = DateTime(today.year, today.month, today.day);
+
+  final matchDate = _parseMatchDate(d['date'] ?? d['matchDate'] ?? d['eventDate'] ?? d['dateYMD']);
+  if (matchDate != null) return !matchDate.isBefore(startOfToday);
+
+  final answeredAt = d['respondedAt'] ?? d['confirmedAt'];
+  if (answeredAt is Timestamp) {
+    return today.difference(answeredAt.toDate()).inDays < 7;
+  }
+  return true;
+}
+
+DateTime? _parseMatchDate(dynamic raw) {
+  if (raw is Timestamp) return raw.toDate();
+  final s = raw?.toString().trim() ?? '';
+  if (s.isEmpty) return null;
+  final iso = DateTime.tryParse(s.split('T').first);
+  if (iso != null) return iso;
+  final parts = s.split(RegExp(r'[/-]'));
+  if (parts.length == 3) {
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day != null && month != null && year != null) return DateTime(year, month, day);
+  }
+  return null;
+}
 
 /// Streams all tutor convocatorias for a specific match to show live status to the coach.
 /// A player may have one doc per tutor: a real response always wins over 'pending'.

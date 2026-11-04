@@ -388,6 +388,36 @@ Map<String, int> calculateMatchPoints(Map<String, dynamic>? matchCategories, [Li
   return {'homePts': homePts, 'awayPts': awayPts};
 }
 
+/// Calculate the points of a whole fixture (one match per category), using the same
+/// rule as [calculateMatchPoints]: Win = 2 pts, Draw = 1 pt, Loss = 0 pts.
+/// Promotional categories and matches that are not finished (e.g. suspended) do not count.
+Map<String, int> calculateFixturePoints(List<Map<String, dynamic>> matches) {
+  int homePts = 0;
+  int awayPts = 0;
+
+  for (final m in matches) {
+    if (m['isPromotional'] == true) continue;
+    final status = (m['status']?.toString() ?? '').toLowerCase();
+    final isFinished = status == 'finished' || status.contains('final') || status.contains('fin');
+    if (!isFinished || status.contains('susp')) continue;
+
+    final h = int.tryParse(m['homeScore']?.toString() ?? '');
+    final a = int.tryParse(m['awayScore']?.toString() ?? '');
+    if (h == null || a == null) continue;
+
+    if (h > a) {
+      homePts += 2;
+    } else if (h < a) {
+      awayPts += 2;
+    } else {
+      homePts += 1;
+      awayPts += 1;
+    }
+  }
+
+  return {'homePts': homePts, 'awayPts': awayPts};
+}
+
 /// Format display date (e.g. 2026-08-26 -> 26/08/2026)
 String formatDisplayDate(String? dateStr) {
   if (dateStr == null || dateStr.trim().isEmpty) return '';

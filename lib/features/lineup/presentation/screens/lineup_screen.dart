@@ -504,6 +504,18 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     final convocatoriaAsync = ref.watch(convocatoriaStreamProvider(docId));
     final convocatoriaStatusMap = ref.watch(matchConvocatoriaStatusProvider(docId));
 
+    // Jugadores propios del tutor/jugador logueado: ve el estado de su convocatoria
+    final Set<String> ownPlayerIds = {};
+    if (!isCoach && !isAdmin) {
+      ownPlayerIds.add(currentUser.id);
+      if (currentUser.childId != null) ownPlayerIds.add(currentUser.childId!);
+      final ownConvs = ref.watch(tutorConvocatoriasProvider(currentUser.id)).valueOrNull ?? [];
+      for (final c in ownConvs) {
+        final pid = c['playerId']?.toString();
+        if (pid != null) ownPlayerIds.add(pid);
+      }
+    }
+
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(title: const Text('Formación del Equipo'), elevation: 0),
@@ -997,6 +1009,7 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
                   isCoach: isCoach,
                   nextMatch: nextMatch,
                   convocatoriaStatus: convocatoriaStatusMap[p['playerId']],
+                  showStatus: isCoach || ownPlayerIds.contains(p['playerId']),
                 )),
                 const SizedBox(height: 16),
               ],
@@ -1035,12 +1048,13 @@ class _LineupScreenState extends ConsumerState<LineupScreen> {
     required bool isCoach,
     required Map<String, dynamic>? nextMatch,
     String? convocatoriaStatus,
+    bool showStatus = false,
   }) {
     final playerId = player['playerId'] as String;
 
-    // Status chip widget shown next to convocado players
+    // Status chip widget shown next to convocado players (DT, or the player's own tutor)
     Widget? statusChip;
-    if (isCoach && isConvocado) {
+    if (showStatus && isConvocado) {
       switch (convocatoriaStatus) {
         case 'confirmed':
           statusChip = Container(
