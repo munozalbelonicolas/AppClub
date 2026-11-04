@@ -6,13 +6,8 @@ import 'notification_service.dart';
 class NovedadesService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Stream<List<Map<String, dynamic>>> getAllNovedades({int limit = 40}) {
-    return _db
-        .collection('novedades')
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((snapshot) {
+  Stream<List<Map<String, dynamic>>> getAllNovedades() {
+    return _db.collection('novedades').snapshots().map((snapshot) {
       final list = snapshot.docs
           .map((doc) => {'id': doc.id, ...doc.data()})
           .toList();
@@ -22,15 +17,9 @@ class NovedadesService {
   }
 
   Stream<List<Map<String, dynamic>>> getNovedadesForUser(
-    List<String>? userCategories, {
-    int limit = 40,
-  }) {
-    return _db
-        .collection('novedades')
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((snapshot) {
+    List<String>? userCategories,
+  ) {
+    return _db.collection('novedades').snapshots().map((snapshot) {
       final userCats = (userCategories ?? [])
           .map((c) => c.toString().trim().toLowerCase())
           .where((c) => c.isNotEmpty)
@@ -52,8 +41,7 @@ class NovedadesService {
 
         if (isGlobal) return true;
         if (userCats.isEmpty) return true;
-        return userCats.contains(rawCat) ||
-            userCats.any((c) => rawCat.contains(c) || c.contains(rawCat));
+        return userCats.contains(rawCat);
       }).toList();
 
       _sortNovedades(list);
@@ -142,7 +130,9 @@ class NovedadesService {
       }
 
       final targetCategory = (rawCategory.isEmpty ||
-              NotificationService.isBroadcastCategory(rawCategory))
+              rawCategory.toLowerCase() == 'all' ||
+              rawCategory.toLowerCase() == 'todos' ||
+              rawCategory.toLowerCase() == 'general')
           ? 'all'
           : rawCategory;
 

@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../coach_panel/presentation/screens/coach_reports_admin_screen.dart';
@@ -328,14 +327,6 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
                 // Pedidos de tienda para administradores
                 if (type == 'new_order') return true;
 
-                // Avisos institucionales / comunicados generales para todos
-                if (type == 'comunicado' ||
-                    type == 'announcement' ||
-                    type == 'novedad' ||
-                    NotificationService.isBroadcastCategory(targetCat)) {
-                  return true;
-                }
-
                 return false;
               }
 
@@ -365,7 +356,9 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
 
               // 5. Filtrado por categoría de destino
               if (targetCat.isNotEmpty &&
-                  !NotificationService.isBroadcastCategory(targetCat)) {
+                  targetCat != 'all' &&
+                  targetCat != 'todos' &&
+                  targetCat != 'general') {
                 // Coincidencia con categoría principal
                 if (sUser?.category != null &&
                     targetCat == sUser!.category!.toLowerCase().trim()) {

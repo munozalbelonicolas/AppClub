@@ -303,5 +303,16 @@ void main() {
       ]);
       expect(pts, {'homePts': 3, 'awayPts': 3});
     });
+
+    test('reconoce el estado "finished" que guarda la pantalla de resultados', () {
+      final matches = [
+        {'status': 'finished', 'homeScore': 2, 'awayScore': 0},
+        {'status': 'finished', 'homeScore': 1, 'awayScore': 1},
+        {'status': 'suspended', 'homeScore': 0, 'awayScore': 0},
+      ];
+      expect(calculateFixturePoints(matches), {'homePts': 3, 'awayPts': 1});
+      expect(isFixtureComplete(matches), isTrue);
+      expect(isFixtureComplete([...matches, {'status': 'live'}]), isFalse);
+    });
   });
 }

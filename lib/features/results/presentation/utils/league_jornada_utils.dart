@@ -388,6 +388,24 @@ Map<String, int> calculateMatchPoints(Map<String, dynamic>? matchCategories, [Li
   return {'homePts': homePts, 'awayPts': awayPts};
 }
 
+/// Match status saved by the results screen: 'finished', 'live', 'scheduled', 'suspended'.
+/// Legacy Spanish values ('Finalizado', 'Suspendido') are also accepted.
+bool isFinishedMatchStatus(dynamic raw) {
+  final s = raw?.toString().toLowerCase().trim() ?? '';
+  return s == 'finished' || s.contains('final');
+}
+
+bool isSuspendedMatchStatus(dynamic raw) {
+  final s = raw?.toString().toLowerCase().trim() ?? '';
+  return s == 'suspended' || s.contains('susp');
+}
+
+/// True when every match of the fixture is finished or suspended.
+bool isFixtureComplete(List<Map<String, dynamic>> matches) {
+  return matches.isNotEmpty &&
+      matches.every((m) => isFinishedMatchStatus(m['status']) || isSuspendedMatchStatus(m['status']));
+}
+
 /// Calculate the points of a whole fixture (one match per category), using the same
 /// rule as [calculateMatchPoints]: Win = 2 pts, Draw = 1 pt, Loss = 0 pts.
 /// Promotional categories and matches that are not finished (e.g. suspended) do not count.
@@ -397,9 +415,7 @@ Map<String, int> calculateFixturePoints(List<Map<String, dynamic>> matches) {
 
   for (final m in matches) {
     if (m['isPromotional'] == true) continue;
-    final status = (m['status']?.toString() ?? '').toLowerCase();
-    final isFinished = status == 'finished' || status.contains('final') || status.contains('fin');
-    if (!isFinished || status.contains('susp')) continue;
+    if (!isFinishedMatchStatus(m['status'])) continue;
 
     final h = int.tryParse(m['homeScore']?.toString() ?? '');
     final a = int.tryParse(m['awayScore']?.toString() ?? '');

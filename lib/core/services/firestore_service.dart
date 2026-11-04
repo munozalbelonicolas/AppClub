@@ -285,10 +285,6 @@ final lineupStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, S
   return ref.watch(firestoreServiceProvider).getLineup(matchId);
 });
 
-final matchLineupDocStreamProvider = StreamProvider.family<DocumentSnapshot, String>((ref, matchId) {
-  return FirebaseFirestore.instance.collection('match_lineups').doc(matchId).snapshots();
-});
-
 final userPaymentsStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, userId) {
   return ref.watch(firestoreServiceProvider).getPayments(userId);
 });

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +10,6 @@ import '../../../../core/config/app_config.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/services/auth_service.dart';
-import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/jn_avatar.dart';
@@ -98,10 +98,36 @@ class SettingsScreen extends ConsumerWidget {
           if (user.role == 'tutor') ...[
             Text('Mis Hijos', style: context.typography.labelMedium),
             const SizedBox(height: 8),
-            ref.watch(tutorPlayersStreamProvider(user.id)).when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, _) => const SizedBox.shrink(),
-              data: (children) {
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('player_tutor_links')
+                  .where('tutorId', isEqualTo: user.id)
+                  .snapshots()
+                  .asyncMap((snapshot) async {
+                final List<Map<String, dynamic>> children = [];
+                for (var doc in snapshot.docs) {
+                  final data = doc.data();
+                  final playerId = data['playerId'] as String?;
+                  if (playerId != null) {
+                    final playerDoc = await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(playerId)
+                        .get();
+                    if (playerDoc.exists) {
+                      children.add({
+                        'id': playerDoc.id,
+                        ...playerDoc.data()!,
+                      });
+                    }
+                  }
+                }
+                return children;
+              }),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final children = snapshot.data ?? [];
                 if (children.isEmpty) {
                   return JNCard(
                     padding: const EdgeInsets.all(16),

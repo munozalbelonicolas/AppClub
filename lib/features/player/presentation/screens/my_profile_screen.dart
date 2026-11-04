@@ -45,22 +45,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   DateTime? _aptoFisicoExpiry;
   bool _isLoading = false;
 
-  Stream<List<Map<String, dynamic>>>? _childrenStream;
-  Stream<List<Map<String, dynamic>>>? _tutorsStream;
-  String? _initializedUserId;
-
-  void _initStreams(String? userId) {
-    if (userId == null || userId.isEmpty) return;
-    _initializedUserId = userId;
-    _childrenStream = _fetchChildren(userId);
-    _tutorsStream = _fetchTutors(userId);
-  }
-
   @override
   void initState() {
     super.initState();
     final user = ref.read(currentUserProvider);
-    _initStreams(user?.id);
 
     _nameController = TextEditingController(text: user?.name ?? '');
     _lastNameController = TextEditingController(text: user?.lastName ?? '');
@@ -282,9 +270,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    if (user != null && user.id != _initializedUserId) {
-      _initStreams(user.id);
-    }
     if (user == null) {
       return Scaffold(
         backgroundColor: context.colors.background,
@@ -678,7 +663,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     ),
                     const SizedBox(height: 8),
                     StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: _childrenStream ?? _fetchChildren(user.id),
+                      stream: _fetchChildren(user.id),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
                           return const Center(child: CircularProgressIndicator());
@@ -813,7 +798,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     const SizedBox(height: 8),
 
                     StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: _tutorsStream ?? _fetchTutors(user.id),
+                      stream: _fetchTutors(user.id),
                       builder: (context, snapshot) {
                         final tutors = snapshot.data ?? [];
                         final hasFather = (user.fatherName ?? '').isNotEmpty;

@@ -14,11 +14,9 @@ import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/birthday_service.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/services/image_upload_service.dart';
-import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/emoji_rich_text.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_match_card.dart';
@@ -44,21 +42,13 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Set<String> _expandedPostIds = {};
   final Set<String> _markedSeenPostIds = {};
-  final Set<String> _handledConvocatoriaIds = {};
   final Map<String, TextEditingController> _commentControllers = {};
 
-  void _confirmAttendance({
-    required String matchId,
-    required String playerId,
-    required String playerName,
-    String? docId,
-  }) async {
-    setState(() {
-      if (docId != null && docId.isNotEmpty) _handledConvocatoriaIds.add(docId);
-      if (matchId.isNotEmpty && playerId.isNotEmpty) {
-        _handledConvocatoriaIds.add('${matchId}_$playerId');
-      }
-    });
+  void _confirmAttendance(
+    String matchId,
+    String playerId,
+    String playerName,
+  ) async {
     try {
       await updateConvocatoriaStatus(
         matchId: matchId,
@@ -87,13 +77,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _rejectAttendance({
-    required String matchId,
-    required String playerId,
-    required String playerName,
-    String? docId,
-    String? category,
-  }) {
+  void _rejectAttendance(String matchId, String playerId, String playerName) {
     final reasonController = TextEditingController();
     showDialog(
       context: context,
@@ -148,12 +132,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             onPressed: () async {
               Navigator.pop(ctx);
-              setState(() {
-                if (docId != null && docId.isNotEmpty) _handledConvocatoriaIds.add(docId);
-                if (matchId.isNotEmpty && playerId.isNotEmpty) {
-                  _handledConvocatoriaIds.add('${matchId}_$playerId');
-                }
-              });
               try {
                 await updateConvocatoriaStatus(
                   matchId: matchId,
@@ -162,21 +140,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   tutorId: ref.read(currentUserProvider)?.id,
                   rejectionReason: reasonController.text.trim(),
                 );
-                final sUser = ref.read(currentUserProvider);
-                if (category != null && category.isNotEmpty) {
-                  NotificationService().sendNotification(
-                    title: '⚠️ Convocatoria: $playerName no asiste',
-                    body: 'El tutor de $playerName informó que no asistirá${reasonController.text.trim().isNotEmpty ? ": ${reasonController.text.trim()}" : "."}',
-                    authorId: sUser?.id ?? '',
-                    targetCategory: category,
-                    data: {
-                      'type': 'convocatoria_rejection',
-                      'matchId': matchId,
-                      'playerId': playerId,
-                      'category': category,
-                    },
-                  );
-                }
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -206,86 +169,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  /// Oculta convocatorias respondidas de partidos ya pasados (si la fecha es legible).
-  bool _isConvocatoriaUpcoming(Map<String, dynamic> c) {
-    final raw = c['date'] ?? c['matchDate'] ?? c['eventDate'] ?? c['dateYMD'];
-    DateTime? d;
-    if (raw is Timestamp) {
-      d = raw.toDate();
-    } else if (raw != null) {
-      d = DateTime.tryParse(raw.toString());
-    }
-    if (d == null) return true;
-    return d.isAfter(DateTime.now().subtract(const Duration(days: 1)));
-  }
-
-  Widget _buildRespondedConvocatoriaCard(Map<String, dynamic> item) {
-    final confirmed = item['status'] == 'confirmed';
-    final color = confirmed ? const Color(0xFF34D399) : const Color(0xFFF87171);
-    final playerName = item['playerName'] ?? 'Jugador';
-    final rival = (item['awayTeam'] ?? item['rival'] ?? '').toString();
-    final matchId = item['matchId']?.toString() ?? '';
-    final playerId = item['playerId']?.toString() ?? '';
-    final category = item['category']?.toString() ?? '';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: color.withValues(alpha: 0.6)),
-      ),
-      child: Row(
-        children: [
-          Icon(confirmed ? Icons.check_circle : Icons.cancel, color: color),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  confirmed
-                      ? 'Asistencia confirmada: $playerName'
-                      : '$playerName no asistirá',
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                if (rival.isNotEmpty)
-                  Text(
-                    'vs $rival',
-                    style: TextStyle(
-                      color: context.colors.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => confirmed
-                ? _rejectAttendance(
-                    matchId: matchId,
-                    playerId: playerId,
-                    playerName: playerName.toString(),
-                    docId: item['id']?.toString(),
-                    category: category,
-                  )
-                : _confirmAttendance(
-                    matchId: matchId,
-                    playerId: playerId,
-                    playerName: playerName.toString(),
-                    docId: item['id']?.toString(),
-                  ),
-            child: Text(confirmed ? 'Cambiar' : 'Confirmar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTutorConvocatoriaCard(Map<String, dynamic> item) {
     final match = item['match'] as Map<String, dynamic>? ?? {};
     final conv = item['convocatoria'] as Map<String, dynamic>? ?? {};
@@ -303,6 +186,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         item['playerName'] ?? conv['name'] ?? item['name'] ?? 'Jugador';
     final category =
         item['category'] as String? ?? conv['category'] as String? ?? '';
+    final status = item['status']?.toString() ?? 'pending';
+    final isConfirmed = status == 'confirmed';
+    final isRejected = status == 'rejected';
+    final rejectionReason = item['rejectionReason']?.toString().trim() ?? '';
 
     // Match candidate lookup for this category as fallback for rival/date/venue
     final nextMatch = category.isNotEmpty ? ref.watch(nextMatchProvider(category)) : null;
@@ -446,18 +333,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFF34D399)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.sports_soccer,
+                        isConfirmed ? Icons.verified : Icons.sports_soccer,
                         size: 14,
-                        color: Color(0xFF34D399),
+                        color: const Color(0xFF34D399),
                       ),
-                      SizedBox(width: 5),
+                      const SizedBox(width: 5),
                       Text(
-                        '¡CONVOCATORIA AL PARTIDO!',
-                        style: TextStyle(
+                        isConfirmed ? 'CONVOCADO · ASISTENCIA CONFIRMADA' : '¡CONVOCATORIA AL PARTIDO!',
+                        style: const TextStyle(
                           color: Color(0xFF34D399),
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -541,6 +428,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
             const SizedBox(height: 14),
+            if (isConfirmed || isRejected)
+              _buildConvocatoriaAnswer(
+                isConfirmed: isConfirmed,
+                playerName: playerName.toString(),
+                rejectionReason: rejectionReason,
+                onChange: () => isConfirmed
+                    ? _rejectAttendance(matchId, playerId, playerName)
+                    : _confirmAttendance(matchId, playerId, playerName),
+              )
+            else
             Row(
               children: [
                 Expanded(
@@ -554,12 +451,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       elevation: 2,
                     ),
-                    onPressed: () => _confirmAttendance(
-                      matchId: matchId,
-                      playerId: playerId,
-                      playerName: playerName,
-                      docId: item['id']?.toString(),
-                    ),
+                    onPressed: () =>
+                        _confirmAttendance(matchId, playerId, playerName),
                     icon: const Icon(Icons.check_circle_outline, size: 18),
                     label: const Text(
                       'Confirmar',
@@ -581,13 +474,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: () => _rejectAttendance(
-                      matchId: matchId,
-                      playerId: playerId,
-                      playerName: playerName,
-                      docId: item['id']?.toString(),
-                      category: category,
-                    ),
+                    onPressed: () =>
+                        _rejectAttendance(matchId, playerId, playerName),
                     icon: const Icon(Icons.cancel_outlined, size: 18),
                     label: const Text(
                       'No puede ir',
@@ -602,6 +490,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildConvocatoriaAnswer({
+    required bool isConfirmed,
+    required String playerName,
+    required String rejectionReason,
+    required VoidCallback onChange,
+  }) {
+    final color = isConfirmed ? const Color(0xFF10B981) : const Color(0xFFF87171);
+    final message = isConfirmed
+        ? 'Confirmaste la asistencia de $playerName'
+        : 'Avisaste que $playerName no puede ir${rejectionReason.isNotEmpty ? ' ($rejectionReason)' : ''}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color),
+      ),
+      child: Row(
+        children: [
+          Icon(isConfirmed ? Icons.check_circle : Icons.cancel, size: 20, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+          ),
+          TextButton(
+            onPressed: onChange,
+            style: TextButton.styleFrom(foregroundColor: Colors.white70),
+            child: const Text('Cambiar', style: TextStyle(fontSize: 12)),
+          ),
+        ],
       ),
     );
   }
@@ -1413,27 +1340,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final tutorConvocatoriasAsync = isTutorOrPlayer
         ? ref.watch(tutorConvocatoriasProvider(sessionUser.id))
         : null;
-    final List<Map<String, dynamic>> allConvocatorias =
+    final List<Map<String, dynamic>> tutorConvocatorias =
         tutorConvocatoriasAsync?.valueOrNull ?? [];
-    bool isResponded(Map<String, dynamic> c) {
-      final st = c['status']?.toString();
-      return st == 'confirmed' || st == 'rejected';
-    }
-
-    final List<Map<String, dynamic>> pendingConvocatorias = allConvocatorias
-        .where((c) {
-          if (isResponded(c)) return false;
-          final id = c['id']?.toString() ?? '';
-          final mId = c['matchId']?.toString() ?? '';
-          final pId = c['playerId']?.toString() ?? '';
-          final key = '${mId}_$pId';
-          return !_handledConvocatoriaIds.contains(id) &&
-              !_handledConvocatoriaIds.contains(key);
-        })
-        .toList();
-    final List<Map<String, dynamic>> respondedConvocatorias = allConvocatorias
-        .where((c) => isResponded(c) && _isConvocatoriaUpcoming(c))
-        .toList();
 
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin
@@ -1712,20 +1620,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SliverToBoxAdapter(child: SizedBox(height: 14)),
             const SliverToBoxAdapter(child: ClubSocialBanner()),
 
-            // ─── Convocatoria Pending Cards (For Tutors) ───
-            if (pendingConvocatorias.isNotEmpty ||
-                respondedConvocatorias.isNotEmpty) ...[
+            // ─── Convocatoria Cards (For Tutors): pending + answered ───
+            if (tutorConvocatorias.isNotEmpty) ...[
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
-                    children: [
-                      ...pendingConvocatorias
-                          .map((c) => _buildTutorConvocatoriaCard(c)),
-                      ...respondedConvocatorias
-                          .map((c) => _buildRespondedConvocatoriaCard(c)),
-                    ],
+                    children: tutorConvocatorias
+                        .map((c) => _buildTutorConvocatoriaCard(c))
+                        .toList(),
                   ),
                 ),
               ),
@@ -2326,7 +2230,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             textAlign: TextAlign.center,
                                           ),
                                           const SizedBox(height: 10),
-                                          EmojiRichText(
+                                          Text(
                                             post['body'] ?? '',
                                             style: context.typography.bodyLarge
                                                 .copyWith(
@@ -2387,7 +2291,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 style: context.typography.titleMedium,
                               ),
                               const SizedBox(height: 6),
-                              EmojiRichText(
+                              Text(
                                 post['body'] ?? '',
                                 style: context.typography.bodyMedium,
                               ),
@@ -2627,7 +2531,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                     ],
                                                   ),
                                                   const SizedBox(height: 4),
-                                                  EmojiRichText(
+                                                  Text(
                                                     comment['text'] ?? '',
                                                     style: context
                                                         .typography
@@ -3376,7 +3280,7 @@ Widget _buildMatchPostCard(
           post['body'].toString().trim().isNotEmpty &&
           post['body'].toString().trim() != 'Convocatoria y detalles del partido') ...[
         const SizedBox(height: 6),
-        EmojiRichText(
+        Text(
           post['body'],
           style: context.typography.bodyMedium,
         ),

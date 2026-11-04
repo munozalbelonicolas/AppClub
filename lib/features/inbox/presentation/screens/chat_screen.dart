@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,7 +6,6 @@ import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/emoji_rich_text.dart';
 import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 
@@ -43,62 +42,9 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _messageController = EmojiRichTextEditingController();
   final _scrollController = ScrollController();
-  late Stream<QuerySnapshot> _messagesStream;
-  int _messagesLimit = 50;
-  bool _isLoadingMore = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initMessagesStream();
-    _scrollController.addListener(_onScroll);
-  }
-
-  void _initMessagesStream() {
-    _messagesStream = FirebaseFirestore.instance
-        .collection('inbox_threads')
-        .doc(widget.threadId)
-        .collection('messages')
-        .orderBy('createdAt', descending: true)
-        .limit(_messagesLimit)
-        .snapshots();
-  }
-
-  void _onScroll() {
-    if (_scrollController.hasClients &&
-        _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 100 &&
-        !_isLoadingMore) {
-      _loadMoreMessages();
-    }
-  }
-
-  void _loadMoreMessages() {
-    setState(() {
-      _isLoadingMore = true;
-      _messagesLimit += 50;
-      _initMessagesStream();
-    });
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) {
-        setState(() => _isLoadingMore = false);
-      }
-    });
-  }
-
-  @override
-  void didUpdateWidget(ChatScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.threadId != widget.threadId) {
-      _messagesLimit = 50;
-      setState(() {
-        _initMessagesStream();
-      });
-    }
-  }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -321,7 +267,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _messagesStream,
+              stream: FirebaseFirestore.instance
+                  .collection('inbox_threads')
+                  .doc(widget.threadId)
+                  .collection('messages')
+                  .orderBy('createdAt', descending: true)
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -480,14 +431,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ],
           ),
-          child: EmojiRichText(
-            text,
-            style: context.typography.bodyMedium.copyWith(
-              color: isMe ? Colors.white : context.colors.textPrimary,
-              height: 1.35,
-            ),
-            darkBackground: isMe,
-          ),
+          child: _buildRichMessageText(text, isMe, context),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -501,7 +445,189 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  Widget _buildRichMessageText(String text, bool isMe, BuildContext context) {
+    final baseStyle = context.typography.bodyMedium.copyWith(
+      color: isMe ? Colors.white : context.colors.textPrimary,
+      height: 1.35,
+    );
+    final fontSize = baseStyle.fontSize ?? 14.0;
 
+    final regex = RegExp(r'(❤️|❤|🖤|🤍|💚|💛|🧡|💙|💜|💔|💖|💗)');
+    final spans = <InlineSpan>[];
+
+    int lastMatchEnd = 0;
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastMatchEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastMatchEnd, match.start),
+          style: baseStyle,
+        ));
+      }
+
+      final matchedEmoji = match.group(0)!;
+      switch (matchedEmoji) {
+        case '❤️':
+        case '❤':
+        case '💖':
+        case '💗':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFFE53935),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '🖤':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.favorite,
+                      color: isMe ? Colors.white70 : context.colors.border,
+                      size: fontSize + 5.5,
+                    ),
+                    Icon(
+                      Icons.favorite,
+                      color: const Color(0xFF141414),
+                      size: fontSize + 3.5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+          break;
+        case '🤍':
+          spans.add(
+            const WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 1.5),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.favorite,
+                      color: Colors.black45,
+                      size: 19,
+                    ),
+                    Icon(
+                      Icons.favorite,
+                      color: Colors.white,
+                      size: 17,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+          break;
+        case '💚':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFF43A047),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '💛':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFFFFD600),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '🧡':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFFFF9100),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '💙':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFF2979FF),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        case '💜':
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Icon(
+                  Icons.favorite,
+                  color: const Color(0xFFAA00FF),
+                  size: fontSize + 4,
+                ),
+              ),
+            ),
+          );
+          break;
+        default:
+          spans.add(TextSpan(text: matchedEmoji, style: baseStyle));
+      }
+
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastMatchEnd),
+        style: baseStyle,
+      ));
+    }
+
+    return Text.rich(
+      TextSpan(children: spans),
+      style: baseStyle,
+    );
+  }
 
   Widget _buildMessageInput(dynamic currentUser) {
     // In audit mode, hide the input form and show a read-only banner instead
@@ -655,7 +781,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              EmojiRichText(emoji, style: context.typography.bodyMedium),
+              _buildRichMessageText(emoji, false, context),
               if (label != null) ...[
                 const SizedBox(width: 4),
                 Text(

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/providers/notifications_provider.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -284,9 +283,13 @@ class _DirectorConsoleScreenState extends ConsumerState<DirectorConsoleScreen> {
       appBar: AppBar(
         title: const Text('Consola del Director'),
         actions: [
-          Consumer(
-            builder: (context, ref, _) {
-              final unreadCount = ref.watch(unreadNotificationsCountProvider).value ?? 0;
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('notifications')
+                .where('read', isEqualTo: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data?.docs.length ?? 0;
               return Stack(
                 alignment: Alignment.center,
                 children: [
@@ -935,21 +938,13 @@ class _SupportEmailConfigCardState extends State<_SupportEmailConfigCard> {
     }
   }
 
-  late final Stream<DocumentSnapshot> _supportSettingsStream;
-
-  @override
-  void initState() {
-    super.initState();
-    _supportSettingsStream = FirebaseFirestore.instance
-        .collection('config')
-        .doc('support_settings')
-        .snapshots();
-  }
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
-      stream: _supportSettingsStream,
+      stream: FirebaseFirestore.instance
+          .collection('config')
+          .doc('support_settings')
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasData && snapshot.data!.exists) {
           final data = snapshot.data!.data() as Map<String, dynamic>?;
