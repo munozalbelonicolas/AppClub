@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -101,7 +100,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             ref.watch(tutorPlayersStreamProvider(user.id)).when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
               data: (children) {
                 if (children.isEmpty) {
                   return JNCard(

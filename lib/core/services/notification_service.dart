@@ -27,6 +27,19 @@ class NotificationService {
     importance: Importance.max,
   );
 
+  /// Determina si una categoría representa un aviso global / masivo para todo el club
+  /// (como comunicados generales, deportivos o administrativos institucionales).
+  static bool isBroadcastCategory(String? category) {
+    if (category == null || category.trim().isEmpty) return true;
+    final cat = category.toLowerCase().trim();
+    return cat == 'all' ||
+        cat == 'todos' ||
+        cat == 'general' ||
+        cat == 'deportivo' ||
+        cat == 'administrativo' ||
+        cat == 'institucional';
+  }
+
   bool _initialized = false;
 
   Future<void> initialize() async {
@@ -252,9 +265,7 @@ class NotificationService {
               isForMe = userRole != null &&
                   userRole.toLowerCase() == targetRole.toLowerCase();
             } else if (targetCategory.isNotEmpty &&
-                targetCategory != 'all' &&
-                targetCategory != 'todos' &&
-                targetCategory != 'general') {
+                !isBroadcastCategory(targetCategory)) {
               final catLower = targetCategory.toLowerCase().trim();
               final isMatchUserCat = userCategory != null &&
                   userCategory.isNotEmpty &&
@@ -368,9 +379,10 @@ class NotificationService {
       _recentlySentNotifications[sendKey] = now;
 
       final effectiveTargetUser = targetUserId ?? 'all';
+      final isBroadcast = isBroadcastCategory(targetCategory);
       final effectiveTargetCat = (targetUserId != null && targetUserId != 'all' && targetCategory == null)
           ? null
-          : (targetCategory ?? 'all');
+          : (isBroadcast ? 'all' : (targetCategory ?? 'all'));
 
       // 1. Guardar documento en Firestore (para notificaciones en tiempo real in-app)
       await FirebaseFirestore.instance.collection('notifications').add({

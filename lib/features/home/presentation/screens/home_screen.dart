@@ -18,6 +18,7 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_rich_text.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_card.dart';
 import '../../../../core/widgets/jn_match_card.dart';
@@ -63,7 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         matchId: matchId,
         playerId: playerId,
         status: 'confirmed',
-        docId: docId,
+        tutorId: ref.read(currentUserProvider)?.id,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -158,8 +159,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   matchId: matchId,
                   playerId: playerId,
                   status: 'rejected',
+                  tutorId: ref.read(currentUserProvider)?.id,
                   rejectionReason: reasonController.text.trim(),
-                  docId: docId,
                 );
                 final sUser = ref.read(currentUserProvider);
                 if (category != null && category.isNotEmpty) {
@@ -199,6 +200,86 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               }
             },
             child: const Text('Confirmar Ausencia'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Oculta convocatorias respondidas de partidos ya pasados (si la fecha es legible).
+  bool _isConvocatoriaUpcoming(Map<String, dynamic> c) {
+    final raw = c['date'] ?? c['matchDate'] ?? c['eventDate'] ?? c['dateYMD'];
+    DateTime? d;
+    if (raw is Timestamp) {
+      d = raw.toDate();
+    } else if (raw != null) {
+      d = DateTime.tryParse(raw.toString());
+    }
+    if (d == null) return true;
+    return d.isAfter(DateTime.now().subtract(const Duration(days: 1)));
+  }
+
+  Widget _buildRespondedConvocatoriaCard(Map<String, dynamic> item) {
+    final confirmed = item['status'] == 'confirmed';
+    final color = confirmed ? const Color(0xFF34D399) : const Color(0xFFF87171);
+    final playerName = item['playerName'] ?? 'Jugador';
+    final rival = (item['awayTeam'] ?? item['rival'] ?? '').toString();
+    final matchId = item['matchId']?.toString() ?? '';
+    final playerId = item['playerId']?.toString() ?? '';
+    final category = item['category']?.toString() ?? '';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        children: [
+          Icon(confirmed ? Icons.check_circle : Icons.cancel, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  confirmed
+                      ? 'Asistencia confirmada: $playerName'
+                      : '$playerName no asistirá',
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                if (rival.isNotEmpty)
+                  Text(
+                    'vs $rival',
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => confirmed
+                ? _rejectAttendance(
+                    matchId: matchId,
+                    playerId: playerId,
+                    playerName: playerName.toString(),
+                    docId: item['id']?.toString(),
+                    category: category,
+                  )
+                : _confirmAttendance(
+                    matchId: matchId,
+                    playerId: playerId,
+                    playerName: playerName.toString(),
+                    docId: item['id']?.toString(),
+                  ),
+            child: Text(confirmed ? 'Cambiar' : 'Confirmar'),
           ),
         ],
       ),
@@ -1332,17 +1413,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final tutorConvocatoriasAsync = isTutorOrPlayer
         ? ref.watch(tutorConvocatoriasProvider(sessionUser.id))
         : null;
-    final List<Map<String, dynamic>> pendingConvocatorias =
-        (tutorConvocatoriasAsync?.valueOrNull ?? [])
-            .where((c) {
-              final id = c['id']?.toString() ?? '';
-              final mId = c['matchId']?.toString() ?? '';
-              final pId = c['playerId']?.toString() ?? '';
-              final key = '${mId}_$pId';
-              return !_handledConvocatoriaIds.contains(id) &&
-                     !_handledConvocatoriaIds.contains(key);
-            })
-            .toList();
+    final List<Map<String, dynamic>> allConvocatorias =
+        tutorConvocatoriasAsync?.valueOrNull ?? [];
+    bool isResponded(Map<String, dynamic> c) {
+      final st = c['status']?.toString();
+      return st == 'confirmed' || st == 'rejected';
+    }
+
+    final List<Map<String, dynamic>> pendingConvocatorias = allConvocatorias
+        .where((c) {
+          if (isResponded(c)) return false;
+          final id = c['id']?.toString() ?? '';
+          final mId = c['matchId']?.toString() ?? '';
+          final pId = c['playerId']?.toString() ?? '';
+          final key = '${mId}_$pId';
+          return !_handledConvocatoriaIds.contains(id) &&
+              !_handledConvocatoriaIds.contains(key);
+        })
+        .toList();
+    final List<Map<String, dynamic>> respondedConvocatorias = allConvocatorias
+        .where((c) => isResponded(c) && _isConvocatoriaUpcoming(c))
+        .toList();
 
     // Listen to novedades dynamically based on user role and category
     final novedadesAsync = sessionUser.isAdmin
@@ -1622,15 +1713,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SliverToBoxAdapter(child: ClubSocialBanner()),
 
             // ─── Convocatoria Pending Cards (For Tutors) ───
-            if (pendingConvocatorias.isNotEmpty) ...[
+            if (pendingConvocatorias.isNotEmpty ||
+                respondedConvocatorias.isNotEmpty) ...[
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
-                    children: pendingConvocatorias
-                        .map((c) => _buildTutorConvocatoriaCard(c))
-                        .toList(),
+                    children: [
+                      ...pendingConvocatorias
+                          .map((c) => _buildTutorConvocatoriaCard(c)),
+                      ...respondedConvocatorias
+                          .map((c) => _buildRespondedConvocatoriaCard(c)),
+                    ],
                   ),
                 ),
               ),
@@ -2231,7 +2326,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             textAlign: TextAlign.center,
                                           ),
                                           const SizedBox(height: 10),
-                                          Text(
+                                          EmojiRichText(
                                             post['body'] ?? '',
                                             style: context.typography.bodyLarge
                                                 .copyWith(
@@ -2292,7 +2387,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 style: context.typography.titleMedium,
                               ),
                               const SizedBox(height: 6),
-                              Text(
+                              EmojiRichText(
                                 post['body'] ?? '',
                                 style: context.typography.bodyMedium,
                               ),
@@ -2532,7 +2627,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                     ],
                                                   ),
                                                   const SizedBox(height: 4),
-                                                  Text(
+                                                  EmojiRichText(
                                                     comment['text'] ?? '',
                                                     style: context
                                                         .typography
@@ -3281,7 +3376,7 @@ Widget _buildMatchPostCard(
           post['body'].toString().trim().isNotEmpty &&
           post['body'].toString().trim() != 'Convocatoria y detalles del partido') ...[
         const SizedBox(height: 6),
-        Text(
+        EmojiRichText(
           post['body'],
           style: context.typography.bodyMedium,
         ),

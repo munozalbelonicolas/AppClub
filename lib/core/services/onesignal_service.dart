@@ -202,6 +202,18 @@ class OneSignalService {
     await setUserTags({'category': category});
   }
 
+  /// Determina si una categoría representa un aviso global / masivo para todo el club.
+  static bool isBroadcastCategory(String? category) {
+    if (category == null || category.trim().isEmpty) return true;
+    final cat = category.toLowerCase().trim();
+    return cat == 'all' ||
+        cat == 'todos' ||
+        cat == 'general' ||
+        cat == 'deportivo' ||
+        cat == 'administrativo' ||
+        cat == 'institucional';
+  }
+
   /// Construye el cuerpo que se envía a la API REST de OneSignal.
   ///
   /// Se expone para poder validarlo en pruebas unitarias sin tocar la red.
@@ -272,9 +284,7 @@ class OneSignalService {
       ];
     } else if (targetCategory != null &&
         targetCategory.isNotEmpty &&
-        targetCategory != 'all' &&
-        targetCategory != 'todos' &&
-        targetCategory != 'general') {
+        !isBroadcastCategory(targetCategory)) {
       final catClean = targetCategory.toLowerCase().trim();
       payload['filters'] = [
         {
@@ -464,7 +474,10 @@ class OneSignalService {
       }
 
       // 2. Comunicados / Novedades
-      if (type == 'announcement' || type == 'novedad' || type == 'novedades') {
+      if (type == 'announcement' ||
+          type == 'novedad' ||
+          type == 'novedades' ||
+          type == 'comunicado') {
         NavigationService.navigateTo(const CommunicationsScreen());
         return;
       }

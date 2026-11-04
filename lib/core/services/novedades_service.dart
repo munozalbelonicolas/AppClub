@@ -142,9 +142,7 @@ class NovedadesService {
       }
 
       final targetCategory = (rawCategory.isEmpty ||
-              rawCategory.toLowerCase() == 'all' ||
-              rawCategory.toLowerCase() == 'todos' ||
-              rawCategory.toLowerCase() == 'general')
+              NotificationService.isBroadcastCategory(rawCategory))
           ? 'all'
           : rawCategory;
 

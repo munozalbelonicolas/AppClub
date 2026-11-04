@@ -1,4 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +6,7 @@ import '../../../../core/providers/session_provider.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_rich_text.dart';
 import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 
@@ -479,7 +480,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ],
           ),
-          child: _buildRichMessageText(text, isMe, context),
+          child: EmojiRichText(
+            text,
+            style: context.typography.bodyMedium.copyWith(
+              color: isMe ? Colors.white : context.colors.textPrimary,
+              height: 1.35,
+            ),
+            darkBackground: isMe,
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -493,189 +501,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildRichMessageText(String text, bool isMe, BuildContext context) {
-    final baseStyle = context.typography.bodyMedium.copyWith(
-      color: isMe ? Colors.white : context.colors.textPrimary,
-      height: 1.35,
-    );
-    final fontSize = baseStyle.fontSize ?? 14.0;
 
-    final regex = RegExp(r'(❤️|❤|🖤|🤍|💚|💛|🧡|💙|💜|💔|💖|💗)');
-    final spans = <InlineSpan>[];
-
-    int lastMatchEnd = 0;
-    for (final match in regex.allMatches(text)) {
-      if (match.start > lastMatchEnd) {
-        spans.add(TextSpan(
-          text: text.substring(lastMatchEnd, match.start),
-          style: baseStyle,
-        ));
-      }
-
-      final matchedEmoji = match.group(0)!;
-      switch (matchedEmoji) {
-        case '❤️':
-        case '❤':
-        case '💖':
-        case '💗':
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Icon(
-                  Icons.favorite,
-                  color: const Color(0xFFE53935),
-                  size: fontSize + 4,
-                ),
-              ),
-            ),
-          );
-          break;
-        case '🖤':
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(
-                      Icons.favorite,
-                      color: isMe ? Colors.white70 : context.colors.border,
-                      size: fontSize + 5.5,
-                    ),
-                    Icon(
-                      Icons.favorite,
-                      color: const Color(0xFF141414),
-                      size: fontSize + 3.5,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-          break;
-        case '🤍':
-          spans.add(
-            const WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 1.5),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(
-                      Icons.favorite,
-                      color: Colors.black45,
-                      size: 19,
-                    ),
-                    Icon(
-                      Icons.favorite,
-                      color: Colors.white,
-                      size: 17,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-          break;
-        case '💚':
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Icon(
-                  Icons.favorite,
-                  color: const Color(0xFF43A047),
-                  size: fontSize + 4,
-                ),
-              ),
-            ),
-          );
-          break;
-        case '💛':
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Icon(
-                  Icons.favorite,
-                  color: const Color(0xFFFFD600),
-                  size: fontSize + 4,
-                ),
-              ),
-            ),
-          );
-          break;
-        case '🧡':
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Icon(
-                  Icons.favorite,
-                  color: const Color(0xFFFF9100),
-                  size: fontSize + 4,
-                ),
-              ),
-            ),
-          );
-          break;
-        case '💙':
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Icon(
-                  Icons.favorite,
-                  color: const Color(0xFF2979FF),
-                  size: fontSize + 4,
-                ),
-              ),
-            ),
-          );
-          break;
-        case '💜':
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Icon(
-                  Icons.favorite,
-                  color: const Color(0xFFAA00FF),
-                  size: fontSize + 4,
-                ),
-              ),
-            ),
-          );
-          break;
-        default:
-          spans.add(TextSpan(text: matchedEmoji, style: baseStyle));
-      }
-
-      lastMatchEnd = match.end;
-    }
-
-    if (lastMatchEnd < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastMatchEnd),
-        style: baseStyle,
-      ));
-    }
-
-    return Text.rich(
-      TextSpan(children: spans),
-      style: baseStyle,
-    );
-  }
 
   Widget _buildMessageInput(dynamic currentUser) {
     // In audit mode, hide the input form and show a read-only banner instead
@@ -829,7 +655,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildRichMessageText(emoji, false, context),
+              EmojiRichText(emoji, style: context.typography.bodyMedium),
               if (label != null) ...[
                 const SizedBox(width: 4),
                 Text(

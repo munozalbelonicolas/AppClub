@@ -1,15 +1,17 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/user_session.dart';
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/services/app_logger.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/emoji_rich_text.dart';
 import '../../../../core/widgets/emoji_text_controller.dart';
 import '../../../../core/widgets/jn_avatar.dart';
 import '../../../../core/widgets/jn_badge.dart';
@@ -472,13 +474,25 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                           final notifTargetCat = (eventType != 'ninguno' && selectedEventCategory != null && selectedEventCategory!.isNotEmpty)
                               ? selectedEventCategory!
                               : selectedCategory;
-                          await NotificationService().sendNotification(
+                          final pushSent = await NotificationService().sendNotification(
                             title: '📢 Nuevo Comunicado: ${titleController.text.trim()}',
                             body: bodyController.text.trim(),
                             authorId: sessionUser.id,
                             targetCategory: notifTargetCat,
+                            data: {
+                              'type': 'comunicado',
+                              'category': notifTargetCat,
+                            },
                           );
-                        } catch (_) {}
+                          if (!pushSent) {
+                            AppLogger.warning(
+                              'OneSignal push no enviado: ${NotificationService.lastPushError}',
+                              tag: 'Communications',
+                            );
+                          }
+                        } catch (e) {
+                          AppLogger.error('Error al enviar push de comunicado', error: e, tag: 'Communications');
+                        }
 
                         if (context.mounted) {
                           Navigator.pop(context);
@@ -733,6 +747,8 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                       onSelected: (value) {
                         if (value == 'delete') {
                           _confirmDeleteAnnouncement(context, annId);
+                        } else if (value == 'resend_push') {
+                          _resendPushNotification(context, ann, sessionUser);
                         } else if (value == 'toggle_comments') {
                           ref
                               .read(announcementRepositoryProvider)
@@ -752,6 +768,23 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         }
                       },
                       itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'resend_push',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.notifications_active_outlined,
+                                size: 18,
+                                color: context.colors.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Reenviar Notificación Push',
+                                style: context.typography.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
                         PopupMenuItem(
                           value: 'export_story',
                           child: Row(
@@ -879,7 +912,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                     ],
                   ),
                 ),
-              Text(
+              EmojiRichText(
                 ann['body'] as String,
                 style: context.typography.bodyMedium,
               ),
@@ -1072,7 +1105,7 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                                       ],
                                     ),
                                     const SizedBox(height: 2),
-                                    Text(comment['text'] ?? '', style: context.typography.bodySmall),
+                                    EmojiRichText(comment['text'] ?? '', style: context.typography.bodySmall),
                                   ],
                                 ),
                               ),
@@ -1089,6 +1122,67 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
         ).animate(delay: (index * 80).ms).fadeIn(duration: 400.ms).slideX(begin: 0.03);
       },
     );
+  }
+
+  void _resendPushNotification(BuildContext context, Map<String, dynamic> ann, dynamic sessionUser) async {
+    final title = (ann['title'] ?? '').toString().trim();
+    final body = (ann['body'] ?? '').toString().trim();
+    final eventType = (ann['eventType'] ?? '').toString().toLowerCase();
+    final eventCat = (ann['eventCategory'] ?? '').toString();
+    final category = (ann['category'] ?? '').toString();
+
+    final targetCat = (eventType != 'ninguno' && eventCat.isNotEmpty)
+        ? eventCat
+        : category;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Enviando notificación push a los socios...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    try {
+      final pushSent = await NotificationService().sendNotification(
+        title: '📢 Nuevo Comunicado: $title',
+        body: body,
+        authorId: sessionUser.id ?? '',
+        targetCategory: targetCat,
+        data: {
+          'type': 'comunicado',
+          'announcementId': ann['id'] ?? '',
+          'category': targetCat,
+        },
+      );
+
+      if (context.mounted) {
+        if (pushSent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('¡Notificación Push enviada a todos los socios con éxito!'),
+              backgroundColor: context.colors.success,
+            ),
+          );
+        } else {
+          final error = NotificationService.lastPushError ?? 'No se pudo enviar.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Aviso de envío: $error'),
+              backgroundColor: context.colors.warning,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al enviar push: $e'),
+            backgroundColor: context.colors.error,
+          ),
+        );
+      }
+    }
   }
 
   void _confirmDeleteAnnouncement(BuildContext context, String annId) {
