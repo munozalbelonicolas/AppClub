@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'app_logger.dart';
 import 'notification_service.dart';
+import 'onesignal_service.dart';
 
 /// Service for feed/novedades operations (SRP: handles only news feed domain)
 class NovedadesService {
@@ -129,12 +130,8 @@ class NovedadesService {
         notifBody = rawBody.isNotEmpty ? rawBody : 'Hay una nueva publicación en el club.';
       }
 
-      final targetCategory = (rawCategory.isEmpty ||
-              rawCategory.toLowerCase() == 'all' ||
-              rawCategory.toLowerCase() == 'todos' ||
-              rawCategory.toLowerCase() == 'general')
-          ? 'all'
-          : rawCategory;
+      final targetCategory =
+          OneSignalService.isBroadcastCategory(rawCategory) ? 'all' : rawCategory;
 
       await NotificationService().sendNotification(
         title: notifTitle,

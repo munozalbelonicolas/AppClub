@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/services/onesignal_service.dart';
 import '../../../../core/theme/app_theme_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../coach_panel/presentation/screens/coach_reports_admin_screen.dart';
@@ -327,6 +328,14 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
                 // Pedidos de tienda para administradores
                 if (type == 'new_order') return true;
 
+                // Comunicados y avisos generales para todo el club
+                if (type == 'comunicado' ||
+                    type == 'announcement' ||
+                    type == 'novedad' ||
+                    (targetCat.isNotEmpty && OneSignalService.isBroadcastCategory(targetCat))) {
+                  return true;
+                }
+
                 return false;
               }
 
@@ -355,10 +364,7 @@ class _AdminNotificationsDialogState extends State<_AdminNotificationsDialog> {
               }
 
               // 5. Filtrado por categoría de destino
-              if (targetCat.isNotEmpty &&
-                  targetCat != 'all' &&
-                  targetCat != 'todos' &&
-                  targetCat != 'general') {
+              if (!OneSignalService.isBroadcastCategory(targetCat)) {
                 // Coincidencia con categoría principal
                 if (sUser?.category != null &&
                     targetCat == sUser!.category!.toLowerCase().trim()) {

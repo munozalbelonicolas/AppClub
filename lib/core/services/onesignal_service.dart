@@ -163,6 +163,22 @@ class OneSignalService {
     return true;
   }
 
+  /// Categorías de comunicados que no son categorías de jugadores: van a todos.
+  static const Set<String> _broadcastCategories = {
+    'all',
+    'todos',
+    'general',
+    'club',
+    'deportivo',
+    'administrativo',
+    'institucional',
+  };
+
+  static bool isBroadcastCategory(String? category) {
+    final normalized = (category ?? '').trim().toLowerCase();
+    return normalized.isEmpty || _broadcastCategories.contains(normalized);
+  }
+
   /// Envía una notificación Push vía OneSignal REST API.
   /// Se puede enviar a un usuario específico (targetUserId),
   /// a una categoría específica (targetCategory) o a todos los usuarios ('all').
@@ -182,6 +198,8 @@ class OneSignalService {
         'contents': {'es': body, 'en': body},
         'small_icon': 'ic_stat_onesignal_default',
         'target_channel': 'push',
+        'existing_android_channel_id': 'high_importance_channel',
+        'priority': 10,
         'data': ?data,
       };
 
@@ -227,11 +245,7 @@ class OneSignalService {
             'value': 'true',
           }
         ];
-      } else if (targetCategory != null &&
-          targetCategory.isNotEmpty &&
-          targetCategory != 'all' &&
-          targetCategory != 'todos' &&
-          targetCategory != 'general') {
+      } else if (targetCategory != null && !isBroadcastCategory(targetCategory)) {
         final catClean = targetCategory.toLowerCase().trim();
         payload['filters'] = [
           {
@@ -315,7 +329,10 @@ class OneSignalService {
       }
 
       // 2. Comunicados / Novedades
-      if (type == 'announcement' || type == 'novedad' || type == 'novedades') {
+      if (type == 'announcement' ||
+          type == 'comunicado' ||
+          type == 'novedad' ||
+          type == 'novedades') {
         NavigationService.navigateTo(const CommunicationsScreen());
         return;
       }

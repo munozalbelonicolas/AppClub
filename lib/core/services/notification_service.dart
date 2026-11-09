@@ -231,10 +231,7 @@ class NotificationService {
                 targetRole != 'todos') {
               isForMe = userRole != null &&
                   userRole.toLowerCase() == targetRole.toLowerCase();
-            } else if (targetCategory.isNotEmpty &&
-                targetCategory != 'all' &&
-                targetCategory != 'todos' &&
-                targetCategory != 'general') {
+            } else if (!OneSignalService.isBroadcastCategory(targetCategory)) {
               final catLower = targetCategory.toLowerCase().trim();
               final isMatchUserCat = userCategory != null &&
                   userCategory.isNotEmpty &&
@@ -319,8 +316,9 @@ class NotificationService {
     );
   }
 
-  /// Helper to push a new notification document to Firestore and trigger OneSignal Push
-  Future<void> sendNotification({
+  /// Guarda la notificación en Firestore y envía el push por OneSignal.
+  /// Devuelve true solo si OneSignal aceptó el push.
+  Future<bool> sendNotification({
     required String title,
     required String body,
     required String authorId,
@@ -328,20 +326,20 @@ class NotificationService {
     String? targetCategory,
     Map<String, dynamic>? data,
   }) async {
-    try {
-      final now = DateTime.now();
-      _recentlySentNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 10);
-      final sendKey = '${title.trim().toLowerCase()}:${body.trim().toLowerCase()}:${targetUserId ?? ''}:${targetCategory ?? ''}';
-      if (_recentlySentNotifications.containsKey(sendKey)) {
-        AppLogger.warning('🛑 Notificación saliente duplicada prevenida: $title', tag: 'NotificationService');
-        return;
-      }
-      _recentlySentNotifications[sendKey] = now;
+    final now = DateTime.now();
+    _recentlySentNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 10);
+    final sendKey = '${title.trim().toLowerCase()}:${body.trim().toLowerCase()}:${targetUserId ?? ''}:${targetCategory ?? ''}';
+    if (_recentlySentNotifications.containsKey(sendKey)) {
+      AppLogger.warning('🛑 Notificación saliente duplicada prevenida: $title', tag: 'NotificationService');
+      return true;
+    }
+    _recentlySentNotifications[sendKey] = now;
 
+    try {
       final effectiveTargetUser = targetUserId ?? 'all';
       final effectiveTargetCat = (targetUserId != null && targetUserId != 'all' && targetCategory == null)
           ? null
-          : (targetCategory ?? 'all');
+          : (OneSignalService.isBroadcastCategory(targetCategory) ? 'all' : targetCategory);
 
       // 1. Guardar documento en Firestore (para notificaciones en tiempo real in-app)
       await FirebaseFirestore.instance.collection('notifications').add({
@@ -357,7 +355,7 @@ class NotificationService {
       });
 
       // 2. Enviar notificación Push real a los dispositivos vía OneSignal
-      await OneSignalService().sendPushNotification(
+      final pushOk = await OneSignalService().sendPushNotification(
         title: title,
         body: body,
         targetUserId: effectiveTargetUser,
@@ -367,8 +365,13 @@ class NotificationService {
           ...?data,
         },
       );
+      // Si falló, liberar la clave para permitir reintentar enseguida
+      if (!pushOk) _recentlySentNotifications.remove(sendKey);
+      return pushOk;
     } catch (e) {
+      _recentlySentNotifications.remove(sendKey);
       AppLogger.error('Error sending notification doc', error: e, tag: 'FCM');
+      return false;
     }
   }
 

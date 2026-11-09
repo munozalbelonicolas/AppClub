@@ -24,5 +24,16 @@ void main() {
         isFalse,
       );
     });
+
+    test('categorías institucionales de comunicados van a todos', () {
+      for (final cat in ['deportivo', 'Administrativo', 'institucional', 'todos', 'all', 'general', '', null]) {
+        expect(OneSignalService.isBroadcastCategory(cat), isTrue, reason: '$cat');
+      }
+    });
+
+    test('una categoría de jugadores no es envío masivo', () {
+      expect(OneSignalService.isBroadcastCategory('2015'), isFalse);
+      expect(OneSignalService.isBroadcastCategory('admin'), isFalse);
+    });
   });
 }

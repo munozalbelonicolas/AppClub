@@ -468,24 +468,25 @@ class _CommunicationsScreenState extends ConsumerState<CommunicationsScreen> wit
                         });
 
                         // Disparar Notificación Push vía OneSignal
-                        try {
-                          final notifTargetCat = (eventType != 'ninguno' && selectedEventCategory != null && selectedEventCategory!.isNotEmpty)
-                              ? selectedEventCategory!
-                              : selectedCategory;
-                          await NotificationService().sendNotification(
-                            title: '📢 Nuevo Comunicado: ${titleController.text.trim()}',
-                            body: bodyController.text.trim(),
-                            authorId: sessionUser.id,
-                            targetCategory: notifTargetCat,
-                          );
-                        } catch (_) {}
+                        final notifTargetCat = (eventType != 'ninguno' && selectedEventCategory != null && selectedEventCategory!.isNotEmpty)
+                            ? selectedEventCategory!
+                            : selectedCategory;
+                        final pushOk = await NotificationService().sendNotification(
+                          title: '📢 Nuevo Comunicado: ${titleController.text.trim()}',
+                          body: bodyController.text.trim(),
+                          authorId: sessionUser.id,
+                          targetCategory: notifTargetCat,
+                          data: {'type': 'comunicado'},
+                        );
 
                         if (context.mounted) {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text('Comunicado oficial publicado con éxito!'),
-                              backgroundColor: context.colors.success,
+                              content: Text(pushOk
+                                  ? 'Comunicado oficial publicado con éxito!'
+                                  : 'Comunicado publicado, pero no se pudo enviar la notificación push.'),
+                              backgroundColor: pushOk ? context.colors.success : context.colors.warning,
                             ),
                           );
                         }

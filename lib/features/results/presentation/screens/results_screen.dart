@@ -1622,7 +1622,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
                       );
                     }
                   },
-                  child: const Text('Guardar Resultado', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  child: const Text('Guardar Resultado', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -2718,7 +2718,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
     );
 
     if (confirm == true && context.mounted) {
-      await NotificationService().sendNotification(
+      final pushOk = await NotificationService().sendNotification(
         title: '📊 Tablas y Planillas Actualizadas',
         body: 'Se actualizaron las planillas oficiales y la tabla de posiciones de la liga. ¡Revisalas en la app!',
         authorId: sUser?.id ?? '',
@@ -2729,9 +2729,11 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen>
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Notificación push enviada a todos los usuarios.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(pushOk
+                ? 'Notificación push enviada a todos los usuarios.'
+                : 'No se pudo enviar la notificación push. Probá de nuevo.'),
+            backgroundColor: pushOk ? Colors.green : context.colors.error,
           ),
         );
       }
