@@ -143,6 +143,26 @@ class OneSignalService {
     await setUserTags({'category': category});
   }
 
+  /// Segmento de OneSignal con todos los dispositivos suscriptos. Debe existir en el panel:
+  /// si se manda un nombre inexistente (ej. 'Subscribed Users') la API rechaza el envío.
+  static const String broadcastSegment = 'Total Subscriptions';
+
+  /// OneSignal puede responder 200 con `errors` (ej. sin destinatarios): eso no es un envío exitoso.
+  static bool isSuccessfulResponse(int statusCode, String body) {
+    if (statusCode != 200 && statusCode != 201) return false;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map) {
+        final errors = decoded['errors'];
+        if (errors is List && errors.isNotEmpty) return false;
+        if (errors is Map && errors.isNotEmpty) return false;
+        final id = decoded['id']?.toString() ?? '';
+        if (decoded.containsKey('id') && id.isEmpty) return false;
+      }
+    } catch (_) {}
+    return true;
+  }
+
   /// Envía una notificación Push vía OneSignal REST API.
   /// Se puede enviar a un usuario específico (targetUserId),
   /// a una categoría específica (targetCategory) o a todos los usuarios ('all').
@@ -231,7 +251,7 @@ class OneSignalService {
           }
         ];
       } else {
-        payload['included_segments'] = ['Subscribed Users'];
+        payload['included_segments'] = [broadcastSegment];
       }
 
       final Map<String, String> headers = {
@@ -247,12 +267,19 @@ class OneSignalService {
         body: jsonEncode(payload),
       );
 
-      AppLogger.debug(
-        '📡 OneSignal Push Response [${response.statusCode}]: ${response.body}',
-        tag: 'OneSignal',
-      );
-
-      return response.statusCode == 200 || response.statusCode == 201;
+      final ok = isSuccessfulResponse(response.statusCode, response.body);
+      if (ok) {
+        AppLogger.debug(
+          '📡 OneSignal Push Response [${response.statusCode}]: ${response.body}',
+          tag: 'OneSignal',
+        );
+      } else {
+        AppLogger.warning(
+          '⚠️ OneSignal rechazó el push "$title" [${response.statusCode}]: ${response.body}',
+          tag: 'OneSignal',
+        );
+      }
+      return ok;
     } catch (e) {
       AppLogger.error('❌ Error enviando Push por OneSignal', error: e, tag: 'OneSignal');
       return false;
